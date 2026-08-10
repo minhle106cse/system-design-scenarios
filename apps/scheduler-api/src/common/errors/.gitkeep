@@ -1,5 +1,0 @@
-Domain-specific ApplicationError subclasses go here (e.g. AppointmentSlotConflictError,
-TechnicianNotQualifiedError) once the scheduler domain exists — see
-directives/domain_modeling.md for the pattern (extend ApplicationError from
-@scheduler/shared-kernel, set `statusCode` + `code`). Empty at init: this repo has no
-business logic yet (.ai/plans/init-source.plan.md §8).
