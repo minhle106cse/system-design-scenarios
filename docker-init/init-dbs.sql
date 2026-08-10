@@ -1,0 +1,15 @@
+-- This repo has exactly one database. `POSTGRES_DB=${SCHEDULER_DB_NAME}` (see
+-- docker-compose.yml) already creates it via the Postgres entrypoint, so there
+-- is nothing left for this script to do on a fresh volume.
+--
+-- Cortex's version of this file creates 3 additional per-service databases —
+-- not needed here (single service, single DB, see .ai/plans/init-source.plan.md §0). Kept as
+-- an empty scaffold, not deleted, so the docker-compose.yml mount and the
+-- target tree shape stay honest about where DB init happens if that ever
+-- changes.
+--
+-- The `btree_gist` extension the anti-double-booking constraint needs (see
+-- docs/adr/0002-booking-concurrency-control.md) is NOT enabled here —
+-- it is enabled inside the first Prisma migration, so it is versioned with
+-- the schema instead of living in an unversioned init script. See
+-- .ai/plans/init-source.plan.md §8.2.

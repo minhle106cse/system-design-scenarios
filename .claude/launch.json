@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "scheduler-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace", "@scheduler/api"],
+      "port": 4002,
+      "autoPort": false
+    }
+  ]
+}

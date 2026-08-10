@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// INFRASTRUCTURE — Idempotency
+// ─────────────────────────────────────────────
+
+/// Ported verbatim (shape + comments) from Cortex's apps/core-api/prisma/schema.prisma
+/// — see .ai/plans/init-source.plan.md §8.1/§8.3. Consumed by the ported
+/// infrastructure/http/idempotency/idempotency.interceptor.ts; required at init or
+/// that file fails typecheck.
+///
+/// Idempotency key cache — prevents duplicate mutations from retried requests.
+/// Directly relevant to Scenario A: a double-submitted booking form must not
+/// create two appointments.
+model IdempotencyRecord {
+  key         String   @id // X-Idempotency-Key header value
+  // sha256(method + url + body) claimed under this key — detects a client
+  // reusing the same key for a genuinely different request (bug, or
+  // copy-pasted key), which must be rejected rather than silently replaying
+  // the wrong cached response.
+  requestHash String   @map("request_hash")
+  // NULL = key claimed, handler still running (concurrent-request guard —
+  // directives/idempotency_strategy.md). Filled in once the handler completes.
+  response    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+  expiresAt   DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("idempotency_records")
+}
+
+// ─────────────────────────────────────────────
+// OWNERSHIP CONTEXT — Customer, Vehicle
+// ─────────────────────────────────────────────
+
+model Customer {
+  id        String    @id @default(uuid(7))
+  name      String
+  email     String    @unique
+  phone     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  vehicles     Vehicle[]
+  appointments Appointment[]
+
+  @@map("customers")
+}
+
+model Vehicle {
+  id         String    @id @default(uuid(7))
+  customerId String    @map("customer_id")
+  vin        String    @unique
+  make       String
+  model      String
+  year       Int
+  createdAt  DateTime  @default(now()) @map("created_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  appointments Appointment[]
+
+  @@index([customerId])
+  @@map("vehicles")
+}
+
+// ─────────────────────────────────────────────
+// DEALERSHIP RESOURCES — ServiceBay, Technician, ServiceType
+// ─────────────────────────────────────────────
+
+model Dealership {
+  id        String    @id @default(uuid(7))
+  name      String
+  address   String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  serviceBays  ServiceBay[]
+  technicians  Technician[]
+  appointments Appointment[]
+
+  @@map("dealerships")
+}
+
+model ServiceBay {
+  id           String    @id @default(uuid(7))
+  dealershipId String    @map("dealership_id")
+  label        String // e.g. "Bay 3" — human-facing, shown in the booking UI/response
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  dealership   Dealership    @relation(fields: [dealershipId], references: [id])
+  appointments Appointment[]
+
+  @@index([dealershipId])
+  @@map("service_bays")
+}
+
+/// A technician's qualification to perform a given ServiceType. Requirement 2
+/// ("a qualified Technician") is a join, not a boolean flag on Technician —
+/// a technician can be qualified for some service types and not others, and a
+/// service type can require more than one kind of qualification over time.
+model Technician {
+  id           String    @id @default(uuid(7))
+  dealershipId String    @map("dealership_id")
+  name         String
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  dealership    Dealership              @relation(fields: [dealershipId], references: [id])
+  qualifications TechnicianServiceType[]
+  appointments  Appointment[]
+
+  @@index([dealershipId])
+  @@map("technicians")
+}
+
+model ServiceType {
+  id              String    @id @default(uuid(7))
+  name            String
+  durationMinutes Int       @map("duration_minutes")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  qualifiedTechnicians TechnicianServiceType[]
+  appointments         Appointment[]
+
+  @@map("service_types")
+}
+
+/// Join table: which technicians are qualified for which service types.
+/// Existence of a row = qualified. See Technician's doc comment.
+model TechnicianServiceType {
+  technicianId  String @map("technician_id")
+  serviceTypeId String @map("service_type_id")
+
+  technician  Technician  @relation(fields: [technicianId], references: [id])
+  serviceType ServiceType @relation(fields: [serviceTypeId], references: [id])
+
+  @@id([technicianId, serviceTypeId])
+  @@index([serviceTypeId])
+  @@map("technician_service_types")
+}
+
+// ─────────────────────────────────────────────
+// BOOKING — Appointment
+// ─────────────────────────────────────────────
+
+enum AppointmentStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+/// The double-booking guarantee lives partly here (application-level shape)
+/// and partly in raw SQL added by hand to this model's first migration — see
+/// docs/adr/0002-booking-concurrency-control.md. Prisma's schema DSL cannot
+/// express a Postgres `EXCLUDE USING gist` constraint, so:
+///
+///   1. This model defines the columns and the ordinary indexes below.
+///   2. `prisma migrate dev --create-only` generates the CREATE TABLE.
+///   3. The migration is then hand-edited to add `CREATE EXTENSION IF NOT
+///      EXISTS btree_gist;` and two exclusion constraints — one on
+///      (serviceBayId, timeRange), one on (technicianId, timeRange) — each
+///      scoped to `status = 'SCHEDULED'` so a cancelled slot frees the
+///      resource. See .ai/plans/init-source.plan.md §8.2 and the migration's own comments.
+///
+/// `startAt`/`endAt` are `timestamptz` (not Prisma's default naive timestamp)
+/// because the exclusion constraint needs a real `tstzrange`.
+model Appointment {
+  id            String            @id @default(uuid(7))
+  customerId    String            @map("customer_id")
+  vehicleId     String            @map("vehicle_id")
+  dealershipId  String            @map("dealership_id")
+  serviceTypeId String            @map("service_type_id")
+  serviceBayId  String            @map("service_bay_id")
+  technicianId  String            @map("technician_id")
+  startAt       DateTime          @map("start_at") @db.Timestamptz(3)
+  endAt         DateTime          @map("end_at") @db.Timestamptz(3)
+  status        AppointmentStatus @default(SCHEDULED)
+  createdAt     DateTime          @default(now()) @map("created_at")
+  deletedAt     DateTime?         @map("deleted_at")
+
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  vehicle     Vehicle     @relation(fields: [vehicleId], references: [id])
+  dealership  Dealership  @relation(fields: [dealershipId], references: [id])
+  serviceType ServiceType @relation(fields: [serviceTypeId], references: [id])
+  serviceBay  ServiceBay  @relation(fields: [serviceBayId], references: [id])
+  technician  Technician  @relation(fields: [technicianId], references: [id])
+
+  @@index([serviceBayId, startAt])
+  @@index([technicianId, startAt])
+  @@index([customerId])
+  @@map("appointments")
+}

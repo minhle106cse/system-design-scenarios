@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+
+# No rule_files at init — Cortex's rules.yml records rates over domain
+# counters (outbox backlog, Kafka consumer lag, DLQ rate) that don't exist in
+# this repo. The seam: once the scheduler domain exposes its own counters
+# (e.g. booking_conflict_total, availability_check_duration_seconds), add a
+# rules.yml here and reference it. See docs/09_devops_infrastructure.md.
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # apps/scheduler-api runs on the host (hot-reload, see RUN.md) — Docker's
+  # host.docker.internal lets the containerized Prometheus reach it.
+  - job_name: 'scheduler-api'
+    static_configs:
+      - targets: ['host.docker.internal:4002']
+
+# No postgres-exporter job at T1/T2 (.ai/plans/init-source.plan.md §7) — deliberately not added
+# as a permanently-red scrape target. Trigger: DB-level metrics (connection
+# pool saturation, replication lag) become a real operational question.
