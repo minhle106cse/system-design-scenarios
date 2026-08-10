@@ -87,7 +87,13 @@ is `npm run test:integration` (below).
 npm test          # all workspace tests (shared-kernel kernel specs + scheduler-api specs) — no Docker needed
 npm run test:cov  # with coverage
 npm run test:integration --workspace=@scheduler/api   # the concurrency proof — needs infra up + migrated (see above)
+npm run test:e2e --workspace=@scheduler/api           # the HTTP contract end to end — same prerequisites
 ```
+
+187 tests in total: 172 unit (no infra), 3 integration, 12 e2e. The last two are deliberately outside
+`npm test` so a fresh clone can run the suite before Docker is up — see
+[docs/08_testing_and_qa_strategy.md](docs/08_testing_and_qa_strategy.md) for why each suite enters
+the system at a different level.
 
 ## Stop
 
