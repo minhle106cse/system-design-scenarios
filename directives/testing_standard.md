@@ -17,8 +17,31 @@ so the same approach works whether an AI agent or a human writes the next test.
 - Test files (`*.spec.ts`) sit **directly next to** the source file they test (e.g.
   `book-appointment.handler.ts` → `book-appointment.handler.spec.ts`).
 - **Forbidden**: gathering unit tests into a root-level `test/`/`tests/` folder. Any `test/`
-  folder a framework CLI scaffolds by default gets deleted, or reserved strictly for E2E tests if
-  one is later added.
+  folder a framework CLI scaffolds by default gets deleted. This holds for **every** suffix below —
+  the e2e suite is co-located next to the controllers it drives, not exiled to `test/`.
+
+#### 1.1 Three suffixes, three Jest projects — pick by what the test needs to prove
+
+| Suffix | Config | Runs on `npm test` / `turbo test` | Enters the system at | Use when |
+|---|---|---|---|---|
+| `*.spec.ts` | `package.json`'s `jest` block | ✅ | the class, dependencies mocked | branch logic, error mapping, pure functions — anything provable without infrastructure |
+| `*.int-spec.ts` | `jest.integration.config.js` | ❌ needs Postgres | the bus, below HTTP | a guarantee that lives in the database (constraints, transactions, concurrency) and that no mock can stand in for |
+| `*.e2e-spec.ts` | `jest.e2e.config.js` | ❌ needs Postgres | the socket, via `app.inject()` | a claim made to a client — status codes, error envelopes, headers, interceptor behaviour |
+
+Rules:
+
+- **The default suite stays infra-free.** `package.json`'s `testRegex` (`.*\.spec\.ts$`) matches
+  neither of the other two suffixes; that is deliberate and load-bearing, because a fresh clone must
+  be able to run `npm test` before Docker is up. Never widen it.
+- **A new suffix needs its own config file**, copying the ts-jest / `moduleNameMapper` /
+  `forceExit` block from an existing one — the ESM↔CJS bridge in §6 applies to all three, and the
+  long-lived timers `forceExit` handles are a property of booting the app, not of a particular suite.
+- **Add the suffix to `eslint.config.mjs`'s layer `ignores`.** The Hexagonal boundary rules forbid
+  presentation from importing Prisma; a test that creates its own fixtures legitimately does. Test
+  files are exempt by suffix, so a new one is silently *not* exempt until it is listed.
+- **Prefer the cheapest suffix that can actually prove the claim.** But when a claim is about what a
+  client receives, only `*.e2e-spec.ts` proves it: a unit spec asserting that a persistence call was
+  *made* passed for months while a real retry raced that same write and got the wrong status.
 
 ### 2. TypeScript mocking standard
 

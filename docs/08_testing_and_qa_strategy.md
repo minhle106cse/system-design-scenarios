@@ -8,11 +8,21 @@ why, specifically for this project.
 | Suite | Count | Covers |
 |---|---|---|
 | `packages/shared-kernel` | 6 suites, 52 tests | CQRS bus (command/query/event), HTTP response envelope, Prisma transient-error classification |
-| `apps/scheduler-api` unit (`npm test`) | 12 suites, 114 tests | Skeleton infra (idempotency, transient-error wrapper, HTTP interceptors, exception filter) **plus the booking domain**: `Appointment` entity (mutation, defensive cloning, `cancel()` transitions), `business-hours.ts` (DST-correct zone conversion, grid enumeration, closed days, past-slot filtering), `resource-selection.ts` (deterministic ordering), `exclusion-violation.ts` (23P01 detection, verified shape), and all three handlers against mocked repositories — including every reference-validation and business-hours refusal path |
+| `apps/scheduler-api` unit (`npm test`) | 13 suites, 120 tests | Skeleton infra (idempotency, transient-error wrapper, HTTP interceptors, exception filter) **plus the booking domain**: `Appointment` entity (mutation, defensive cloning, `cancel()` transitions), `business-hours.ts` (DST-correct zone conversion, grid enumeration, closed days, past-slot filtering), `resource-selection.ts` (deterministic ordering), `exclusion-violation.ts` (23P01 detection, verified shape), and all three handlers against mocked repositories — including every reference-validation and business-hours refusal path |
 | `apps/scheduler-api` integration (`npm run test:integration`) | 1 suite, 3 tests | The concurrency guarantee itself, against real Postgres — see below |
+| `apps/scheduler-api` e2e (`npm run test:e2e`) | 1 suite, 12 tests | The published HTTP contract, driven through the real pipeline: Zod rejection of a past `startAt`, the four reference/ownership errors and their exact status codes, `closed_day`, idempotent replay of a duplicate `POST`, the read-back endpoint, and the success envelope itself |
 
-Run: `npm test` (root, all workspaces) or `npm run test --workspace=@scheduler/api`. The
-integration suite is **not** part of `npm test`/`turbo test` — see the next section.
+Run: `npm test` (root, all workspaces) or `npm run test --workspace=@scheduler/api`. The integration
+and e2e suites are **not** part of `npm test`/`turbo test` — both need Postgres, and keeping the
+default suite infra-free is what lets a fresh clone run it before Docker is up.
+
+**Three suites, three deliberately different entry points.** The unit suite enters at the class, with
+repositories mocked — fast, exhaustive on branch logic, and structurally unable to prove anything
+about the database. The integration suite enters at the `CommandBus`, below HTTP, so nothing about
+controllers or serialization can explain away its result — that is what makes it a proof of ADR-0002
+rather than a demonstration. The e2e suite enters at the socket, because a contract published in
+`docs/06` and in the OpenAPI spec is a claim about what a client receives, and only a request can
+check that claim.
 
 ## The most important test in this scenario: concurrent booking
 
@@ -68,6 +78,18 @@ inherits its blind spots. All three are now covered, but the mechanism that foun
 deliberate adversarial pass against finished work, not the suite. See
 `docs/12_ai_collaboration.md` §5.
 
+**It happened again, and the fix was structural this time.** Two more defects survived a second
+green build:
+
+| Defect | Why no test caught it |
+|---|---|
+| `GET /availability` returned `200 {"availableSlots": []}` for an unknown dealership, where `POST` returned `404` | Every availability spec supplied a dealership that existed. "No slots" and "no such dealership" produce the same output, so nothing distinguished them |
+| A prompt retry with the same `X-Idempotency-Key` got `409 in progress` instead of the replayed `201` | The response row was persisted fire-and-forget. The unit spec asserted the update was *called*, which it was — the timing only exists when a real second request races a real database write |
+
+The second one is the argument for the e2e suite in one line: it was found by the first test that
+went through the socket, in code that had passed every gate **and** a manual cURL check, because a
+human retrying by hand types slower than the write commits.
+
 ## Fixture dates
 
 Two rules, both learned the hard way:
@@ -101,9 +123,16 @@ Two rules, both learned the hard way:
 
 ## What isn't tested (deliberately)
 
-No E2E test suite against a full HTTP stack beyond the interceptor/filter specs already using a
-real `NestFactory.create()` app (see `directives/logging_standard.md` for why those specific tests
-need a real app, not a mock). A dedicated `test/` E2E harness is not built at this scope — the
-combination of unit tests + the interceptor-level real-app tests + the live DB constraint
-verification covers the requirement ("a suite of tests that validate core business logic") without
-adding a second test runner/config for a single-service repo.
+- **No load or performance test.** The availability endpoint's in-memory filtering has a known
+  scaling limit and a recorded trigger for the raw-SQL rewrite (ADR-0003 §4); measuring it before
+  that trigger fires would be optimizing against an invented number.
+- **No contract test against a generated client.** The OpenAPI schemas are generated from the same
+  Zod schemas the API validates with, and compile-time assertions keep them mutually assignable to
+  the DTOs, so the drift a contract test would catch is already a build failure.
+- **No test for `COMPLETED`.** It has no write path (`PROJECT_STATUS.md`), so
+  `AppointmentNotCancellableError`'s 409 branch is unreachable outside a hand-written row. The
+  handler spec covers the transition; nothing pretends the endpoint can produce it.
+
+An earlier revision of this section argued that an e2e suite was unnecessary at this scope. That was
+wrong, and the entry above under *"What passing tests did not catch"* is why: the first request that
+went through the real socket found a defect three green suites had missed.

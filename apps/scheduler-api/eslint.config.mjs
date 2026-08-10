@@ -56,7 +56,7 @@ export default tseslint.config(
   // Domain — pure TypeScript. shared-kernel + same-domain relative imports only.
   {
     files: ['src/modules/*/domain/**/*.ts'],
-    ignores: ['**/*.spec.ts', '**/*.int-spec.ts'],
+    ignores: ['**/*.spec.ts', '**/*.int-spec.ts', '**/*.e2e-spec.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -89,7 +89,7 @@ export default tseslint.config(
   // The only allowed infrastructure import is @/infrastructure/cqrs (decorators).
   {
     files: ['src/modules/*/application/**/*.ts'],
-    ignores: ['**/*.spec.ts', '**/*.int-spec.ts'],
+    ignores: ['**/*.spec.ts', '**/*.int-spec.ts', '**/*.e2e-spec.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -136,7 +136,7 @@ export default tseslint.config(
   // Presentation — translate HTTP <-> Command/Query. Never touch the ORM/DB.
   {
     files: ['src/modules/*/presentation/**/*.ts'],
-    ignores: ['**/*.spec.ts', '**/*.int-spec.ts'],
+    ignores: ['**/*.spec.ts', '**/*.int-spec.ts', '**/*.e2e-spec.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -176,7 +176,7 @@ export default tseslint.config(
   //    case exactly this and isn't a dependency here; disabling the base rule
   //    for spec files is the equivalent fix without adding a package for it.
   {
-    files: ['**/*.spec.ts', '**/*.int-spec.ts'],
+    files: ['**/*.spec.ts', '**/*.int-spec.ts', '**/*.e2e-spec.ts'],
     rules: {
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
@@ -186,7 +186,7 @@ export default tseslint.config(
   // common — cross-cutting abstractions only. shared-kernel + relative.
   {
     files: ['src/common/**/*.ts'],
-    ignores: ['**/*.spec.ts', '**/*.int-spec.ts'],
+    ignores: ['**/*.spec.ts', '**/*.int-spec.ts', '**/*.e2e-spec.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
