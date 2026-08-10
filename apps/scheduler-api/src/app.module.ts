@@ -14,14 +14,14 @@ import { HttpIdempotencyModule } from './infrastructure/http/idempotency/idempot
 import { createLogger } from '@scheduler/shared-kernel'
 
 import { CqrsModule } from './infrastructure/cqrs/cqrs.module'
+import { BookingModule } from './modules/booking/booking.module'
 
 /**
  * Not ported from Cortex's core-api AppModule (see .ai/plans/init-source.plan.md §8): the
  * multi-tenancy middleware, org-aware rate limiting, Kafka/messaging/outbox
  * modules, saga-compensation infrastructure, and every Cortex domain module
- * (`modules/tenant`, `modules/knowledge`, ...). `modules/` here is empty —
- * the scheduler domain gets its own module(s) added to `imports` below once
- * written.
+ * (`modules/tenant`, `modules/knowledge`, ...). `BookingModule` is the first
+ * (and, at this scope, only) scheduler domain module.
  */
 @Module({
   controllers: [HealthController],
@@ -31,6 +31,7 @@ import { CqrsModule } from './infrastructure/cqrs/cqrs.module'
     PrismaModule,
     PrismaTxRunnerModule,
     HttpIdempotencyModule,
+    BookingModule,
     ScheduleModule.forRoot(), // drives IdempotencyCleanupService's nightly @Cron
     LoggerModule.forRootAsync({
       useFactory: () => ({
