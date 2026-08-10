@@ -153,7 +153,7 @@ describe('CommandBus', () => {
       expect(txRunner.opened[0].writes).toEqual(['insert'])
     })
 
-    it('calls afterCommit ONLY AFTER the transaction has resolved, with execute()\'s return value', async () => {
+    it("calls afterCommit ONLY AFTER the transaction has resolved, with execute()'s return value", async () => {
       const bus = makeBus()
       const afterCommit = jest.fn()
       let afterCommitCalledBeforeReturn = false
@@ -279,7 +279,7 @@ describe('CommandBus', () => {
       expect(attempts).toBe(4) // first attempt + 3 retries
     })
 
-    it('does NOT retry a saga (a saga\'s side effects can\'t be rolled back)', async () => {
+    it("does NOT retry a saga (a saga's side effects can't be rolled back)", async () => {
       const bus = makeBus(() => true)
       let attempts = 0
       bus.register(
@@ -406,9 +406,10 @@ describe('CommandBus', () => {
       )
       bus.register(
         'SagaCommand',
-        sagaHandler(async (_cmd, ctx) => ctx.dispatch<string>(makeCommand('InnerCommand')), [
-          'InnerCommand',
-        ]),
+        sagaHandler(
+          async (_cmd, ctx) => ctx.dispatch<string>(makeCommand('InnerCommand')),
+          ['InnerCommand'],
+        ),
       )
 
       const result = await bus.execute(makeCommand('SagaCommand'))

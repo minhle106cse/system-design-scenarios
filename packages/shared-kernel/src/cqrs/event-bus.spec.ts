@@ -24,7 +24,9 @@ describe('EventBus', () => {
   })
 
   it('calls every registered handler for the matching event name', async () => {
-    const handler: jest.Mocked<IEventHandler<IEvent>> = { handle: jest.fn().mockResolvedValue(undefined) }
+    const handler: jest.Mocked<IEventHandler<IEvent>> = {
+      handle: jest.fn().mockResolvedValue(undefined),
+    }
     bus.register('TestEvent', handler)
 
     bus.publish(makeEvent('TestEvent'))
@@ -44,7 +46,9 @@ describe('EventBus', () => {
   })
 
   it('publishing an event that HAS a handler does NOT log the "no handler" warning', async () => {
-    const handler: jest.Mocked<IEventHandler<IEvent>> = { handle: jest.fn().mockResolvedValue(undefined) }
+    const handler: jest.Mocked<IEventHandler<IEvent>> = {
+      handle: jest.fn().mockResolvedValue(undefined),
+    }
     bus.register('TestEvent', handler)
 
     bus.publish(makeEvent('TestEvent'))
@@ -54,8 +58,12 @@ describe('EventBus', () => {
   })
 
   it('supports multiple handlers for the same event name', async () => {
-    const handler1: jest.Mocked<IEventHandler<IEvent>> = { handle: jest.fn().mockResolvedValue(undefined) }
-    const handler2: jest.Mocked<IEventHandler<IEvent>> = { handle: jest.fn().mockResolvedValue(undefined) }
+    const handler1: jest.Mocked<IEventHandler<IEvent>> = {
+      handle: jest.fn().mockResolvedValue(undefined),
+    }
+    const handler2: jest.Mocked<IEventHandler<IEvent>> = {
+      handle: jest.fn().mockResolvedValue(undefined),
+    }
     bus.register('TestEvent', handler1)
     bus.register('TestEvent', handler2)
 
@@ -70,7 +78,9 @@ describe('EventBus', () => {
     const failing: jest.Mocked<IEventHandler<IEvent>> = {
       handle: jest.fn().mockRejectedValue(new Error('handler boom')),
     }
-    const healthy: jest.Mocked<IEventHandler<IEvent>> = { handle: jest.fn().mockResolvedValue(undefined) }
+    const healthy: jest.Mocked<IEventHandler<IEvent>> = {
+      handle: jest.fn().mockResolvedValue(undefined),
+    }
     bus.register('TestEvent', failing)
     bus.register('TestEvent', healthy)
 
