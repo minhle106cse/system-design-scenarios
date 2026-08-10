@@ -32,13 +32,14 @@ inclusion and every deferral.
 | How is this tested? | [`08_testing_and_qa_strategy.md`](08_testing_and_qa_strategy.md) |
 | How do I run it? | [`RUN.md`](../RUN.md) |
 | Why is the double-booking guarantee a database constraint, not application code? | [`docs/adr/0002-booking-concurrency-control.md`](adr/0002-booking-concurrency-control.md) |
+| How is availability actually computed, who picks the bay/technician, and is a conflict retried? | [`docs/adr/0003-availability-and-selection-policy.md`](adr/0003-availability-and-selection-policy.md) |
 | How was GenAI used to build this, and how was its output verified? | [`12_ai_collaboration.md`](12_ai_collaboration.md), summarized in [`readme.md`](../readme.md) |
 
 ## Status
 
-Repository initialized per `.ai/plans/init-source.plan.md`: monorepo tooling, shared-kernel,
-observability stack, and the `apps/scheduler-api` skeleton are in place and verified (build,
-typecheck, lint, test all green; the app boots and serves `/health`, `/docs`, `/metrics`; the
-anti-double-booking constraint is verified live against Postgres). The scheduler domain itself
-(the booking command/query handlers) is implemented on top of this base — see
-`.ai/PROJECT_STATUS.md` for current progress.
+The scheduler domain is implemented: `POST /appointments` (book), `GET /availability` (check),
+`POST /appointments/:id/cancel` (cancel) — all three backed by real command/query handlers, not a
+skeleton. The anti-double-booking guarantee is verified at both layers: live SQL against Postgres
+(`docs/08_testing_and_qa_strategy.md`) and an application-level concurrency test dispatching two
+real commands through the real `CommandBus` (`npm run test:integration`). See
+`.ai/PROJECT_STATUS.md` for the current, curated state of the repository.

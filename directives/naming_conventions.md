@@ -17,7 +17,7 @@
 - A separate read-side interface that returns DTOs instead of Entities (CQRS query side): suffix
   `.query-repository.ts` / `I{Entity}QueryRepository`
 
-Example (once the scheduler domain exists): `IAppointmentRepository` (domain) ↔
+Example: `IAppointmentRepository` (domain) ↔
 `PrismaAppointmentRepository` (infrastructure).
 
 ## 2. Command/Query Handler (CQRS)

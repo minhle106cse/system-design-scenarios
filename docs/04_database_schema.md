@@ -67,12 +67,47 @@ are hand-added SQL in the first migration
 migrate dev` regeneration or a `prisma db push` would not know to recreate it. See the migration
 file's own comment and `AGENTS.md`'s Hard Rules.
 
+**The application-level check mirrors this constraint's arithmetic exactly, on purpose.**
+`PrismaAppointmentRepository.findBusyResourceIds` and `PrismaBookingQueryRepository.findOverlappingAppointments`
+both use `startAt < windowEnd AND endAt > windowStart` — the same half-open `[start, end)` overlap
+test as `tstzrange(start_at, end_at, '[)') &&`. If the two ever disagreed on a boundary, the API
+would either reject bookings the database would accept, or advertise slots the database then
+rejects with a `409` the caller didn't expect. See
+[ADR-0003](adr/0003-availability-and-selection-policy.md) §2.1 — any change to one predicate must
+change the other.
+
+## The other constraint Prisma can't express: `service_types_duration_positive`
+
+```sql
+ALTER TABLE "service_types"
+  ADD CONSTRAINT "service_types_duration_positive" CHECK ("duration_minutes" > 0);
+```
+
+Added in a **separate** migration (`20260810150000_service_type_duration_positive`) that touches only
+`service_types` — the `appointments` table and its two exclusion constraints are untouched.
+
+This looks like input validation and is not. `Appointment.endAt` is derived as
+`startAt + ServiceType.durationMinutes`, so a duration of `0` yields `endAt == startAt`, and
+`tstzrange(x, x, '[)')` is the **empty** range. An empty range overlaps nothing — meaning both
+anti-double-booking constraints silently stop applying, and unlimited appointments could be stacked
+on the same bay and technician at the same instant. Enforcing it only in the booking handler would
+leave the hole open to `prisma/seed.ts`, a data-fix script, or any future write path: the same
+reasoning ADR-0002 §3 uses to justify the exclusion constraints themselves.
+
 ## Soft delete
 
 `Customer`, `Vehicle`, `Dealership`, `ServiceBay`, `Technician`, `ServiceType`, and `Appointment`
 all carry `deletedAt`. `PrismaService`'s Prisma Client Extension auto-filters `deletedAt: null` on
 reads for exactly these models (`SOFT_DELETE_MODELS` in `prisma.service.ts`) — see
 `directives/database_standard.md` for the mechanism and its escape hatch.
+
+⚠️ **The extension filters `find*`/`count` only — never `create`.** A nested
+`create({ data: { customer: { connect: { id } } } })` therefore resolves happily against a
+*soft-deleted* customer, and the appointment is created as if nothing were wrong. This is why
+`BookAppointmentHandler` reads each foreign key explicitly before writing rather than relying on the
+`connect` to fail: the explicit read goes through the extended client, so a soft-deleted row is a
+clean `404` instead of a silent success (and a *missing* row is a `404` instead of an untranslated
+Prisma error surfacing as `500`).
 
 Note the distinction from `Appointment.status = CANCELLED`: soft-delete means "this record should
 stop existing"; cancellation is a normal business state transition that still needs to be visible

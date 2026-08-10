@@ -4,20 +4,32 @@
 
 **Actor:** Customer (via a booking client, or a service advisor on their behalf).
 
-**Preconditions:** The customer, vehicle, dealership, and service type already exist (or are
-created as part of the request).
+**Preconditions:** The customer, vehicle, dealership, and service type already exist. The request
+creates **nothing but the appointment** — all four ids must refer to existing, non-deleted rows, and
+each is verified before any availability work happens (an unknown one is a `404`, not a `500`). The
+vehicle must also belong to the customer; the database has a foreign key for each id separately and
+nothing relating them, so that invariant is enforced in the handler or not at all.
 
 **Flow:**
 1. Client requests a booking: customer, vehicle, service type, dealership, desired start time.
-2. System resolves the service duration from `ServiceType.durationMinutes`, computing the
-   requested time window.
+   `startAt` must be in the future — validated at the HTTP boundary.
+2. System verifies all four references exist and that the vehicle belongs to the customer, then
+   resolves the service duration from `ServiceType.durationMinutes`, computing the requested window.
+2b. System checks the window against opening times. A closed day (weekend or a configured holiday)
+   and a window outside `BUSINESS_HOURS_START`…`END` are both `422`, distinguished by
+   `details.reason` — "pick another date" and "pick another time" are different instructions.
 3. System checks: is there a service bay at this dealership free for the entire window? Is there
    a technician at this dealership, qualified for this service type, free for the entire window?
-4. If both are available, the system selects one bay and one qualified, available technician (see
-   `06_api_contracts.md` for whether selection is automatic or client-specified), and creates the
-   `Appointment` record.
-5. If unavailable, or if a concurrent request already claimed the slot, the system returns a
-   conflict response — never a silent partial success.
+   Both reads happen **inside the booking transaction**, through the write-side repository — a
+   command that reads in order to decide must read the source of truth
+   (`directives/cqrs_pattern.md`).
+4. If both are available, the **system** selects the bay and the technician — the client does not
+   specify them. Selection is deterministic: first free bay by `label`, first free qualified
+   technician by `name` (ADR-0003 §2.2). The `Appointment` record is then created.
+5. If unavailable, or if a concurrent request already claimed the slot, the system returns
+   `409 APPOINTMENT_SLOT_CONFLICT` — never a silent partial success. The conflict is **not
+   retried**: a taken slot stays taken, so the caller needs the 409 in order to choose another
+   window (ADR-0003 §2.4).
 
 **Postconditions (success):** A persistent `Appointment` record exists, associating customer,
 vehicle, technician, service bay, dealership, service type, and time window. The bay and
@@ -31,14 +43,19 @@ overlapping window must never both succeed — exactly one must win. See ADR-000
 **Actor:** Customer or booking client, before committing to a booking.
 
 **Flow:**
-1. Client requests availability for a dealership, service type, and time window (or a date, to
-   see open slots across the day).
-2. System returns which bays/technicians are free for that window, without creating any record.
+1. Client requests availability for a dealership, a service type, and a **date**.
+2. System enumerates candidate start times across the configured business hours
+   (`BUSINESS_HOURS_START`…`BUSINESS_HOURS_END`, stepping by `SLOT_GRANULARITY_MINUTES`), keeping
+   only those where `start + ServiceType.durationMinutes` still fits before closing.
+3. For each candidate window, the system counts how many bays and how many **qualified**
+   technicians are free, and returns the slots where both counts are ≥ 1 — **as counts, not ids**
+   (ADR-0003 §2.6). No record is created.
 
 **Note:** because this is a read with no lock, a slot reported "available" here can still lose the
 race to another request by the time UC-1 actually runs — the exclusion constraint is what makes
 UC-1 itself correct regardless of what UC-2 last reported. UC-2 is a UX convenience (avoid
-obviously-doomed booking attempts), not a reservation.
+obviously-doomed booking attempts), not a reservation. This is why it returns counts rather than
+specific bay/technician ids: an id reads as "this one is reserved for me," which it is not.
 
 ## UC-3: Cancel an appointment
 
@@ -50,6 +67,15 @@ obviously-doomed booking attempts), not a reservation.
 3. The bay and technician immediately become available again for that window (verified: the
    database exclusion constraint is scoped to `status = 'SCHEDULED'`, so a cancelled row no longer
    participates in it).
+
+**Edge cases** (ADR-0003 / `01_business_requirements.md § Assumptions`):
+
+| Current state | Result |
+|---|---|
+| `SCHEDULED` | `200` — transitions to `CANCELLED` |
+| already `CANCELLED` | `200` — no-op, returns the unchanged appointment. Cancel is the operation most likely to be retried over a flaky connection, so retrying it must be safe |
+| `COMPLETED` | `409 APPOINTMENT_NOT_CANCELLABLE` — cancelling a service that has already been performed is a real business error, not a no-op |
+| id not found | `404 APPOINTMENT_NOT_FOUND` |
 
 **Postconditions:** The appointment record still exists (soft state transition, not deleted) —
 preserves history for audit/no-show tracking, per `database_standard.md`'s soft-delete convention

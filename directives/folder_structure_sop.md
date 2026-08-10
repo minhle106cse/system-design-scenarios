@@ -38,13 +38,14 @@ src/
 │   │   ├── middlewares/             # trace-context
 │   │   ├── pipes/                   # zod-validation.pipe.ts
 │   │   └── idempotency/             # interceptor + cleanup service + module
-│   └── observability/               # domain-specific Prometheus counters (empty at init)
+│   └── observability/               # domain-specific Prometheus counters (booking.metrics.ts)
 ├── modules/                         # Feature modules — business logic by domain
 │   └── <domain>/                    # e.g. modules/booking/
 │       ├── application/             # Application Layer (Orchestration & CQRS)
 │       │   ├── commands/            # Command Handlers (Write Model)
-│       │   ├── queries/             # Query Handlers (Read Model)
-│       │   └── repositories/        # Query Repository Interfaces (returns DTOs)
+│       │   └── queries/             # Query Handlers + Query Repository Interfaces + flat DTOs
+│       │                            # (⚠️ NOT a separate `repositories/` folder — see
+│       │                            #  directives/cqrs_pattern.md's CANONICAL placement rule)
 │       ├── domain/                  # Domain Layer (Core Business Rules) — PURE TS, no NestJS
 │       │   ├── entities/            # Aggregate Roots & Entities
 │       │   ├── value-objects/       # Immutable Value Objects
@@ -60,8 +61,8 @@ src/
 └── main.ts                          # Entrypoint
 ```
 
-`modules/` is empty at init — no business logic yet (`.ai/plans/init-source.plan.md` §8). The scheduler domain's
-first module goes here following this exact layout.
+`modules/booking/` is the only module at this scope and follows the layout above exactly — read it
+as the worked example. A second bounded context gets its own sibling folder with the same shape.
 
 ---
 

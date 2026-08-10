@@ -3,35 +3,83 @@
 Full QA discipline: `directives/qa_standard.md`. This document covers what's actually tested and
 why, specifically for this project.
 
-## What's tested today (post-init, pre-domain)
+## What's tested today
 
 | Suite | Count | Covers |
 |---|---|---|
 | `packages/shared-kernel` | 6 suites, 52 tests | CQRS bus (command/query/event), HTTP response envelope, Prisma transient-error classification |
-| `apps/scheduler-api` | 4 suites, 16 tests | `IdempotencyInterceptor` (including the concurrency test below), the Prisma transient-error wrapper, `HttpLoggingInterceptor` (real status/level, not the finalize() bug), `GlobalExceptionFilter` (real stack traces, no duplicate logging) |
+| `apps/scheduler-api` unit (`npm test`) | 12 suites, 114 tests | Skeleton infra (idempotency, transient-error wrapper, HTTP interceptors, exception filter) **plus the booking domain**: `Appointment` entity (mutation, defensive cloning, `cancel()` transitions), `business-hours.ts` (DST-correct zone conversion, grid enumeration, closed days, past-slot filtering), `resource-selection.ts` (deterministic ordering), `exclusion-violation.ts` (23P01 detection, verified shape), and all three handlers against mocked repositories — including every reference-validation and business-hours refusal path |
+| `apps/scheduler-api` integration (`npm run test:integration`) | 1 suite, 3 tests | The concurrency guarantee itself, against real Postgres — see below |
 
-Run: `npm test` (root, all workspaces) or `npm run test --workspace=@scheduler/api`.
+Run: `npm test` (root, all workspaces) or `npm run test --workspace=@scheduler/api`. The
+integration suite is **not** part of `npm test`/`turbo test` — see the next section.
 
 ## The most important test in this scenario: concurrent booking
 
-Not a unit test with a mock — a **live database test**, run against the actual Postgres exclusion
-constraint during init (see `.ai/memory/architecture.jsonl` for the transcript):
+Two layers, both necessary, neither sufficient alone:
 
-```sql
--- 1. First booking: 10:00–11:00, bay b1, tech t1 → succeeds
--- 2. Overlapping booking: 10:30–11:30, same bay + tech → REJECTED
---    ERROR: conflicting key value violates exclusion constraint "appointments_service_bay_no_overlap"
--- 3. Back-to-back booking: 11:00–12:00 (starts exactly when #1 ends) → succeeds (half-open range)
--- 4. Cancel #1, then a new booking in its freed slot → succeeds
-```
+**1. The database layer** — a live SQL test against the actual Postgres exclusion constraint,
+run during init (see `.ai/memory/architecture.jsonl` for the transcript): overlap rejected,
+back-to-back accepted (half-open range), cancel-then-rebook accepted. Proves the guarantee is real
+at the storage layer, independent of any application code.
 
-Once the scheduler domain's command handler exists, this same guarantee needs an **application-level**
-test too — two concurrent `BookAppointmentCommand` dispatches for the same bay/window, asserting
-exactly one succeeds and the other receives `AppointmentSlotConflictError`, mirroring the pattern
-already used for `IdempotencyInterceptor`'s own concurrency test
+**2. The application layer** —
+`apps/scheduler-api/src/modules/booking/application/commands/book-appointment/book-appointment.handler.int-spec.ts`,
+run via `npm run test:integration` (real Postgres, no mocks — a `jest.Mocked<IAppointmentRepository>`
+cannot exercise a database constraint). It:
+
+- dispatches two concurrent `BookAppointmentCommand`s for the same bay/window via a real
+  `CommandBus` → real transaction → real `PrismaAppointmentRepository.save()`, and asserts **exactly
+  one `Promise.allSettled` result is fulfilled**, the other rejects with
+  `AppointmentSlotConflictError` whose `reason` is `service_bay_taken_concurrently` — not just "an
+  error", the *specific* translation `PrismaAppointmentRepository` is responsible for;
+- confirms the database itself has exactly one `SCHEDULED` row for that window, not just that the
+  command results *looked* right;
+- separately proves back-to-back windows (`10:00–10:30` then `10:30–11:00`) both succeed — the
+  `'[)'` half-open boundary, at the application layer this time, not just in raw SQL;
+- and proves cancel frees the slot for an immediate re-book, using the real `CancelAppointmentCommand`.
+
+Mirrors the pattern already used for `IdempotencyInterceptor`'s own concurrency test
 (`idempotency.interceptor.spec.ts`, `'CONCURRENCY: only ONE of two simultaneous requests ...'`).
-Both layers matter: the DB test proves the guarantee is real; the application test proves the
-handler translates a raw Postgres error into a clean domain error instead of leaking a `500`.
+Fixture data (one dealership, one bay, one technician, one service type, one customer/vehicle) is
+created and torn down by the test itself — never `prisma/seed.ts`'s shared demo data — using
+far-future dates so repeated runs never collide with each other or with manual `curl` testing.
+
+**Why a separate Jest project, not folded into `npm test`**: `jest.integration.config.js`'s
+`testRegex` matches only `*.int-spec.ts`, a suffix the main config's `*.spec.ts` regex does not
+match. This keeps `npm test`/`turbo test` fast and infrastructure-free — a fresh clone with no
+Docker running still gets a fully green `npm run check`/`npm test` — while the guarantee that
+*needs* Postgres has an explicit, documented, one-command way to run
+(`docker compose up -d && npm run db:migrate && npm run test:integration`).
+
+## What passing tests did not catch
+
+Worth recording, because it is the most useful thing this section can say. The domain phase shipped
+with all gates green and 92 passing tests. An audit of that finished work then found:
+
+| Defect | Why no test caught it |
+|---|---|
+| A non-existent `customerId` returned `500` | Every spec mocked the repositories, so no test ever supplied an id that didn't exist |
+| An unknown `dealershipId` returned `409 no_free_service_bay` | There *was* a test for it — asserting the wrong behaviour, because the spec encoded the same assumption as the code |
+| A booking for `2020-01-01` was accepted | No test used a past date; there was no clock reference in the entire module to test |
+
+The lesson is not "write more tests" — it is that a test suite written alongside an implementation
+inherits its blind spots. All three are now covered, but the mechanism that found them was a
+deliberate adversarial pass against finished work, not the suite. See
+`docs/12_ai_collaboration.md` §5.
+
+## Fixture dates
+
+Two rules, both learned the hard way:
+
+- **Weekdays only.** `BUSINESS_DAYS` defaults to Mon–Fri, so a weekend fixture makes a grid
+  legitimately empty and the assertion tests the wrong thing. (This repo's own cURL example booked a
+  Saturday before the audit.)
+- **Far-future dates for anything clock-dependent.** `CheckAvailabilityHandler` filters past slots
+  using the real clock, so a near-future fixture is a time bomb — green today, red next month.
+  `check-availability.handler.spec.ts` uses `2099-06-01` (a Monday) for exactly this reason. Where a
+  fixed clock is needed, `filterFutureWindows(windows, now)` takes `now` as a parameter rather than
+  reading a global, so a spec can pin it without mocking `Date`.
 
 ## Test organization (`directives/testing_standard.md`)
 

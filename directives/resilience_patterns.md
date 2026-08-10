@@ -71,6 +71,17 @@ data instead of a one-time guess.
 - Adding a new retryable error code → ask "does retrying this while the system is already
   stressed make it worse?" before adding it to the transient set.
 
+**Worked example — a transactional handler whose OWN error must not be auto-retried:**
+`BookAppointmentHandler` takes a `tx` parameter (transactional) and can throw
+`AppointmentSlotConflictError` when ADR-0002's exclusion constraint rejects the insert. That error
+is deliberately **not** marked `transient: true`, so `isTransient` returns `false` for it and
+`withRetry` never touches it — a taken slot stays taken; retrying against the same occupied window
+guarantees three more failures and delays the `409` the caller needs in order to pick a different
+one. This is a case for judgment at the error-classification level, not the "split into a saga"
+bullet above: the handler stays transactional (its writes still need one atomic scope), only this
+specific outcome opts out of retry by omission. Full reasoning:
+`docs/adr/0003-availability-and-selection-policy.md` §2.4.
+
 ## 3.1 Circuit Breaker — deferred, not built
 
 **Not built.** `resilience/circuit-breaker.ts` exists in Cortex's shared-kernel as a pure,

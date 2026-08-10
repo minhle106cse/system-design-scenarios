@@ -284,7 +284,7 @@ def build_index() -> str:
 
     # ── 1. Project Overview ──
     readme_content = read_text(README_FILE)
-    project_name = "Cortex — AI-Powered Team Knowledge Hub"
+    project_name = "Service Appointment Scheduler"
     services = detect_services(APPS_DIR)
     packages = detect_packages(PACKAGES_DIR)
 
@@ -298,20 +298,20 @@ def build_index() -> str:
     sections.append(f"""## 1. Project Overview
 
 - **Name**: {project_name}
-- **Product**: B2B internal Knowledge Hub — AI Discovery (RAG + Hybrid Search), virtual credit economy, multi-tenancy. (Legacy "TeamFin" finance concept is RETIRED — do not reintroduce expense/settlement framing.)
+- **Product**: Scenario 01 of a system-design-scenarios collection — a resource-constrained appointment booking API for vehicle service (bay + qualified-technician availability, anti-double-booking guarantee). See `docs/00_overview.md` and `docs/01_business_requirements.md`.
 - **Type**: Monorepo (Turborepo) + TypeScript
-- **Architecture**: Hexagonal Architecture + CQRS + Event Sourcing + RAG/Hybrid Search + Multi-tenancy
+- **Architecture**: Hexagonal Architecture + CQRS + Unit-of-Work (ADR-0001) — no event sourcing, no RAG, no multi-tenancy in this scenario
 - **Phase**: see §2 (Implementation Status) for live phase % and current focus — no phase is hardcoded here
 - **Services** (`apps/`):
 {chr(10).join(service_lines)}
 - **Shared Packages** (`packages/`):
 {chr(10).join(package_lines)}
-- **Database**: PostgreSQL + pgvector via Prisma v7, port `15432` (source-of-truth store + event ledgers + embeddings; read models deferred until a read path needs them)
-- **Cache**: Redis (cache, rate-limit, pub/sub)
-- **Message Broker**: Kafka (Event Backbone, KRaft mode)
-- **Search**: Elasticsearch (full-text) + pgvector (semantic) → Hybrid Retrieval (RRF)
-- **AI**: self-hosted embeddings (Ollama `nomic-embed-text`, 768-dim — Claude has no embeddings API) + Claude RAG summarization behind a Circuit Breaker
-- **Frontend**: Vite + React 18 + Zustand + TanStack Query + TailwindCSS v3""")
+- **Database**: PostgreSQL via Prisma v7, host port `15433` — system of record, idempotency store (`IdempotencyRecord`), and the anti-double-booking exclusion constraint (ADR-0002)
+- **Cache**: none — no Redis; idempotency is Postgres-backed by design (`.ai/plans/init-source.plan.md` §8.3)
+- **Message Broker**: none at this scope — see `docs/03_system_architecture_diagrams.md § Deferred scope`
+- **Search**: n/a
+- **AI**: none in the product itself — the AI is in the build *workflow* (this file, the directives, the Citation Protocol), see `docs/12_ai_collaboration.md`
+- **Frontend**: none — backend layer chosen, client stubbed via OpenAPI (`/docs`) and cURL examples (`docs/06_api_contracts.md`)""")
 
     # ── 2. Implementation Status ──
     modules_map = detect_modules(APPS_DIR)
