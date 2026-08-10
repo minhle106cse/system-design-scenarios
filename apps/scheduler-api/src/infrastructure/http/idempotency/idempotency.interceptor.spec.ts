@@ -124,7 +124,7 @@ describe('IdempotencyInterceptor', () => {
 
     // jest.Mocked<T> methods referenced inside expect() are a matcher argument,
     // never called detached from `this` — the standard jest-mock false positive.
-    // eslint-disable-next-line @typescript-eslint/unbound-method
+
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'key-persist-fail' }),
       'Failed to persist idempotency response',
@@ -173,7 +173,6 @@ describe('IdempotencyInterceptor', () => {
       firstValueFrom(await interceptor.intercept(buildContext('POST', 'key-4'), failingHandler)),
     ).rejects.toThrow('boom') // original handler error still propagates, not the delete error
 
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- see note above
     expect(mockLogger.error).toHaveBeenCalledWith(
       expect.objectContaining({ key: 'key-4' }),
       expect.stringContaining('Failed to delete idempotency claim row'),
