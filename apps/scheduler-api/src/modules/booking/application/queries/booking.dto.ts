@@ -23,3 +23,17 @@ export interface AvailabilityDto {
   readonly durationMinutes: number
   readonly availableSlots: AvailabilitySlotDto[]
 }
+
+/**
+ * The response body of `GET /appointments/:id` — re-exported here, at the
+ * `application/queries/` level where this module's query response DTOs live,
+ * rather than redeclared.
+ *
+ * It is deliberately the SAME type the two write endpoints return. A client
+ * that books, then reads back what it booked, must receive one shape, and
+ * `presentation/schemas/responses.schema.ts` publishes exactly one
+ * `appointmentResponseSchema` for all three routes — a second, structurally
+ * identical interface would let the read drift from the write while both
+ * continued to typecheck against a spec that describes only one of them.
+ */
+export type { AppointmentSummaryDto as AppointmentDto } from '../commands/appointment-summary.dto'

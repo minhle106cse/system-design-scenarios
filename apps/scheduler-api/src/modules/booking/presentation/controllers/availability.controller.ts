@@ -41,7 +41,12 @@ export class AvailabilityController {
     description: 'VALIDATION_ERROR — missing or malformed query parameter',
     schema: errorResponseSchema,
   })
-  @ApiResponse({ status: 404, description: 'SERVICE_TYPE_NOT_FOUND', schema: errorResponseSchema })
+  @ApiResponse({
+    status: 404,
+    description:
+      'DEALERSHIP_NOT_FOUND | SERVICE_TYPE_NOT_FOUND — the same codes POST /appointments returns for the same ids',
+    schema: errorResponseSchema,
+  })
   async check(
     @Query() query: z.infer<typeof checkAvailabilityQuerySchema>,
   ): Promise<AvailabilityDto> {

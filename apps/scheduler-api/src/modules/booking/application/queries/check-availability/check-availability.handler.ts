@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import type { IQueryHandler } from '@scheduler/shared-kernel'
 import { QueryHandler } from '@/infrastructure/cqrs/decorators/query-handler.decorator'
-import { ServiceTypeNotFoundError } from '@/common/errors/booking.error'
+import { DealershipNotFoundError, ServiceTypeNotFoundError } from '@/common/errors/booking.error'
 import { startAvailabilityTimer } from '@/infrastructure/observability/booking.metrics'
 import {
   businessDayBounds,
@@ -43,7 +43,19 @@ export class CheckAvailabilityHandler implements IQueryHandler<
   }
 
   private async compute(query: CheckAvailabilityQuery): Promise<AvailabilityDto> {
-    const serviceType = await this.repo.findServiceType(query.serviceTypeId)
+    // Both references are resolved before any work, and in the same order
+    // `BookAppointmentHandler` resolves them, so a request that is wrong about
+    // both gets the same error from the read path and the write path.
+    //
+    // The dealership read exists purely to reject: without it an unknown id
+    // yielded zero bays -> zero available slots -> `200 []`, which is
+    // indistinguishable from a fully booked day, while POST answered 404 for
+    // the same id.
+    const [dealership, serviceType] = await Promise.all([
+      this.repo.findDealership(query.dealershipId),
+      this.repo.findServiceType(query.serviceTypeId),
+    ])
+    if (!dealership) throw new DealershipNotFoundError(query.dealershipId)
     if (!serviceType) throw new ServiceTypeNotFoundError(query.serviceTypeId)
 
     const hours = this.businessHours.get()

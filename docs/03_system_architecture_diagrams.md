@@ -54,10 +54,10 @@ flowchart TB
 |---|---|
 | **HTTP layer** (`infrastructure/http/`) | Translates HTTP ↔ Command/Query. `TraceContextMiddleware` opens trace correlation; `ZodValidationPipe` validates input per-route; `IdempotencyInterceptor` prevents a double-submit from creating two appointments; `GlobalExceptionFilter` maps every error (validation, domain, unhandled) to one consistent response shape. |
 | **CQRS bus** (`packages/shared-kernel/src/cqrs/`) | `CommandBus` runs every write through a fixed pipeline: log → retry (transient DB errors only) → open transaction → handler. `QueryBus` runs reads outside a transaction. Neither the retry nor the transaction boundary is opt-in per command — see ADR-0001. |
-| **Domain** (`src/modules/<domain>/domain/`, added as the scheduler domain is implemented) | Pure TypeScript entities and the availability/booking business rules. No framework, no ORM — see `directives/folder_structure_sop.md`, lint-enforced. |
+| **Domain** (`src/modules/booking/domain/`) | Pure TypeScript entities and the availability/booking business rules: the `Appointment` entity and its cancel-transition table, `business-hours.ts` (local-time↔UTC through `Intl`, DST-correct, no date library), `resource-selection.ts`, and the repository interfaces the application layer depends on. No framework, no ORM — see `directives/folder_structure_sop.md`, lint-enforced. |
 | **Repositories** (`infrastructure/database/prisma/`) | One write-repo shape per service (`SchedulerApiRepos`), constructed fresh per transaction — a repository instance is never usable outside the transaction it was built for (ADR-0001 §2.1). |
 | **PostgreSQL** | System of record. Also the idempotency store (`IdempotencyRecord` table) and the enforcement point for the anti-double-booking guarantee (the exclusion constraint, ADR-0002) — the database is not a passive store here, it actively rejects a class of invalid state. |
-| **Prometheus + Grafana** | Scrape `/metrics` (default Node.js process metrics + `scheduler_api_db_transient_error_total`), render a dashboard (`docker-init/grafana/provisioning/`). |
+| **Prometheus + Grafana** | Scrape `/metrics` — default Node.js process metrics, `scheduler_api_db_transient_error_total` from the shared kernel, and the two booking-domain metrics (`scheduler_api_booking_attempt_total{outcome}`, `scheduler_api_availability_check_duration_seconds`) — and render a provisioned dashboard (`docker-init/grafana/provisioning/`). §6 explains what each metric is for. |
 | **Structured logs** | JSON to stdout, `pino`. Automatic secret/PII redaction, automatic trace-id correlation — no call site opts in or forgets (`directives/logging_standard.md`). |
 
 ## 3. Data flow
@@ -101,6 +101,14 @@ technicians, and every `SCHEDULED` appointment overlapping the **whole requested
 candidate slot (stepped by `SLOT_GRANULARITY_MINUTES` across `BUSINESS_HOURS_*`) is then evaluated
 against that one result set in memory, returning free-bay/technician **counts**, not ids.
 
+### Read-back — `GET /appointments/:id`, `GetAppointmentHandler`
+
+The simplest path in the system, and the one that makes requirement 3's persistent record
+observable: `QueryBus` → one `findUnique` through `PrismaBookingQueryRepository` with the bay and
+technician joined → the same DTO the two write endpoints return, so all three routes publish one
+`appointmentResponseSchema`. No transaction, no idempotency claim, no metric — a read with no
+failure mode of its own beyond "not found".
+
 ### Cancellation — `POST /appointments/:id/cancel`, `CancelAppointmentHandler`
 
 Transactional; looks up the appointment, calls `Appointment.cancel()` (pure domain logic — see
@@ -137,6 +145,7 @@ building unused infrastructure or staying silent about what's missing.
 | **Kafka-consumer idempotency (natural-key/dedup-constraint patterns)** | Dedup for an eventual message consumer | Arrives together with the message broker above | `directives/idempotency_strategy.md`'s own deferred section |
 | **Raw-SQL availability query** (`NOT EXISTS`/`tstzrange &&`, index-supported by the `btree_gist` index ADR-0002 already added) | Replace the current 3-query-plus-in-memory-filter approach in `CheckAvailabilityHandler`/`BookAppointmentHandler` | Hundreds of bays/technicians per dealership, or the availability endpoint appearing in a real latency budget | ADR-0003 §4; the overlap predicate is already written twice (Prisma-native), so the rewrite is mechanical, not a redesign |
 | **Per-dealership business hours** (`DealershipOpeningHours` table) | Let each dealership configure its own open/close/timezone instead of one `BUSINESS_HOURS_*` config for all | A second dealership with materially different hours needs to be demoed or sold | ADR-0003 §2.3/§4 — deliberately not built now because it costs a migration next to the hand-written exclusion constraints |
+| **Appointment list / search** (`GET /appointments?customerId=…&from=…`) | Let a client show "my appointments" instead of fetching one id at a time | A real client screen that lists appointments. `GET /appointments/:id` covers reading back what you just booked, which is what the brief's requirement 3 needs | The query slice is already in place (`application/queries/get-appointment/`, `IBookingQueryRepository`); a list adds pagination and an index on `(customer_id, start_at)`, which is a data-modelling decision worth making against a real access pattern rather than a guessed one |
 | **Load-balanced resource selection** | Spread bookings across bays/technicians instead of always filling the lowest-ordered one first | `scheduler_api_booking_attempt_total{outcome="*_taken_concurrently"}` rises while other bays sit idle | ADR-0003 §2.2/§5 — deterministic selection was chosen for reproducibility, not because balancing is undesirable |
 
 **Why this list, not a longer one, and not a shorter one**: the reference project (Cortex) this

@@ -51,6 +51,10 @@ overlapping window must never both succeed — exactly one must win. See ADR-000
    technicians are free, and returns the slots where both counts are ≥ 1 — **as counts, not ids**
    (ADR-0003 §2.6). No record is created.
 
+**Errors:** an unknown `dealershipId` or `serviceTypeId` is a `404`, not an empty slot list. "No
+slots" must mean "nothing is free", never "your id was wrong" — the two call for opposite reactions
+from the client, and the write path already answered `404` for the same ids.
+
 **Note:** because this is a read with no lock, a slot reported "available" here can still lose the
 race to another request by the time UC-1 actually runs — the exclusion constraint is what makes
 UC-1 itself correct regardless of what UC-2 last reported. UC-2 is a UX convenience (avoid
@@ -80,3 +84,27 @@ specific bay/technician ids: an id reads as "this one is reserved for me," which
 **Postconditions:** The appointment record still exists (soft state transition, not deleted) —
 preserves history for audit/no-show tracking, per `database_standard.md`'s soft-delete convention
 applied to booking status specifically (see the Assumptions table in `01_business_requirements.md`).
+
+## UC-4: Read an appointment back
+
+**Actor:** Customer or booking client after UC-1, or dealership staff looking one up.
+
+**Flow:**
+1. Client requests an appointment by id.
+2. System returns the record with its bay and technician resolved to display fields — the same body
+   UC-1 returned when it created it.
+
+**Note:** this is what makes requirement 3's *"persistent Appointment record"* observable to a
+client. Without it the record exists in the database and in the response to the one request that
+created it, and nowhere anybody can look afterwards. Numbered after UC-3 rather than inserted before
+it because the UC numbers are cited from code comments and from `docs/06`; renumbering an existing
+use case to make the list read chronologically would invalidate every one of those references.
+
+A `CANCELLED` appointment is returned normally, with its status: UC-3 transitions the record, it
+does not remove it, so hiding a cancelled one behind a `404` would make cancel look like a delete.
+
+**Edge cases:** unknown id → `404 APPOINTMENT_NOT_FOUND`; malformed id → `400 VALIDATION_ERROR`.
+
+**Deliberately not built:** a list/filter form (`GET /appointments?customerId=…`). It needs
+pagination and an index decision, and no requirement in the brief asks for it — trigger recorded in
+`03_system_architecture_diagrams.md § Deferred scope`.

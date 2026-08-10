@@ -4,6 +4,7 @@ import { AvailabilityController } from './presentation/controllers/availability.
 import { BookAppointmentHandler } from './application/commands/book-appointment/book-appointment.handler'
 import { CancelAppointmentHandler } from './application/commands/cancel-appointment/cancel-appointment.handler'
 import { CheckAvailabilityHandler } from './application/queries/check-availability/check-availability.handler'
+import { GetAppointmentHandler } from './application/queries/get-appointment/get-appointment.handler'
 import { BusinessHoursConfig } from './application/business-hours.config'
 import { BOOKING_QUERY_REPOSITORY } from './application/queries/booking.query-repository'
 import { PrismaBookingQueryRepository } from './infrastructure/repositories/prisma-booking.query-repository'
@@ -28,6 +29,7 @@ import { PrismaBookingQueryRepository } from './infrastructure/repositories/pris
     BookAppointmentHandler,
     CancelAppointmentHandler,
     CheckAvailabilityHandler,
+    GetAppointmentHandler,
     BusinessHoursConfig,
     { provide: BOOKING_QUERY_REPOSITORY, useClass: PrismaBookingQueryRepository },
   ],
