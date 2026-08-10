@@ -63,9 +63,17 @@ export const LogContext = {
   // through). One context for the whole "DB row → Kafka topic" pipeline —
   // querying "outbox" should show every phase together, not 3 fragments.
   OUTBOX: 'Outbox',
-  // HTTP idempotency-key enforcement (core-api) — IdempotencyInterceptor
+  // HTTP idempotency-key enforcement (scheduler-api) — IdempotencyInterceptor
   // (claim/replay/conflict) + IdempotencyCleanupService (nightly TTL purge).
   IDEMPOTENCY: 'Idempotency',
+  // Booking write path (scheduler-api) — BookAppointmentHandler and
+  // CancelAppointmentHandler. One context for "an appointment changed state",
+  // so a slot conflict and the cancellation that frees the slot query together.
+  BOOKING: 'Booking',
+  // Availability read path (scheduler-api) — CheckAvailabilityHandler. Kept
+  // separate from BOOKING because it is a high-frequency read with its own
+  // latency budget; mixing it into BOOKING would drown the write-path lines.
+  AVAILABILITY: 'Availability',
   // Process-level start/shutdown (main.ts in every service) — not a request/
   // dispatch boundary, but still a real log source, so it gets a real context
   // like everything else (2026-07-25 audit — was previously untagged).

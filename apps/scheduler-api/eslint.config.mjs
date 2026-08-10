@@ -56,7 +56,7 @@ export default tseslint.config(
   // Domain — pure TypeScript. shared-kernel + same-domain relative imports only.
   {
     files: ['src/modules/*/domain/**/*.ts'],
-    ignores: ['**/*.spec.ts'],
+    ignores: ['**/*.spec.ts', '**/*.int-spec.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -89,7 +89,7 @@ export default tseslint.config(
   // The only allowed infrastructure import is @/infrastructure/cqrs (decorators).
   {
     files: ['src/modules/*/application/**/*.ts'],
-    ignores: ['**/*.spec.ts'],
+    ignores: ['**/*.spec.ts', '**/*.int-spec.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -136,7 +136,7 @@ export default tseslint.config(
   // Presentation — translate HTTP <-> Command/Query. Never touch the ORM/DB.
   {
     files: ['src/modules/*/presentation/**/*.ts'],
-    ignores: ['**/*.spec.ts'],
+    ignores: ['**/*.spec.ts', '**/*.int-spec.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -159,10 +159,34 @@ export default tseslint.config(
     },
   },
 
+  // Test files — the `jest.Mocked<IRepository>` pattern `directives/testing_standard.md`
+  // §2 prescribes mocks interfaces whose methods use TS method-shorthand syntax
+  // (every repository interface in this repo does, matching shared-kernel's
+  // ILogger/ITxRunner style). Two type-aware rules misfire specifically on
+  // that pattern and nowhere else worth keeping strict:
+  //  - `no-unnecessary-type-assertion` sees `{...} as unknown as jest.Mocked<T>`
+  //    as redundant, because a plain object of `jest.fn()`s is ALREADY
+  //    structurally assignable to `jest.Mocked<T>` — true only in the
+  //    narrow, deliberate case of a test double, not evidence the cast is dead.
+  //  - `unbound-method` flags `expect(mock.someMethod).toHaveBeenCalledWith(...)`
+  //    because `jest.Mocked<T>`'s mapped type still carries the ORIGINAL
+  //    method-shorthand signature (with its implicit `this`) intersected in —
+  //    even though the reference is inside `expect(...)`, never invoked
+  //    unbound. `eslint-plugin-jest`'s `jest/unbound-method` exists to special-
+  //    case exactly this and isn't a dependency here; disabling the base rule
+  //    for spec files is the equivalent fix without adding a package for it.
+  {
+    files: ['**/*.spec.ts', '**/*.int-spec.ts'],
+    rules: {
+      '@typescript-eslint/unbound-method': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+    },
+  },
+
   // common — cross-cutting abstractions only. shared-kernel + relative.
   {
     files: ['src/common/**/*.ts'],
-    ignores: ['**/*.spec.ts'],
+    ignores: ['**/*.spec.ts', '**/*.int-spec.ts'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

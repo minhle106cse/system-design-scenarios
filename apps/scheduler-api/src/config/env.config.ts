@@ -13,5 +13,11 @@ export const envConfig = registerAs('env', () => {
     port: env.PORT,
     corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS,
     logLevel: env.LOG_LEVEL,
+    businessHoursStart: env.BUSINESS_HOURS_START,
+    businessHoursEnd: env.BUSINESS_HOURS_END,
+    businessTimezone: env.BUSINESS_TIMEZONE,
+    slotGranularityMinutes: env.SLOT_GRANULARITY_MINUTES,
+    businessDays: env.BUSINESS_DAYS,
+    businessClosedDates: env.BUSINESS_CLOSED_DATES,
   }
 })
