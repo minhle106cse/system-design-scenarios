@@ -1,0 +1,61 @@
+import { Injectable } from '@nestjs/common'
+import { PrismaService } from '@/infrastructure/database/prisma/prisma.service'
+import type {
+  BayCandidate,
+  IBookingQueryRepository,
+  OverlappingAppointment,
+  ServiceTypeSummary,
+  TechnicianCandidate,
+} from '@/modules/booking/application/queries/booking.query-repository'
+import type { TimeWindow } from '@/modules/booking/domain/services/business-hours'
+
+/**
+ * Ordinary DI singleton on `PrismaService.client` (the plain, non-transactional,
+ * soft-delete-aware client) — see `IBookingQueryRepository`'s doc for why this
+ * is a separate class from the transaction-scoped booking-command readers.
+ */
+@Injectable()
+export class PrismaBookingQueryRepository implements IBookingQueryRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findServiceType(serviceTypeId: string): Promise<ServiceTypeSummary | null> {
+    return this.prisma.client.serviceType.findUnique({
+      where: { id: serviceTypeId },
+      select: { id: true, durationMinutes: true },
+    })
+  }
+
+  async findDealershipBays(dealershipId: string): Promise<BayCandidate[]> {
+    return this.prisma.client.serviceBay.findMany({
+      where: { dealershipId },
+      select: { id: true },
+    })
+  }
+
+  async findQualifiedTechnicians(
+    dealershipId: string,
+    serviceTypeId: string,
+  ): Promise<TechnicianCandidate[]> {
+    return this.prisma.client.technician.findMany({
+      where: { dealershipId, qualifications: { some: { serviceTypeId } } },
+      select: { id: true },
+    })
+  }
+
+  async findOverlappingAppointments(
+    dealershipId: string,
+    window: TimeWindow,
+  ): Promise<OverlappingAppointment[]> {
+    // Same half-open predicate as PrismaAppointmentRepository.findBusyResourceIds
+    // — ADR-0003 §2.1's equivalence with the DB constraint applies here too.
+    return this.prisma.client.appointment.findMany({
+      where: {
+        dealershipId,
+        status: 'SCHEDULED',
+        startAt: { lt: window.endAt },
+        endAt: { gt: window.startAt },
+      },
+      select: { serviceBayId: true, technicianId: true, startAt: true, endAt: true },
+    })
+  }
+}
