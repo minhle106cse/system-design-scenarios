@@ -10,7 +10,7 @@ import { createHash } from 'crypto'
 import type { FastifyRequest } from 'fastify'
 import { InjectPinoLogger, PinoLogger } from 'nestjs-pino'
 import { Observable, from, of, throwError } from 'rxjs'
-import { catchError, switchMap, tap } from 'rxjs/operators'
+import { catchError, map, switchMap } from 'rxjs/operators'
 import { LogContext } from '@scheduler/shared-kernel'
 import { Prisma } from '@/generated'
 import { PrismaService } from '@/infrastructure/database/prisma/prisma.service'
@@ -99,16 +99,34 @@ export class IdempotencyInterceptor implements NestInterceptor {
     }
 
     return next.handle().pipe(
-      tap((response) => {
-        this.prisma.client.idempotencyRecord
-          .update({ where: { key }, data: { response: response as Prisma.InputJsonValue } })
-          .catch((err: unknown) =>
-            this.logger.error(
-              { context: LogContext.IDEMPOTENCY, err, key },
-              'Failed to persist idempotency response',
+      // The response is persisted BEFORE it is emitted, not alongside it.
+      //
+      // This used to be a `tap` whose `update()` was never awaited, so the
+      // response reached the client while the row still held `response: null`.
+      // A client retrying promptly — the double-submitted form this interceptor
+      // exists for — then read that null and got `409 already in progress` for a
+      // request that had already succeeded, instead of the replayed 201. No
+      // double booking (the claim row still blocked the handler), but the wrong
+      // answer, and the appointment id was never handed back. Caught by the
+      // first test that drove the real HTTP pipeline; the unit spec had mocked
+      // the timing away.
+      //
+      // Cost is one round trip on the response path of a write that already
+      // pays for the claim insert. A failed persist is still only logged: the
+      // handler's work is committed, so refusing to return it would be worse
+      // than a replay that has to re-run.
+      switchMap((response) =>
+        from(
+          this.prisma.client.idempotencyRecord
+            .update({ where: { key }, data: { response: response as Prisma.InputJsonValue } })
+            .catch((err: unknown) =>
+              this.logger.error(
+                { context: LogContext.IDEMPOTENCY, err, key },
+                'Failed to persist idempotency response',
+              ),
             ),
-          )
-      }),
+        ).pipe(map(() => response)),
+      ),
       catchError((err: unknown) =>
         from(
           this.prisma.client.idempotencyRecord
