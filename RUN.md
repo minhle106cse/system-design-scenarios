@@ -63,9 +63,17 @@ curl -X POST http://localhost:4002/api/v1/appointments \
   }'
 # → 201, { id, status: "SCHEDULED", serviceBay: {...}, technician: {...} }
 
-# 3. Cancel it (use the id from step 2's response).
+# 3. Read it back (use the id from step 2's response) — the persistent record, on demand.
+curl http://localhost:4002/api/v1/appointments/<appointment-id>
+# → 200, the same body step 2 returned
+
+# 4. Cancel it.
 curl -X POST http://localhost:4002/api/v1/appointments/<appointment-id>/cancel
 # → 200, { status: "CANCELLED" } — calling this again is safe (idempotent no-op)
+
+# 5. Read it back again — still there, now CANCELLED. Cancel is a state
+#    transition, not a delete.
+curl http://localhost:4002/api/v1/appointments/<appointment-id>
 ```
 
 To see the concurrency guarantee itself rather than take it on faith: run the same `POST` from

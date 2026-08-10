@@ -1,14 +1,25 @@
-import { Body, Controller, HttpCode, Param, Post, UseInterceptors, UsePipes } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  UseInterceptors,
+  UsePipes,
+} from '@nestjs/common'
 import { ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger'
 import type { z } from 'zod'
-import { CommandBus } from '@scheduler/shared-kernel'
+import { CommandBus, QueryBus } from '@scheduler/shared-kernel'
 import { ZodValidationPipe } from '@/infrastructure/http/pipes/zod-validation.pipe'
 import { IdempotencyInterceptor } from '@/infrastructure/http/idempotency/idempotency.interceptor'
 import { BookAppointmentCommand } from '../../application/commands/book-appointment/book-appointment.command'
 import { CancelAppointmentCommand } from '../../application/commands/cancel-appointment/cancel-appointment.command'
+import { GetAppointmentQuery } from '../../application/queries/get-appointment/get-appointment.query'
 import type { AppointmentSummaryDto } from '../../application/commands/appointment-summary.dto'
 import { bookAppointmentSchema } from '../schemas/book-appointment.schema'
 import { cancelAppointmentParamsSchema } from '../schemas/cancel-appointment.schema'
+import { getAppointmentParamsSchema } from '../schemas/get-appointment.schema'
 import {
   appointmentResponseSchema,
   errorResponseSchema,
@@ -26,7 +37,10 @@ import {
  */
 @Controller('appointments')
 export class AppointmentsController {
-  constructor(private readonly commandBus: CommandBus) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
 
   /**
    * `docs/06_api_contracts.md` — `POST /api/v1/appointments`. Implements UC-1.
@@ -107,6 +121,36 @@ export class AppointmentsController {
         new Date(body.startAt),
       ),
     )
+  }
+
+  /**
+   * `docs/06_api_contracts.md` — `GET /api/v1/appointments/:id`.
+   *
+   * Goes through `QueryBus`, not `CommandBus`: no transaction, no retry
+   * wrapper, and no `IdempotencyInterceptor` — that interceptor is attached
+   * per-route to writes only (`directives/idempotency_strategy.md`), and a GET
+   * has nothing to claim.
+   */
+  @Get(':id')
+  @UsePipes(new ZodValidationPipe(getAppointmentParamsSchema))
+  @ApiOperation({
+    summary: 'Fetch one appointment',
+    description:
+      'Returns the same body POST /appointments returns, so a client can read back the record it created. ' +
+      'A CANCELLED appointment is returned normally — cancelling transitions the status, it does not delete the record.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid', description: 'Appointment id' })
+  @ApiResponse({ status: 200, description: 'The appointment', schema: appointmentResponseSchema })
+  @ApiResponse({
+    status: 400,
+    description: 'VALIDATION_ERROR — `id` is not a UUID',
+    schema: errorResponseSchema,
+  })
+  @ApiResponse({ status: 404, description: 'APPOINTMENT_NOT_FOUND', schema: errorResponseSchema })
+  async getById(
+    @Param() params: z.infer<typeof getAppointmentParamsSchema>,
+  ): Promise<AppointmentSummaryDto> {
+    return this.queryBus.execute(new GetAppointmentQuery(params.id))
   }
 
   /**

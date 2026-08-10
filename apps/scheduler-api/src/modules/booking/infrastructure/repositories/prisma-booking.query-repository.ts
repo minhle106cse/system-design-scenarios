@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '@/infrastructure/database/prisma/prisma.service'
 import type {
+  AppointmentDetail,
   BayCandidate,
+  DealershipSummary,
   IBookingQueryRepository,
   OverlappingAppointment,
   ServiceTypeSummary,
@@ -22,6 +24,13 @@ export class PrismaBookingQueryRepository implements IBookingQueryRepository {
     return this.prisma.client.serviceType.findUnique({
       where: { id: serviceTypeId },
       select: { id: true, durationMinutes: true },
+    })
+  }
+
+  async findDealership(dealershipId: string): Promise<DealershipSummary | null> {
+    return this.prisma.client.dealership.findUnique({
+      where: { id: dealershipId },
+      select: { id: true },
     })
   }
 
@@ -56,6 +65,22 @@ export class PrismaBookingQueryRepository implements IBookingQueryRepository {
         endAt: { gt: window.startAt },
       },
       select: { serviceBayId: true, technicianId: true, startAt: true, endAt: true },
+    })
+  }
+
+  async findAppointmentById(appointmentId: string): Promise<AppointmentDetail | null> {
+    // No `status` filter: every status is readable, including CANCELLED.
+    // Soft-deleted rows are excluded by the extension on `client`, not here.
+    return this.prisma.client.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        id: true,
+        status: true,
+        startAt: true,
+        endAt: true,
+        serviceBay: { select: { id: true, label: true } },
+        technician: { select: { id: true, name: true } },
+      },
     })
   }
 }

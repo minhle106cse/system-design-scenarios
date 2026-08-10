@@ -1,4 +1,4 @@
-import { ServiceTypeNotFoundError } from '@/common/errors/booking.error'
+import { DealershipNotFoundError, ServiceTypeNotFoundError } from '@/common/errors/booking.error'
 import type { IBookingQueryRepository } from '../booking.query-repository'
 import type { BusinessHoursConfig } from '../../business-hours.config'
 import { CheckAvailabilityHandler } from './check-availability.handler'
@@ -29,9 +29,11 @@ describe('CheckAvailabilityHandler', () => {
   beforeEach(() => {
     repo = {
       findServiceType: jest.fn().mockResolvedValue(serviceType),
+      findDealership: jest.fn().mockResolvedValue({ id: 'dealership-1' }),
       findDealershipBays: jest.fn().mockResolvedValue(bays),
       findQualifiedTechnicians: jest.fn().mockResolvedValue(technicians),
       findOverlappingAppointments: jest.fn().mockResolvedValue([]),
+      findAppointmentById: jest.fn().mockResolvedValue(null),
     }
 
     businessHours = {
@@ -144,6 +146,25 @@ describe('CheckAvailabilityHandler', () => {
     repo.findServiceType.mockResolvedValue(null)
 
     await expect(handler.execute(query)).rejects.toThrow(ServiceTypeNotFoundError)
+  })
+
+  it('throws DealershipNotFoundError for an unknown dealership, rather than reporting no slots', async () => {
+    // The bug this pins: `findDealershipBays` returns [] for an id that does
+    // not exist, every slot then has 0 free bays and is filtered out, and the
+    // caller receives `200 {"availableSlots": []}` — the same answer a fully
+    // booked day gives. POST /appointments returns 404 for this id.
+    repo.findDealership.mockResolvedValue(null)
+    repo.findDealershipBays.mockResolvedValue([])
+
+    await expect(handler.execute(query)).rejects.toThrow(DealershipNotFoundError)
+  })
+
+  it('rejects an unknown dealership before doing any availability work', async () => {
+    repo.findDealership.mockResolvedValue(null)
+
+    await expect(handler.execute(query)).rejects.toThrow(DealershipNotFoundError)
+    expect(repo.findOverlappingAppointments).not.toHaveBeenCalled()
+    expect(repo.findDealershipBays).not.toHaveBeenCalled()
   })
 
   it('fetches the whole day once rather than once per candidate slot', async () => {

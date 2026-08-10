@@ -175,7 +175,13 @@ Three cases return `200` with an empty `availableSlots` rather than an error, be
 free" is a valid answer and not a failure: the date is a **closed day** (`BUSINESS_DAYS` /
 `BUSINESS_CLOSED_DATES`), the date is **in the past** (past slots are dropped — `POST` would reject
 them anyway, so advertising them would be a promise the write path cannot keep), or the dealership is
-genuinely fully booked. An unknown `serviceTypeId` is the one real error here: `404`.
+genuinely fully booked.
+
+An unknown `dealershipId` or `serviceTypeId` is **not** one of those cases: both return `404`, the
+same codes `POST /appointments` returns for the same ids. An earlier revision validated only the
+service type, so an unknown dealership produced zero candidate bays, which produced zero slots, and
+the caller received `200 {"availableSlots": []}` — a typo reported as "we are fully booked", from an
+endpoint whose whole job is to say what is free.
 
 **Response `200`**:
 
@@ -198,14 +204,51 @@ genuinely fully booked. An unknown `serviceTypeId` is the one real error here: `
 ids read as a reservation, and the client cannot pin its choice anyway because the server selects.
 The counts still tell a UI which slots are about to run out.
 
-An unknown `serviceTypeId` returns `404 SERVICE_TYPE_NOT_FOUND`; a dealership with no bays or no
-qualified technicians returns `200` with an empty `availableSlots`, not an error — "nothing is free"
-is a valid answer, not a failure.
+A dealership that **exists** but has no bays or no qualified technicians returns `200` with an empty
+`availableSlots`, not an error — that is the "nothing is free" case above. A dealership that does not
+exist returns `404 DEALERSHIP_NOT_FOUND`. The distinction is the point: one is a fact about capacity,
+the other is a fact about the request.
 
 **cURL**:
 
 ```bash
 curl "http://localhost:4002/api/v1/availability?dealershipId=<id>&serviceTypeId=<id>&date=2026-08-17"
+```
+
+### `GET /api/v1/appointments/:id` — fetch one appointment
+
+Reads back the record `POST /appointments` created — requirement 3's *"persistent Appointment
+record"* is only observable through this endpoint.
+
+**Response `200`**: exactly the body `POST /appointments` and `POST /appointments/:id/cancel` return.
+All three routes publish the same `appointmentResponseSchema` in the OpenAPI spec, generated from one
+Zod schema, so the read cannot drift from the write.
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "status": "SCHEDULED",
+    "startAt": "2026-08-17T10:00:00.000Z",
+    "endAt": "2026-08-17T10:30:00.000Z",
+    "serviceBay": { "id": "uuid", "label": "Bay 1" },
+    "technician": { "id": "uuid", "name": "Jordan Lee" }
+  }
+}
+```
+
+A `CANCELLED` appointment is returned normally, with its status — cancelling transitions the record,
+it does not delete it, and a client that just cancelled needs to be able to read back what it
+cancelled. An unknown id returns `404 APPOINTMENT_NOT_FOUND`; a malformed one, `400`.
+
+There is deliberately **no list endpoint** (`GET /appointments?customerId=…`) — see
+`docs/03_system_architecture_diagrams.md § Deferred scope` for the trigger that would add one.
+
+**cURL**:
+
+```bash
+curl http://localhost:4002/api/v1/appointments/<id>
 ```
 
 ### `POST /api/v1/appointments/:id/cancel` — cancel an appointment

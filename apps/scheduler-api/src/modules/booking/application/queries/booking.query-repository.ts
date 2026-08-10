@@ -1,3 +1,4 @@
+import type { AppointmentStatus } from '../../domain/entities/appointment.entity'
 import type { TimeWindow } from '../../domain/services/business-hours'
 
 /**
@@ -13,6 +14,28 @@ import type { TimeWindow } from '../../domain/services/business-hours'
 export interface ServiceTypeSummary {
   readonly id: string
   readonly durationMinutes: number
+}
+
+/**
+ * Only the id — existence is the whole question. `GET /availability` needs no
+ * other dealership field, and reading one would suggest it did.
+ */
+export interface DealershipSummary {
+  readonly id: string
+}
+
+/**
+ * One appointment with its bay and technician already joined, because
+ * `GET /appointments/:id` returns their display fields rather than bare ids —
+ * see `AppointmentDto` in `booking.dto.ts`.
+ */
+export interface AppointmentDetail {
+  readonly id: string
+  readonly status: AppointmentStatus
+  readonly startAt: Date
+  readonly endAt: Date
+  readonly serviceBay: { readonly id: string; readonly label: string }
+  readonly technician: { readonly id: string; readonly name: string }
 }
 
 export interface BayCandidate {
@@ -37,6 +60,17 @@ export interface IBookingQueryRepository {
   /** `null` when absent or soft-deleted. */
   findServiceType(serviceTypeId: string): Promise<ServiceTypeSummary | null>
 
+  /**
+   * `null` when absent or soft-deleted.
+   *
+   * Worth its own round trip even though nothing downstream reads the result:
+   * without it, an unknown `dealershipId` produced zero bays, which produced
+   * zero available slots, which is exactly what a fully-booked day looks like —
+   * while `POST /appointments` answered `404` for the same id. The read path
+   * has to agree with the write path about which requests are answerable at all.
+   */
+  findDealership(dealershipId: string): Promise<DealershipSummary | null>
+
   findDealershipBays(dealershipId: string): Promise<BayCandidate[]>
 
   findQualifiedTechnicians(
@@ -53,4 +87,12 @@ export interface IBookingQueryRepository {
     dealershipId: string,
     window: TimeWindow,
   ): Promise<OverlappingAppointment[]>
+
+  /**
+   * `null` when absent or soft-deleted. A `CANCELLED` appointment IS returned —
+   * cancelling changes the status, it does not remove the record
+   * (`docs/01_business_requirements.md § Assumptions`), and a client that just
+   * cancelled needs to be able to read back what it cancelled.
+   */
+  findAppointmentById(appointmentId: string): Promise<AppointmentDetail | null>
 }
