@@ -1,0 +1,100 @@
+# CI — runs the same gates AGENTS.md requires before a task is called done.
+#
+# Two jobs, split by what they need rather than by what they check: `check` needs
+# nothing but Node, so it stays fast and runs on every push; `database` boots
+# Postgres, because the two suites it runs prove things that only exist in a real
+# database (ADR-0002's exclusion constraints) or on a real socket (the HTTP
+# contract). Merging them would make every lint typo wait for a container.
+#
+# `.env` is copied from `.env.example` verbatim rather than assembled here. That
+# is deliberate: it means CI fails if `.env.example` ever drifts from what the
+# app actually requires, which is a documented past failure mode
+# (`.ai/GOTCHAS.md` — the example file is hand-synced with the Zod env schema).
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  check:
+    name: typecheck · lint · format · build · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Before `npm ci`, not after: `postinstall` runs `prisma generate`, and
+      # `prisma.config.ts` reads SCHEDULER_DATABASE_URL out of the root `.env`.
+      # Nothing in this job connects to a database — the URL only has to exist.
+      - name: Configure environment from the committed example
+        run: cp .env.example .env
+
+      - run: npm ci
+
+      - name: Gates
+        run: npm run check
+
+      # Separate from `check` so a build failure and a lint failure are
+      # distinguishable in the run summary.
+      - name: Build
+        run: npm run build
+
+      # The default suite is deliberately infra-free — no Postgres in this job,
+      # and that is the property being protected (a fresh clone must be able to
+      # run `npm test` before Docker is up).
+      - name: Unit tests
+        run: npm test
+
+  database:
+    name: integration · e2e (real Postgres)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Same image and version as docker-compose.yml. The init migration needs
+        # btree_gist for ADR-0002's EXCLUDE constraints; it ships with this image.
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: rootpassword
+          POSTGRES_DB: scheduler_db
+        # 15433 matches .env.example, so the copied file needs no rewriting.
+        ports:
+          - 15433:5432
+        options: >-
+          --health-cmd "pg_isready -U root -d scheduler_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Same ordering reason as the `check` job: `postinstall` needs the URL.
+      - name: Configure environment from the committed example
+        run: cp .env.example .env
+
+      - run: npm ci
+
+      # `migrate deploy`, not `migrate dev`: it applies committed migrations and
+      # never generates one, so a schema drift fails the build instead of being
+      # silently papered over with a new migration file.
+      - name: Apply migrations
+        run: npm run db:deploy
+
+      - name: Concurrency guarantee (ADR-0002)
+        run: npm run test:integration --workspace=@scheduler/api
+
+      - name: HTTP contract (docs/06)
+        run: npm run test:e2e --workspace=@scheduler/api

@@ -6,10 +6,11 @@
 
 ## Phase
 
-**Scheduler domain implemented and hardened.** Three phases done and verified, each with its plan
-committed in `.ai/plans/`: init (`init-source.plan.md`), the booking domain
-(`booking-domain.plan.md`), and a post-audit hardening pass (`hardening.plan.md`). All three
-endpoints named in `docs/06_api_contracts.md` are real, not planned.
+**Scheduler domain implemented, hardened, and submission-ready.** Four phases done and verified,
+each with its plan committed in `.ai/plans/`: init (`init-source.plan.md`), the booking domain
+(`booking-domain.plan.md`), a post-audit hardening pass (`hardening.plan.md`), and a
+submission-readiness pass (`submission-readiness.plan.md`). All four endpoints named in
+`docs/06_api_contracts.md` are real, not planned.
 
 Done — init base (unchanged since last entry, still green):
 - Monorepo tooling, `packages/shared-kernel` (52 tests), `apps/scheduler-api` skeleton, Docker
@@ -118,26 +119,75 @@ each verified by reproducing the defect first and re-running the same request:
 `prisma/migrations/20260810051339_init/` is **empty** — ADR-0002's constraints untouched; the new
 CHECK is a separate migration.
 
+Done — submission readiness (`.ai/plans/submission-readiness.plan.md`):
+
+An audit against the brief confirmed all three core requirements were genuinely satisfied and that
+the three prior plans did what they claimed (checked against the code and against `git`, not against
+this file's own summary). It also found ten gaps, of which two were real defects and one turned out
+to be a false alarm worth recording.
+
+- **The work is now committed.** The entire booking domain, both post-init plans, ADR-0003 and the
+  `duration_minutes` migration had been sitting in an uncommitted working tree — `git log` held three
+  commits, the newest a rename. Split into dependency-ordered commits (fix → foundations → domain →
+  concurrency test → docs), since many files were touched by both the domain and the hardening phase
+  and reconstructing per-phase hunks would have fabricated commits that never existed. **No remote:
+  local commits only, by decision.**
+- **`GET /availability` validates the dealership** (`404`). An unknown id used to yield zero bays,
+  hence zero slots, hence `200 {"availableSlots": []}` — a typo reported as "fully booked", while
+  `POST` answered `404` for the same id. The read path and the write path now agree on which
+  requests are answerable at all.
+- **`GET /appointments/:id`** (new, UC-4). Requirement 3's persistent record was previously
+  observable only in the response to the request that created it. Returns the same DTO the write
+  endpoints return, so all three routes publish one `appointmentResponseSchema`.
+- **An HTTP-level e2e suite** (`npm run test:e2e`, 12 tests, third Jest project) — and it found a
+  real defect on its first run: `IdempotencyInterceptor` persisted its response fire-and-forget, so a
+  client retrying promptly read `response: null` and got `409 in progress` for a request that had
+  already succeeded. Manual cURL had passed because a human retypes slower than the write commits.
+  Fixed: the write is awaited before the response is emitted.
+- **CI** (`.github/workflows/ci.yml`) — `check` (Node only) and `database` (Postgres service:
+  migrations, integration, e2e). It copies `.env.example` to `.env` verbatim, so the workflow fails
+  if that file ever drifts from what the app requires; verified locally by booting the app from
+  `.env.example` alone. **Never executed on a runner — there is no remote.**
+- **Scenario A is quoted verbatim in `readme.md`**, with a requirement → endpoint → handler → test →
+  ADR table, and the brief is attributed in `docs/00`, `docs/01`, `docs/03`, `AGENTS.md` and
+  `CLAUDE.md`. The collection framing is where the repo lives; the PDF is what it must satisfy.
+- **A finding that was wrong, kept because the correction is the lesson**: the audit claimed the
+  exclusion constraints ignore `deletedAt`, making a soft-deleted `SCHEDULED` row strand its bay.
+  `pg_get_constraintdef` shows the real predicate is `status = 'SCHEDULED' AND deleted_at IS NULL`.
+  ADR-0002 and `docs/04` had it right; `docs/02`, `docs/03` and `docs/06` abbreviated it to the
+  status half, and reading those produced the false alarm. All three now quote it in full.
+- `.ai/plans/video-runbook.md` — the demo sequence, the three AI-collaboration artifacts to show,
+  and the two honest "what went wrong" stories, so the recording is repeatable rather than improvised.
+
+**Verification, all green**: `npx turbo run typecheck lint test format:check build` (10/10 tasks,
+**172 unit tests**, 0 lint errors) · `npm run test:integration` (3/3, real Postgres) ·
+`npm run test:e2e` (12/12, real HTTP + real Postgres) — **187 tests total** · fresh-clone
+`npm install && npm run check` · the availability defect and the e2e idempotency defect each
+reproduced red *before* the fix · `git diff` on `prisma/migrations/20260810051339_init/` still empty.
+
 Not started:
 - Everything in `docs/03_system_architecture_diagrams.md § Deferred scope` (outbox/broker, circuit
-  breaker, rate limiting, second service, RBAC/multi-tenancy) plus ADR-0003's own three additions
-  (raw-SQL availability query, per-dealership business hours, load-balanced selection) — all
-  deferred with a named trigger, none needed yet.
+  breaker, rate limiting, second service, RBAC/multi-tenancy, appointment list/search) plus
+  ADR-0003's own three additions (raw-SQL availability query, per-dealership business hours,
+  load-balanced selection) — all deferred with a named trigger, none needed yet.
 - Per-country holiday calendars (`BUSINESS_CLOSED_DATES` is a hand-maintained list).
 - **`COMPLETED` has no write path at all**, so `AppointmentNotCancellableError`'s 409 branch is
   unreachable in practice. Documented rather than hidden; trigger is a check-in/check-out flow.
-- The submission's video walkthrough (`.ai/plans/init-source.plan.md` §13.3) — has no repo artifact
-  by design.
+- The video walkthrough itself — `.ai/plans/video-runbook.md` is the runbook for it, but the
+  recording has no repo artifact by design.
 
 ## Current focus
 
-Scheduler domain complete, hardened, and verified. Next: record the video walkthrough; otherwise the
-repository is submission-ready per `.ai/plans/init-source.plan.md` §13's deliverables map.
+Record the video against `.ai/plans/video-runbook.md`. Everything else the brief asks for exists in
+the repository and is verified.
 
 ## Live debts
 
-None blocking. `.ai/memory/gotchas.jsonl` (15 entries) and `architecture.jsonl` (3) carry this
-build's real lessons. `conventions.jsonl` and `errors.jsonl` are still **empty** — nothing this
-phase was a distinct coding convention or a bare error→solution pair rather than a gotcha or a
-design decision. (An earlier revision of this file claimed "all four files now have real entries" in
-the same sentence as "errors.jsonl remains empty"; two are empty, not one.)
+None blocking. Two open by decision rather than by omission, both stated here so neither reads as an
+oversight: **there is no git remote** (local commits only), and consequently **CI has never run on a
+runner** — the workflow is structurally reviewed and each of its steps verified locally, which is
+not the same as a green run.
+
+`.ai/memory/gotchas.jsonl` (17 entries) and `architecture.jsonl` (3) carry this build's real lessons.
+`conventions.jsonl` and `errors.jsonl` are still **empty** — nothing so far was a distinct coding
+convention or a bare error→solution pair rather than a gotcha or a design decision.

@@ -20,6 +20,11 @@ ported from Cortex (`distributed-social-platform`) with business content strippe
 `.ai/plans/init-source.plan.md` for the full reasoning. Do NOT reintroduce Cortex's business
 domain (knowledge hub, credits, tenancy, RAG).
 
+⚠️ **The requirement this code answers to is `KeyloopCodingChallange.pdf` § *Scenario A: The Unified
+Service Scheduler*** (repo root). The collection framing is where the repo lives; the PDF is what it
+must satisfy — `readme.md` quotes its three core requirements verbatim and maps each to the code and
+the test that proves it.
+
 Source of truth: `.ai/KNOWLEDGE_INDEX.md` → `docs/00..12` → `readme.md`.
 
 ## ⛔ Hard Rules (see AGENTS.md for full text)

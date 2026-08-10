@@ -5,11 +5,12 @@ vehicle service. Given a customer, vehicle, service type, dealership, and desire
 real-time availability of both a service bay and a qualified technician for the full service
 duration, and creates a persistent, non-overlapping appointment record.
 
-**Why**: Scenario 01 of a personal system-design-scenarios collection — a resource-constrained
-scheduling problem, modeled on replacing a manual booking process. The one requirement that
-actually makes this hard, not just CRUD, is
-requirement 2: the availability check must be correct under concurrent requests, not just correct
-for one request at a time. That's the system's real design problem, and it's the subject of
+**Why**: it implements *Scenario A — The Unified Service Scheduler* from the brief in
+[`KeyloopCodingChallange.pdf`](../KeyloopCodingChallange.pdf) (quoted verbatim, with a
+requirement→code→test map, in [`readme.md`](../readme.md)), kept as scenario 01 of a personal
+system-design-scenarios collection. The one requirement that actually makes this hard, not just
+CRUD, is requirement 2: the availability check must be correct under concurrent requests, not just
+correct for one request at a time. That's the system's real design problem, and it's the subject of
 [ADR-0002](adr/0002-booking-concurrency-control.md).
 
 **How it's built**: NestJS + Fastify, PostgreSQL via Prisma, CQRS command/query bus, a
@@ -37,9 +38,18 @@ inclusion and every deferral.
 
 ## Status
 
-The scheduler domain is implemented: `POST /appointments` (book), `GET /availability` (check),
-`POST /appointments/:id/cancel` (cancel) — all three backed by real command/query handlers, not a
-skeleton. The anti-double-booking guarantee is verified at both layers: live SQL against Postgres
-(`docs/08_testing_and_qa_strategy.md`) and an application-level concurrency test dispatching two
-real commands through the real `CommandBus` (`npm run test:integration`). See
-`.ai/PROJECT_STATUS.md` for the current, curated state of the repository.
+The scheduler domain is implemented — four endpoints, all backed by real command/query handlers,
+not a skeleton:
+
+| Requirement | Endpoint | Use case |
+|---|---|---|
+| 1 + 2 (booking, with the availability check) | `POST /api/v1/appointments` | [UC-1](02_use_cases.md) |
+| 2 (browsing what is free) | `GET /api/v1/availability` | [UC-2](02_use_cases.md) |
+| 3 (the record, cancelled) | `POST /api/v1/appointments/:id/cancel` | [UC-3](02_use_cases.md) |
+| 3 (the record, read back) | `GET /api/v1/appointments/:id` | [UC-4](02_use_cases.md) |
+
+The anti-double-booking guarantee is verified at three layers: live SQL against Postgres, an
+application-level concurrency test dispatching two real commands through the real `CommandBus`
+(`npm run test:integration`), and the published HTTP contract (`npm run test:e2e`) — see
+[`08_testing_and_qa_strategy.md`](08_testing_and_qa_strategy.md). `.ai/PROJECT_STATUS.md` carries the
+current, curated state of the repository.
