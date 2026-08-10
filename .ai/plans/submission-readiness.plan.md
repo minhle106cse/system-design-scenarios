@@ -50,7 +50,18 @@ Ten, each reproduced before being written down.
 | **F4** | `GET /availability` does not validate the dealership; `POST /appointments` does. Unknown/soft-deleted `dealershipId` → `200 {"availableSlots":[]}` (indistinguishable from "fully booked") vs `404` on the write path. Same defect class the hardening pass fixed, on the path it did not cover | Real bug |
 | **F5** | No way to read an appointment back. `POST` creates it, `POST :id/cancel` cancels it, nothing fetches it — requirement 3's record is invisible to the client, the cURL walkthrough cannot show what it created, and the video demo has nothing to display | Real gap |
 | **F6** | No test exercises the HTTP layer. 114 unit tests use mocked repositories; the 3 integration tests enter *below* the controller. Nothing tests Zod-over-the-wire, idempotency replay on a real duplicate `POST`, `GlobalExceptionFilter`'s status mapping, or the response envelope — all documented as contract in `docs/06` | Evidence gap |
-| **F7** | A soft-deleted `SCHEDULED` appointment would strand its bay and technician: ADR-0002's constraints are `WHERE status='SCHEDULED'` and know nothing about `deletedAt`, while every application read filters `deletedAt IS NULL`. No write path does this today — latent, undocumented | Latent |
+| **F7** | A soft-deleted `SCHEDULED` appointment would strand its bay and technician: ADR-0002's constraints are `WHERE status='SCHEDULED'` and know nothing about `deletedAt`, while every application read filters `deletedAt IS NULL`. No write path does this today — latent, undocumented | ~~Latent~~ **WRONG — see below** |
+
+> **F7 was wrong, and is kept here rather than deleted.** Executing Tier 4 started by reproducing the
+> claim, and `pg_get_constraintdef` shows the real predicate is
+> `WHERE status = 'SCHEDULED' AND deleted_at IS NULL`. Both constraints have always been
+> soft-delete-aware; there is no latent bug and nothing to fix. The finding came from reading
+> `docs/02`, `docs/03` and `docs/06`, which abbreviate the predicate to its status half in
+> cancellation contexts, while ADR-0002 and `docs/04` state it in full — a summary that was accurate
+> for what it was summarising and misleading for what it was read for. Tier 4 below therefore became
+> *fix the three abbreviations*, not *document a latent bug*. Same reason `booking-domain.plan.md`
+> keeps its wrong guess about the Prisma error shape: a plan that shows only correct predictions is
+> not evidence of a verification process, it is evidence of editing.
 | **F8** | Nothing maps the code back to Scenario A. `readme.md` never names the assessment, the scenario, or its three core requirements; `docs/01` quotes the PDF's ambiguity clause as *"this collection's own convention"* | Communication |
 | **F9** | `docs/03` §2 has two stale rows (Domain *"added as the scheduler domain is implemented"*; metrics row omits the two booking metrics §6 documents) — in the System Design Document itself | Doc drift |
 | **F10** | No CI. Gates exist and are green, but nothing runs them on push; the only evidence is a claim in a status file | Evidence gap |
@@ -188,15 +199,18 @@ Domain row → the domain layer exists, name the module. Metrics row → add
 `scheduler_api_booking_attempt_total` and `scheduler_api_availability_check_duration_seconds`, which
 §6 of the same file already documents in full.
 
-### Tier 4 — Record the latent interaction (F7)
+### Tier 4 — ~~Record the latent interaction (F7)~~ → Fix the abbreviation that invented it
 
-Not code. ADR-0002 is `Accepted` and `docs/adr/README.md` forbids editing an ADR's content, so the
-note goes to **`docs/04_database_schema.md`** (next to the constraint description) plus a
-`.ai/memory/architecture.jsonl` entry: the exclusion constraints are scoped to `status='SCHEDULED'`
-and are **not** `deletedAt`-aware, so soft-deleting a scheduled appointment would make its window
-invisible to the app and permanently unbookable at the database. Trigger for a real fix: any write
-path that soft-deletes an appointment — none exists today, because cancellation transitions `status`
-instead, which is why the current design is sound.
+> **Rewritten during execution.** The planned work assumed F7 was real. It is not (see the note
+> under F7). What survives is the part that was actually wrong: three documents abbreviating a
+> database predicate until it implied a bug.
+
+Not code. `docs/02`, `docs/03` (twice, including the architecture diagram) and `docs/06` describe
+ADR-0002's constraints as *"scoped to `status = 'SCHEDULED'`"*; the real predicate is
+`status = 'SCHEDULED' AND deleted_at IS NULL`, as ADR-0002 and `docs/04` already state. Quote it in
+full in all three, with one sentence in `docs/03` saying why the abbreviation is not harmless. Log
+the episode to `.ai/memory/gotchas.jsonl` — for a claim about what the *database* enforces, query
+`pg_constraint` before writing it down.
 
 ### After-Task Protocol (part of this task, not a follow-up)
 

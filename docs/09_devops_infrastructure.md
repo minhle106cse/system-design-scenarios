@@ -78,18 +78,40 @@ npm run check   # = turbo run typecheck lint format:check
 npm run build   # turbo build — shared-kernel (tsc -b) then scheduler-api (nest build)
 npm test        # turbo test — all workspaces, no Docker required
 npm run test:integration --workspace=@scheduler/api   # real-Postgres concurrency proof — needs infra up + migrated
+npm run test:e2e --workspace=@scheduler/api           # the published HTTP contract — same prerequisites
 ```
 
-No CI pipeline config is included in this scenario (out of scope for its deliverables) — but
-every gate above is what a CI pipeline would run. `npm test` deliberately stays infrastructure-free
-(see `docs/08_testing_and_qa_strategy.md`); `test:integration` is the one command that needs
-`docker compose up -d` and `db:migrate` first.
+`.github/workflows/ci.yml` runs exactly those, split into two jobs by what each needs:
+
+| Job | Needs | Runs |
+|---|---|---|
+| `check` | Node 22 only | `npm run check` · `npm run build` · `npm test` |
+| `database` | a `postgres:16-alpine` service on 15433 | `npm run db:deploy` · `test:integration` · `test:e2e` |
+
+Three details worth knowing before editing it:
+
+- **`.env` is copied from `.env.example` verbatim**, not assembled from inline env vars. That makes
+  CI fail if the example file drifts from what the Zod env schema requires — a documented past
+  failure mode (`.ai/GOTCHAS.md`: the two are hand-synced). The copy happens **before** `npm ci`,
+  because `postinstall` runs `prisma generate` and `prisma.config.ts` reads
+  `SCHEDULER_DATABASE_URL` out of that file.
+- **`migrate deploy`, not `migrate dev`** — it applies committed migrations and never generates one,
+  so schema drift fails the build instead of being papered over with a new migration file.
+- **The `check` job has no database on purpose.** `npm test` staying infrastructure-free is a
+  property worth protecting (`docs/08_testing_and_qa_strategy.md`), and the only way to keep it true
+  is to run it somewhere a database does not exist.
+
+⚠️ **This workflow has never executed on a runner.** The repository has no git remote — a deliberate
+choice, recorded in `.ai/plans/submission-readiness.plan.md` — so every step was instead verified
+locally, including booting the app with `.env.example` as its `.env` and running the e2e suite
+against it. Structurally reviewed and locally reproduced is not the same as a green build, and this
+document should not imply otherwise.
 
 ## Fresh-clone path (what a reviewer actually runs)
 
 ```bash
 git clone <repo>
-cd keyloop-service-scheduler
+cd service-appointment-scheduler
 cp .env.example .env
 npm install
 npm run infra:up
@@ -97,6 +119,11 @@ npm run db:migrate
 npm run db:seed
 npm run dev
 ```
+
+> **Windows note, found running exactly this:** clone into a short path. Some migration directory
+> names push past `MAX_PATH` when the repository sits several levels deep under a temp directory,
+> and git reports *"Filename too long"* with `Clone succeeded, but checkout failed` — a working tree
+> that looks empty rather than broken. `git config --global core.longpaths true` also fixes it.
 
 Then `curl http://localhost:4002/health` and `http://localhost:4002/docs`.
 

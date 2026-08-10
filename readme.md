@@ -54,10 +54,11 @@ Ambiguities in the brief, and the assumption made for each, are logged in
 ## Quick start
 
 ```bash
+cp .env.example .env          # works verbatim — CI uses this exact copy
 npm install
-npm run infra:up
+npm run infra:up              # postgres · prometheus · grafana
 npm run db:migrate && npm run db:seed
-npm run dev
+npm run dev                   # :4002 — /docs for the OpenAPI UI, /health, /metrics
 ```
 
 Full instructions, troubleshooting, and test commands: [RUN.md](RUN.md).
@@ -68,6 +69,7 @@ How this repo was assembled from a reusable base: [SETUP.md](SETUP.md).
 The full System Design Document is [docs/03_system_architecture_diagrams.md](docs/03_system_architecture_diagrams.md),
 supported by [docs/04_database_schema.md](docs/04_database_schema.md),
 [docs/06_api_contracts.md](docs/06_api_contracts.md), the observability strategy in
+[docs/03 §6](docs/03_system_architecture_diagrams.md) and
 [docs/09_devops_infrastructure.md](docs/09_devops_infrastructure.md), and three ADRs:
 
 - [`docs/adr/0001-transaction-retry-boundary.md`](docs/adr/0001-transaction-retry-boundary.md) — the
