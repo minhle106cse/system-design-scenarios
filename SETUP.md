@@ -2,7 +2,7 @@
 
 This repo's monorepo tooling, AI-agent workflow, and shared-kernel were ported from **Cortex**
 (`distributed-social-platform`), a 5-service platform, deliberately **stripped down to the single
-bounded problem this challenge asks for** — no submodules, no message broker, no second service.
+bounded problem this scenario asks for** — no submodules, no message broker, no second service.
 The full reasoning for every inclusion and every deferral lives in
 [`.ai/plans/init-source.plan.md`](.ai/plans/init-source.plan.md) (this repo's init plan, kept as
 the primary evidence for the AI Collaboration Narrative — see
@@ -30,7 +30,7 @@ This document is the short version: what is reused, what is new, and why.
 | `.claude/`, `.ai/`, `scripts/sync.cjs`, `AGENTS.md` | Ported, submodule logic removed | The AI-agent workflow — routing hook, knowledge index builder, After-Task discipline. See .ai/plans/init-source.plan.md §6. |
 | `directives/` | Subset ported, examples swapped | Coding standards (CQRS pattern, domain modelling, testing, idempotency, observability) — see .ai/plans/init-source.plan.md §4 |
 | `docker-compose.yml`, `docker-init/` | Reduced | Postgres + Prometheus + Grafana only. See .ai/plans/init-source.plan.md §7. |
-| `docs/`, ADRs | New content in a ported scaffold shape | Scenario A's business requirements, architecture, and the booking-concurrency decision |
+| `docs/`, ADRs | New content in a ported scaffold shape | This scenario's business requirements, architecture, and the booking-concurrency decision |
 
 ## 3. What is new, not ported
 

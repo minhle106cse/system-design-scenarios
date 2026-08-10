@@ -17,7 +17,7 @@ datasource db {
 /// that file fails typecheck.
 ///
 /// Idempotency key cache — prevents duplicate mutations from retried requests.
-/// Directly relevant to Scenario A: a double-submitted booking form must not
+/// Directly relevant to this scenario: a double-submitted booking form must not
 /// create two appointments.
 model IdempotencyRecord {
   key         String   @id // X-Idempotency-Key header value

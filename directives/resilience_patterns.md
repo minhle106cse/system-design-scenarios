@@ -85,8 +85,8 @@ the caller itself).
 
 ## 4. Rate Limiting & Throttle — deferred, not built
 
-**Not built.** No `@nestjs/throttler` wiring, no per-route/per-IP limiting. Scenario A's
-idempotency mechanism (§1) already protects against the specific hazard this challenge cares
+**Not built.** No `@nestjs/throttler` wiring, no per-route/per-IP limiting. This scenario's
+idempotency mechanism (§1) already protects against the specific hazard the brief cares
 about (a client double-submitting a booking) — general abuse-rate limiting is a different concern
 with its own cost/complexity, not required by the brief, and not added speculatively (see
 `.ai/plans/init-source.plan.md` §1's "sequence, not omission" framing).

@@ -12,7 +12,7 @@ why, specifically for this project.
 
 Run: `npm test` (root, all workspaces) or `npm run test --workspace=@scheduler/api`.
 
-## The most important test in this submission: concurrent booking
+## The most important test in this scenario: concurrent booking
 
 Not a unit test with a mock — a **live database test**, run against the actual Postgres exclusion
 constraint during init (see `.ai/memory/architecture.jsonl` for the transcript):

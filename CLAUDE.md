@@ -11,11 +11,11 @@
    Skip it for questions and small fixes. Untruncated text: `grep .ai/memory/*.jsonl`.
 3. Read the relevant `directives/*.md` SOP before creating/modifying code.
 
-## 📦 Project Context — Keyloop Service Scheduler
+## 📦 Project Context — Service Appointment Scheduler
 
-A resource-constrained appointment scheduler for vehicle service (Keyloop Technical Assessment,
-Scenario A) — real-time availability checks against service bays and qualified technicians,
-backed by a persistent, non-overlapping `Appointment` record. Monorepo tooling and AI workflow
+Scenario 01 in a personal collection of real-world system-design scenarios. A resource-constrained
+appointment scheduler for vehicle service — real-time availability checks against service bays and
+qualified technicians, backed by a persistent, non-overlapping `Appointment` record. Monorepo tooling and AI workflow
 ported from Cortex (`distributed-social-platform`) with business content stripped — see
 `.ai/plans/init-source.plan.md` for the full reasoning. Do NOT reintroduce Cortex's business
 domain (knowledge hub, credits, tenancy, RAG).

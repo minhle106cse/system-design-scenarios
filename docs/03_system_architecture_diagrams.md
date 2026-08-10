@@ -1,6 +1,6 @@
 # System Design Document
 
-> This is the deliverable the Keyloop assessment calls "System Design Document" (Part 1). It
+> This is the "System Design Document" deliverable for this scenario. It
 > covers: an architecture diagram, component roles, data flow, chosen technologies with
 > justification, the observability strategy, a dedicated GenAI-in-design-phase section, and a
 > deferred-scope section explaining what was deliberately left out and why.
@@ -94,7 +94,7 @@ flowchart TB
 | **CQRS + Unit-of-Work (`@scheduler/shared-kernel`)** | Ported rather than built from scratch — see §6 below on GenAI's role here. Chosen over a simpler "service layer" pattern because it makes the transaction boundary structural (ADR-0001) instead of a discipline to remember, which matters directly for a domain whose core requirement is a concurrency guarantee. |
 | **Zod, per-route, no global pipe** | One validation library, applied explicitly where needed — see `directives/zod_validation.md` for why the global-pipe/DTO-class ergonomics of `nestjs-zod` weren't adopted at this scope. |
 | **No Redis** | The idempotency store and the booking guarantee are both Postgres-native (`IdempotencyRecord`, the exclusion constraint). Adding Redis would be infrastructure for a problem Postgres already solves — see `.ai/plans/init-source.plan.md` §8.3. |
-| **Prometheus + Grafana, provisioned as code** | Directly requested by the assessment ("your strategy for observability"). Provisioning as code (not clicking through a UI) means the dashboard exists on any machine that clones the repo. |
+| **Prometheus + Grafana, provisioned as code** | Directly requested by the brief ("your strategy for observability"). Provisioning as code (not clicking through a UI) means the dashboard exists on any machine that clones the repo. |
 | **No message broker, no second service** | See §5 below — deferred, not omitted. |
 
 ## 5. § Deferred scope
@@ -165,4 +165,4 @@ The one decision that was **not** delegated: the shape of the anti-double-bookin
 (ADR-0002). The AI proposed and implemented the exclusion-constraint mechanism; the choice to
 solve it at the database layer rather than in application code, and the verification that it
 actually holds (tested live against Postgres, not just read as documentation), was directed and
-checked by a human before being accepted as the flagship design decision of this submission.
+checked by a human before being accepted as the flagship design decision of this scenario.

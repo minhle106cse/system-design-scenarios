@@ -5,7 +5,7 @@
 > T1/T2, there is no message consumer (see `.ai/plans/init-source.plan.md` §3.3, T3 trigger). What's kept here is
 > the **HTTP idempotency-key** mechanism, which IS implemented
 > (`infrastructure/http/idempotency/idempotency.interceptor.ts`) and is directly relevant:
-> Scenario A's booking form must not create two appointments on a double-submit.
+> This scenario's booking form must not create two appointments on a double-submit.
 
 ## The mechanism: claim-before-execute
 

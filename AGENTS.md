@@ -1,4 +1,4 @@
-# Agent Instructions — Keyloop Service Scheduler
+# Agent Instructions — Service Appointment Scheduler
 
 > **AGENTS.md is the canonical agent instruction file.** `CLAUDE.md` is a thin pointer so the same
 > instructions load in any AI environment. Edit instructions here.
@@ -7,16 +7,20 @@
 > `directives/` vs `.ai/` vs agent memory, and the rules that keep them from rotting — read
 > **`.ai/KNOWLEDGE_ARCHITECTURE.md`** (the meta-doc). This file is the operating summary.
 
-## 📦 Project Context — Keyloop Service Scheduler
+## 📦 Project Context — Service Appointment Scheduler
 
-A resource-constrained **appointment scheduler** for vehicle service (Keyloop Technical Assessment,
-Scenario A). Given a customer, vehicle, service type, dealership, and desired time, it checks
-real-time availability of both a **service bay** and a **qualified technician** for the full
-service duration, and creates a persistent, non-overlapping appointment record. Single service,
-backend implementation — see `readme.md` for scope.
+**Scenario 01** in a personal collection of real-world system-design scenarios (see the parent
+`system-design-scenarios/` repo's README for how the collection is organized — each subfolder is
+one self-contained scenario, built to the same senior-level bar).
+
+This scenario: a resource-constrained **appointment scheduler** for vehicle service. Given a
+customer, vehicle, service type, dealership, and desired time, it checks real-time availability of
+both a **service bay** and a **qualified technician** for the full service duration, and creates a
+persistent, non-overlapping appointment record. Single service, backend implementation — see
+`readme.md` for scope.
 
 This repo's monorepo tooling, AI-agent workflow, and shared-kernel were **ported from Cortex**
-(`distributed-social-platform`), stripped to the single bounded problem this challenge asks for —
+(`distributed-social-platform`), stripped to the single bounded problem this scenario asks for —
 no submodules, no message broker, no second service. The full reasoning for every inclusion and
 every deferral lives in `.ai/plans/init-source.plan.md`. Do NOT reintroduce Cortex's business
 domain (knowledge hub, credits, tenancy, RAG) — none of it applies here.
@@ -124,7 +128,7 @@ Any implementation plan you generate MUST contain a **"References & Compliance"*
 exactly which `directives/*.md` SOP files and which `docs/NN_*.md` business files you read, and where
 each decision's logic came from. A plan missing this section may be rejected outright. This exists to
 keep plans grounded in the project's actual rules instead of improvised ones — and it is the
-concrete artifact behind this submission's AI Collaboration Narrative
+concrete artifact behind this scenario's AI Collaboration Narrative
 (`docs/12_ai_collaboration.md`, `.ai/plans/init-source.plan.md` §6.4.1).
 
 ## 📝 After-Task Protocol (run every non-trivial task — don't wait to be asked)

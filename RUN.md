@@ -1,4 +1,4 @@
-# Running Keyloop Service Scheduler locally
+# Running the Service Appointment Scheduler locally
 
 Single-service Turborepo monorepo: one NestJS app (`apps/scheduler-api`), one Postgres database,
 Prometheus + Grafana for observability. No gateway, no message broker, no submodules — clone once,

@@ -18,7 +18,7 @@ This follows the **What/Why/How convention** stated in `.ai/plans/init-source.pl
 | File | Content | Layer |
 |---|---|---|
 | [`00_overview.md`](00_overview.md) | Ten-minute orientation — start here | all three |
-| [`01_business_requirements.md`](01_business_requirements.md) | Scenario A requirements + documented assumptions | WHY |
+| [`01_business_requirements.md`](01_business_requirements.md) | Scenario requirements + documented assumptions | WHY |
 | [`02_use_cases.md`](02_use_cases.md) | Book appointment / check availability / cancel | WHAT |
 | [`03_system_architecture_diagrams.md`](03_system_architecture_diagrams.md) | **The System Design Document deliverable** — architecture, data flow, tech choices, observability strategy, deferred scope | WHAT + WHY |
 | [`04_database_schema.md`](04_database_schema.md) | Schema + the booking-constraint shape | WHAT + WHY |
