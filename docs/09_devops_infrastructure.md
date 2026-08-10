@@ -50,8 +50,8 @@ npm run build   # turbo build — shared-kernel (tsc -b) then scheduler-api (nes
 npm test        # turbo test — all workspaces
 ```
 
-No CI pipeline config is included in this submission (out of scope for the assessment's
-deliverables) — but every gate above is what a CI pipeline would run, and all four are green as of
+No CI pipeline config is included in this scenario (out of scope for its deliverables) — but
+every gate above is what a CI pipeline would run, and all four are green as of
 init (`.ai/PROJECT_STATUS.md`).
 
 ## Fresh-clone path (what a reviewer actually runs)

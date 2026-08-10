@@ -1,12 +1,12 @@
-# Keyloop Service Scheduler
+# Service Appointment Scheduler
 
-**Scenario A — The Unified Service Scheduler.** A resource-constrained appointment booking API for
-vehicle service: given a customer, vehicle, service type, dealership, and desired time, it checks
-real-time availability of both a service bay and a qualified technician for the full service
-duration, and creates a persistent, non-overlapping appointment record.
+**Scenario 01 — Resource-Constrained Appointment Scheduling.** A resource-constrained appointment
+booking API for vehicle service: given a customer, vehicle, service type, dealership, and desired
+time, it checks real-time availability of both a service bay and a qualified technician for the
+full service duration, and creates a persistent, non-overlapping appointment record.
 
-Backend implementation (Part 2 of the challenge): a RESTful API + Postgres, OpenAPI-documented,
-client layer stubbed via `/docs` and the cURL examples in [docs/06_api_contracts.md](docs/06_api_contracts.md).
+Backend implementation: a RESTful API + Postgres, OpenAPI-documented, client layer stubbed via
+`/docs` and the cURL examples in [docs/06_api_contracts.md](docs/06_api_contracts.md).
 
 > **Status:** repository initialised per [`.ai/plans/init-source.plan.md`](.ai/plans/init-source.plan.md)
 > (monorepo tooling, AI workflow, shared-kernel, and app skeleton in place). The scheduler domain
@@ -35,7 +35,7 @@ supported by [docs/04_database_schema.md](docs/04_database_schema.md),
 - [`docs/adr/0001-transaction-retry-boundary.md`](docs/adr/0001-transaction-retry-boundary.md) — the
   Unit-of-Work / retry boundary the whole kernel is built on
 - [`docs/adr/0002-booking-concurrency-control.md`](docs/adr/0002-booking-concurrency-control.md) —
-  the double-booking guarantee, the flagship decision of this submission
+  the double-booking guarantee, the flagship decision of this scenario
 
 Start at [docs/00_overview.md](docs/00_overview.md) for a ten-minute orientation.
 
@@ -81,5 +81,5 @@ and every deferral trigger in
 
 ## Assumptions
 
-Ambiguities in the challenge brief and the reasonable assumption made for each are logged in
+Ambiguities in the problem brief and the reasonable assumption made for each are logged in
 [docs/01_business_requirements.md § Assumptions](docs/01_business_requirements.md).

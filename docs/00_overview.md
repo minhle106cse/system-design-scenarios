@@ -1,12 +1,13 @@
 # Overview
 
-**What**: Keyloop Service Scheduler is a resource-constrained appointment booking API for vehicle
-service. Given a customer, vehicle, service type, dealership, and desired time, it checks
+**What**: The Service Appointment Scheduler is a resource-constrained appointment booking API for
+vehicle service. Given a customer, vehicle, service type, dealership, and desired time, it checks
 real-time availability of both a service bay and a qualified technician for the full service
 duration, and creates a persistent, non-overlapping appointment record.
 
-**Why**: Keyloop Technical Assessment, Scenario A ("The Unified Service Scheduler") — replacing a
-manual booking process. The one requirement that actually makes this hard, not just CRUD, is
+**Why**: Scenario 01 of a personal system-design-scenarios collection — a resource-constrained
+scheduling problem, modeled on replacing a manual booking process. The one requirement that
+actually makes this hard, not just CRUD, is
 requirement 2: the availability check must be correct under concurrent requests, not just correct
 for one request at a time. That's the system's real design problem, and it's the subject of
 [ADR-0002](adr/0002-booking-concurrency-control.md).

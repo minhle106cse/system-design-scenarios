@@ -1,4 +1,4 @@
-# Folder Structure SOP — Keyloop Service Scheduler
+# Folder Structure SOP — Service Appointment Scheduler
 
 > **This is an immutable directive.** `apps/scheduler-api` MUST follow this structure. The agent
 > MUST NOT create files/folders that deviate from it without owner approval.

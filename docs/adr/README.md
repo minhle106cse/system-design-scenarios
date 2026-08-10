@@ -31,4 +31,4 @@ rejected.
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-transaction-retry-boundary.md) | Transaction & Retry Boundary — Unit of Work + inferred from signature + fail-fast at boot | Accepted — ported from Cortex, see `.ai/plans/init-source.plan.md` §5 for the numbering rationale |
-| [0002](0002-booking-concurrency-control.md) | Booking Concurrency Control — database-level exclusion constraint | Accepted — the flagship decision of this submission |
+| [0002](0002-booking-concurrency-control.md) | Booking Concurrency Control — database-level exclusion constraint | Accepted — the flagship decision of this scenario |

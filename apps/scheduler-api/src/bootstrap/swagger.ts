@@ -5,7 +5,7 @@ export function setupSwagger(app: INestApplication) {
   if (process.env.NODE_ENV === 'production') return
 
   const config = new DocumentBuilder()
-    .setTitle('Keyloop Service Scheduler')
+    .setTitle('Service Appointment Scheduler')
     .setDescription(
       'Appointment scheduler API — resource-constrained booking with real-time ' +
         'availability checks against service bays and qualified technicians.',

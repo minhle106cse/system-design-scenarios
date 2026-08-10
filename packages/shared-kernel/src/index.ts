@@ -12,7 +12,7 @@ export * from './logger/index.js'
 // Resilience — shared Prisma transient-error classification + observability,
 // and the generic `transient` marker a domain error can opt into.
 //
-// NOTE: circuit-breaker.ts is NOT ported here. Scenario A makes no outbound
+// NOTE: circuit-breaker.ts is NOT ported here. This scenario makes no outbound
 // call to an unreliable dependency, so a breaker would protect nothing (see
 // .ai/plans/init-source.plan.md §3.1c / docs/03_system_architecture_diagrams.md § Deferred
 // scope for the trigger that brings it back).

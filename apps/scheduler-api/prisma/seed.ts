@@ -16,7 +16,7 @@ async function main() {
 
   try {
     const dealership = await prisma.dealership.create({
-      data: { name: 'Keyloop Downtown Service Center', address: '1 Example Ave' },
+      data: { name: 'Downtown Service Center', address: '1 Example Ave' },
     })
 
     const [bay1, bay2, bay3] = await Promise.all([

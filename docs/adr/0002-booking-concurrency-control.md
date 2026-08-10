@@ -9,7 +9,7 @@
 
 ## 1. Context
 
-Scenario A's core requirement:
+This scenario's core requirement:
 
 > **Real-Time Availability Check**: Before confirming, check for the availability of both a
 > ServiceBay and a qualified Technician for the entire service duration.
@@ -109,7 +109,7 @@ check is the **UX layer** that makes the common case (no conflict) fast and the 
 ## 5. Consequences
 
 **Gained:**
-- The core guarantee (Scenario A requirement 2) holds regardless of application-code correctness,
+- The core guarantee (business requirement 2) holds regardless of application-code correctness,
   regardless of how many write paths exist, and regardless of future bugs in the availability
   check.
 - No new infrastructure dependency (works with the Postgres already required for everything else).
