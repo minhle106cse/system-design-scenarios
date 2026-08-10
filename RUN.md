@@ -40,15 +40,45 @@ curl http://localhost:4002/health
 curl http://localhost:4002/docs-json   # OpenAPI spec, also usable to generate a client
 ```
 
-Booking endpoints and their cURL examples are documented in
-[docs/06_api_contracts.md](docs/06_api_contracts.md) once the scheduler domain is implemented —
-this file (`RUN.md`) only covers the skeleton produced at init.
+## Try the booking flow
+
+`npm run db:seed`'s console output prints the actual generated ids — substitute them below (or
+copy from a fresh seed run). Full contract, error codes, and response shapes:
+[docs/06_api_contracts.md](docs/06_api_contracts.md).
+
+```bash
+# 1. What's free tomorrow for an oil change?
+curl "http://localhost:4002/api/v1/availability?dealershipId=<dealership-id>&serviceTypeId=<oil-change-id>&date=2026-08-17"
+
+# 2. Book it — the server selects the bay and technician.
+curl -X POST http://localhost:4002/api/v1/appointments \
+  -H "Content-Type: application/json" \
+  -H "X-Idempotency-Key: $(uuidgen)" \
+  -d '{
+    "customerId": "<customer-id>",
+    "vehicleId": "<vehicle-id>",
+    "dealershipId": "<dealership-id>",
+    "serviceTypeId": "<oil-change-id>",
+    "startAt": "2026-08-17T10:00:00Z"
+  }'
+# → 201, { id, status: "SCHEDULED", serviceBay: {...}, technician: {...} }
+
+# 3. Cancel it (use the id from step 2's response).
+curl -X POST http://localhost:4002/api/v1/appointments/<appointment-id>/cancel
+# → 200, { status: "CANCELLED" } — calling this again is safe (idempotent no-op)
+```
+
+To see the concurrency guarantee itself rather than take it on faith: run the same `POST` from
+step 2 twice in parallel with the same `startAt` and different idempotency keys. Exactly one
+returns `201`; the other returns `409 APPOINTMENT_SLOT_CONFLICT`. The automated version of this
+is `npm run test:integration` (below).
 
 ## Test
 
 ```bash
-npm test          # all workspace tests (shared-kernel kernel specs + scheduler-api specs)
+npm test          # all workspace tests (shared-kernel kernel specs + scheduler-api specs) — no Docker needed
 npm run test:cov  # with coverage
+npm run test:integration --workspace=@scheduler/api   # the concurrency proof — needs infra up + migrated (see above)
 ```
 
 ## Stop

@@ -131,6 +131,22 @@ keep plans grounded in the project's actual rules instead of improvised ones —
 concrete artifact behind this scenario's AI Collaboration Narrative
 (`docs/12_ai_collaboration.md`, `.ai/plans/init-source.plan.md` §6.4.1).
 
+**Where plans live: `.ai/plans/<phase>.plan.md`, committed.** A plan kept only in a chat transcript
+or a tool's scratch directory is not evidence of anything — `init-source.plan.md` §6.4.1 calls the
+committed plans the *primary exhibit* for the AI-collaboration criterion, and an exhibit that isn't
+in the repository doesn't exist. Applies to any phase big enough to warrant a plan at all; a typo
+fix does not.
+
+**Do not retouch a plan after execution.** If it predicted something that turned out wrong, leave
+the wrong prediction in and annotate it — that contradiction *is* the evidence
+(`docs/12_ai_collaboration.md` §5). Rewriting a plan to match what actually happened converts the
+audit trail into fiction. Same reasoning as `docs/adr/README.md`'s immutability convention, and the
+reason `init-source.plan.md` is left untouched even where it is now dated.
+
+Current plans: [`init-source.plan.md`](.ai/plans/init-source.plan.md) (port the base),
+[`booking-domain.plan.md`](.ai/plans/booking-domain.plan.md) (the scheduler domain),
+[`hardening.plan.md`](.ai/plans/hardening.plan.md) (post-audit hardening).
+
 ## 📝 After-Task Protocol (run every non-trivial task — don't wait to be asked)
 
 1. **Log the lesson** — append one JSON line to the right `.ai/memory/<category>.jsonl`:

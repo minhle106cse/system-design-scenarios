@@ -1,11 +1,14 @@
 global:
   scrape_interval: 15s
 
-# No rule_files at init — Cortex's rules.yml records rates over domain
-# counters (outbox backlog, Kafka consumer lag, DLQ rate) that don't exist in
-# this repo. The seam: once the scheduler domain exposes its own counters
-# (e.g. booking_conflict_total, availability_check_duration_seconds), add a
-# rules.yml here and reference it. See docs/09_devops_infrastructure.md.
+# No rule_files. The booking domain DOES now expose its own counters —
+# scheduler_api_booking_attempt_total and
+# scheduler_api_availability_check_duration_seconds — and the Grafana dashboard
+# queries them directly with rate()/histogram_quantile(). A recording rule is
+# still not warranted at this cardinality: it would add a second place for the
+# same expression to drift. Add one when a query is slow enough to notice, or
+# is duplicated across several panels and alerts.
+# See directives/observability_monitoring.md §3.
 
 scrape_configs:
   - job_name: 'prometheus'

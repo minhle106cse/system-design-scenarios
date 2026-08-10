@@ -51,12 +51,40 @@
     },
     {
       "id": 5,
-      "title": "Deferred — booking domain panels",
-      "type": "text",
+      "title": "Booking attempts by outcome (rate/5m)",
+      "type": "timeseries",
       "gridPos": { "h": 8, "w": 9, "x": 15, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "outcome=\"booked\" is a success. no_free_* is the application-level check refusing a full window. *_taken_concurrently is ADR-0002's exclusion constraint catching a race the application check missed — a nonzero rate there is the guarantee visibly working, not an error budget being spent.",
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(scheduler_api_booking_attempt_total{job=\"scheduler-api\"}[5m]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Availability check latency (p95, seconds)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(scheduler_api_availability_check_duration_seconds_bucket{job=\"scheduler-api\"}[5m])))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Deferred — idempotency replay rate",
+      "type": "text",
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 16 },
       "options": {
         "mode": "markdown",
-        "content": "**Not built yet.** Once the scheduler domain exposes its own counters (booking success/conflict rate, availability-check latency, idempotency replay rate — see `docs/09_devops_infrastructure.md`), add panels here rather than a new dashboard. This is the seam, not a placeholder for its own sake."
+        "content": "**Not built yet.** `IdempotencyInterceptor` has no counter of its own (claim vs. replay vs. conflict) — see `docs/09_devops_infrastructure.md`. Trigger: idempotency behaviour becomes a debugging question in practice, not just a correctness property. Add the counter in `infrastructure/http/idempotency/`, then a panel here."
       }
     }
   ]

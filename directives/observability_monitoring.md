@@ -35,18 +35,33 @@ isn't running on the host, not a Prometheus misconfiguration.
   `scheduler_api_db_transient_error_total` (from `prisma-transient-error.ts`'s
   `makePrismaTransientErrorHelpers`), `process_cpu_seconds_total`. Reading a Counter's raw value
   is meaningless.
-- Custom app metrics live in `apps/scheduler-api/src/infrastructure/observability/` — currently
-  empty (see its `.gitkeep`); default process metrics come from `collectDefaultMetrics()` in
-  `main.ts` and the transient-error counter comes from the ported shared-kernel resilience module.
-  This is where "what's worth measuring" gets decided once the scheduler domain exists (booking
-  success/conflict rate, availability-check latency).
+- **Histogram** (bucketed distribution, read with `histogram_quantile`): always in **seconds**, never
+  milliseconds — `scheduler_api_availability_check_duration_seconds`. Prefer prom-client's
+  `startTimer()` over hand-rolled clock arithmetic, and stop the timer in a `finally` so a throwing
+  handler is still observed.
+- Custom app metrics live in `apps/scheduler-api/src/infrastructure/observability/booking.metrics.ts`;
+  default process metrics come from `collectDefaultMetrics()` in `main.ts`, and the transient-error
+  counter from the shared-kernel resilience module.
 
-## 3. Recording rules — none at init
+**Emit a success metric AFTER the transaction commits, not inside the handler.** A counter
+incremented inside `execute()` counts work that a failed COMMIT rolled back — and, because
+`CommandBus` retries `P2034`, counts it again on the retry. Use
+`ITransactionalCommandHandler.afterCommit`, which runs only after a real commit and is never
+retried. Refusal counters are fine inline: they always throw, so nothing was committed to
+over-report. (`BookAppointmentHandler` is the worked example — this was a real defect found during
+the hardening audit.)
+
+## 3. Recording rules — none yet
 
 Cortex's `rules.yml` computes rates over domain counters (outbox backlog, Kafka consumer lag, DLQ
-rate) that don't exist here. `docker-init/prometheus/prometheus.yml` has no `rule_files` entry —
-add one the moment the scheduler domain exposes its own counters, rather than shipping an empty
-recording-rules file now.
+rate) that don't exist here. `docker-init/prometheus/prometheus.yml` has no `rule_files` entry.
+
+⚠️ **The trigger named here has now fired** — the booking domain does expose its own counters
+(`scheduler_api_booking_attempt_total`, `scheduler_api_availability_check_duration_seconds`), and the
+Grafana dashboard queries them directly. A recording rule is still not warranted: the dashboard's
+`rate(...)`/`histogram_quantile(...)` expressions are cheap at this cardinality, and a recording rule
+would add a second place for the same query to drift. Revisit when a query is either slow enough to
+notice or duplicated across several panels/alerts.
 
 ## 4. Grafana provisioning-as-code
 
@@ -59,7 +74,9 @@ docker-init/grafana/provisioning/
 ├── datasources/datasource.yml      # Prometheus datasource, uid: prometheus (FIXED — panels reference this uid)
 └── dashboards/
     ├── dashboard.yml                # provider — points Grafana at this directory
-    └── scheduler-overview.json      # 4 panels: service up, CPU, heap, event-loop lag + 1 "deferred" text panel
+    └── scheduler-overview.json      # 6 panels: service up, CPU, heap, event-loop lag,
+                                     #   booking attempts by outcome, availability p95
+                                     #   + 1 "deferred" text panel (idempotency counters)
 ```
 
 No `alerting/` directory at init — Cortex's alert rules (service-down, DLQ rate, consumer lag,
