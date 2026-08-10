@@ -1,0 +1,44 @@
+{
+  "name": "keyloop-service-scheduler",
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "private": true,
+  "packageManager": "npm@11.4.2",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "db:push": "turbo run db:push",
+    "db:migrate": "turbo run db:migrate",
+    "db:deploy": "turbo run db:deploy",
+    "db:seed": "turbo run db:seed",
+    "db:format": "turbo run db:format",
+    "db:generate": "turbo run db:generate",
+    "db:studio": "turbo run db:studio",
+    "infra:up": "docker-compose up -d",
+    "infra:down": "docker-compose down",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "turbo run test",
+    "test:cov": "turbo run test:cov",
+    "check": "turbo run typecheck lint format:check",
+    "typecheck": "turbo run typecheck",
+    "format": "turbo run format",
+    "format:check": "turbo run format:check",
+    "format:docs": "prettier --write \"**/*.md\"",
+    "sync": "node scripts/sync.cjs"
+  },
+  "keywords": [],
+  "author": "minhle106cse",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.10",
+    "turbo": "^2.9.15"
+  }
+}

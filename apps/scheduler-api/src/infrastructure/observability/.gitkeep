@@ -1,0 +1,10 @@
+Default process metrics (CPU, heap, event-loop lag) are already wired via
+`collectDefaultMetrics()` in main.ts and served at GET /metrics
+(infrastructure/http/controllers/health.controller.ts) using prom-client's
+default registry — that's what docker-init/grafana/provisioning/dashboards/
+scheduler-overview.json reads from.
+
+This directory is for domain-specific counters/histograms once the scheduler
+domain exists (e.g. booking_conflict_total, availability_check_duration_seconds)
+— see docs/09_devops_infrastructure.md. Cortex's equivalent directory only
+holds outbox.metrics.ts, which is T3-only (no outbox here) and not ported.
