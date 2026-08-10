@@ -69,7 +69,7 @@ specific bay/technician ids: an id reads as "this one is reserved for me," which
 1. Client requests cancellation of an existing appointment.
 2. System transitions `Appointment.status` to `CANCELLED`.
 3. The bay and technician immediately become available again for that window (verified: the
-   database exclusion constraint is scoped to `status = 'SCHEDULED'`, so a cancelled row no longer
+   database exclusion constraint is scoped to `status = 'SCHEDULED' AND deleted_at IS NULL`, so a cancelled row no longer
    participates in it).
 
 **Edge cases** (ADR-0003 / `01_business_requirements.md § Assumptions`):

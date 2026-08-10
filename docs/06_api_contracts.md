@@ -277,7 +277,8 @@ appointment returns `409 APPOINTMENT_NOT_CANCELLABLE`. An unknown id returns
 `404 APPOINTMENT_NOT_FOUND`.
 
 The freed window becomes bookable again immediately: the exclusion constraint is scoped to
-`status = 'SCHEDULED'`, so a cancelled row stops participating in it (ADR-0002).
+`status = 'SCHEDULED' AND deleted_at IS NULL`, so a cancelled row stops participating in it
+(ADR-0002).
 
 **cURL**:
 

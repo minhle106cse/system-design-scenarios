@@ -1,9 +1,15 @@
 # System Design Document
 
-> This is the "System Design Document" deliverable for this scenario. It
-> covers: an architecture diagram, component roles, data flow, chosen technologies with
-> justification, the observability strategy, a dedicated GenAI-in-design-phase section, and a
-> deferred-scope section explaining what was deliberately left out and why.
+> This is the **System Design Document** deliverable for *Scenario A — The Unified Service
+> Scheduler* ([`KeyloopCodingChallange.pdf`](../KeyloopCodingChallange.pdf), Part 1). It covers each
+> content that brief names: an architecture diagram (§1), a description of each component's role
+> (§2), the data flow (§3), the chosen technologies with justification (§4), the observability
+> strategy (§6), and a dedicated section on how GenAI assisted the design phase (§7) — plus a
+> deferred-scope section (§5) stating what was deliberately left out and the trigger that would
+> bring each capability in.
+>
+> The requirement→code→test map is in [`readme.md`](../readme.md); the assumptions made where the
+> brief was ambiguous are in [`01_business_requirements.md`](01_business_requirements.md).
 
 ## 1. Architecture diagram
 
@@ -25,7 +31,7 @@ flowchart TB
     subgraph DB["PostgreSQL"]
         direction TB
         Tables["Customer, Vehicle, Dealership,<br/>ServiceBay, Technician, ServiceType,<br/>Appointment, IdempotencyRecord"]
-        Constraint["EXCLUDE USING gist<br/>(service_bay_id / technician_id, time range)<br/>WHERE status = SCHEDULED — ADR-0002"]
+        Constraint["EXCLUDE USING gist<br/>(service_bay_id / technician_id, time range)<br/>WHERE status = SCHEDULED<br/>AND deleted_at IS NULL — ADR-0002"]
     end
 
     subgraph Obs["Observability"]
@@ -114,7 +120,12 @@ failure mode of its own beyond "not found".
 Transactional; looks up the appointment, calls `Appointment.cancel()` (pure domain logic — see
 `CancelOutcome`), and only writes on a real `SCHEDULED → CANCELLED` transition. Already-`CANCELLED`
 is a no-op `200`; `COMPLETED` is `409 APPOINTMENT_NOT_CANCELLABLE`. The freed window becomes
-bookable immediately: ADR-0002's constraints are scoped to `status = 'SCHEDULED'`.
+bookable immediately: ADR-0002's constraints are scoped to
+`status = 'SCHEDULED' AND deleted_at IS NULL`. **Quote that predicate in full wherever it is
+referenced** — an abbreviation to "scoped to `status`" reads as though the constraint ignores soft
+deletes, which would mean a soft-deleted row held its bay forever while every application read
+filtered it out. It does not; the two halves keep the database and the application agreeing about
+which rows exist.
 
 ## 4. Technology choices, with justification
 

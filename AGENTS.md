@@ -13,6 +13,13 @@
 `system-design-scenarios/` repo's README for how the collection is organized — each subfolder is
 one self-contained scenario, built to the same senior-level bar).
 
+⚠️ **The requirement this code answers to is `KeyloopCodingChallange.pdf` § *Scenario A: The Unified
+Service Scheduler*, tracked at the repo root.** The collection framing is where the repo *lives*;
+the PDF is what it must *satisfy*. When the two appear to disagree, the PDF wins — `readme.md`
+quotes its three core requirements verbatim and maps each to the code and the test that proves it,
+and `docs/01_business_requirements.md` logs every assumption made where it was ambiguous. Read the
+requirement before changing behaviour that one of those rows depends on.
+
 This scenario: a resource-constrained **appointment scheduler** for vehicle service. Given a
 customer, vehicle, service type, dealership, and desired time, it checks real-time availability of
 both a **service bay** and a **qualified technician** for the full service duration, and creates a

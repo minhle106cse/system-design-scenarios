@@ -184,6 +184,38 @@ The most credible section — real entries, not retrofitted. Full text: `.ai/mem
   `GET /availability` advertised yesterday. None of these were caught by 92 passing tests, because
   the tests encoded the same blind spots as the code.
 
+### From the submission-readiness phase
+
+- **A test that had never been red proved nothing.** `IdempotencyInterceptor` persisted the handler's
+  response inside an RxJS `tap` without awaiting it, so the response reached the client while the
+  idempotency row still held `response: null`. A client retrying promptly — the double-submitted form
+  the interceptor exists for — got `409 already in progress` for a request that had **already
+  succeeded**, and never received the appointment id. Three separate things hid it: the unit spec
+  asserted the write was *called*, which it was; the manual cURL check passed, because a human
+  retypes slower than the write commits; and no data was corrupted, so nothing looked broken. It took
+  the first test that went through a real socket, and it failed on that suite's first run. The
+  general form: **if a later request's correctness depends on a write, that write is on the response
+  path, not beside it.**
+- **The same defect class survived on the endpoint nobody was looking at.** The hardening phase fixed
+  "an unknown dealership must not look like a capacity problem" on `POST /appointments`. The read
+  endpoint had the identical bug and kept it: an unknown id produced zero bays, hence zero slots,
+  hence `200 {"availableSlots": []}` — a typo reported as "fully booked". Fixing the endpoint in
+  front of you and missing its counterpart is ordinary; what made it survive an audit is that "no
+  results" is *also* a legitimate answer, so the bug's output looked like correct output.
+- **An audit finding that was simply wrong.** The same pass claimed the exclusion constraints ignore
+  `deletedAt`, so a soft-deleted `SCHEDULED` appointment would strand its bay forever. Querying
+  `pg_get_constraintdef` before writing the fix showed the real predicate is
+  `status = 'SCHEDULED' AND deleted_at IS NULL` — no bug at all. The finding came from reading
+  `docs/02`/`03`/`06`, which abbreviate the predicate to its status half in cancellation contexts,
+  while ADR-0002 and `docs/04` state it in full. Recorded here rather than quietly deleted, because
+  it is the cleanest example of the failure mode this whole document is about: **a confident,
+  well-argued claim derived from a document instead of from the system.** The catalog query costs
+  ten seconds; all three abbreviations now quote the predicate in full.
+- **The evidence was never committed.** For most of the build, `git log` held three commits and the
+  entire booking domain lived in an uncommitted working tree — including the two plans that
+  `init-source.plan.md` §6.4.1 names as the *primary exhibit* for this very document. An artifact
+  that is not in the repository does not exist, and no gate anywhere checks for that.
+
 ## 6. What stayed human
 
 Not delegated:

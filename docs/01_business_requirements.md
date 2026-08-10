@@ -1,8 +1,9 @@
-# Business Requirements — Scenario 01: Resource-Constrained Appointment Scheduling
+# Business Requirements — Scenario A: The Unified Service Scheduler
 
-> Stated as a brief, verbatim where possible, with assumptions logged separately below per this
-> collection's own convention: *"If a requirement is unclear, make a reasonable assumption and
-> document it in the System Design Document."*
+> Quoted verbatim from [`KeyloopCodingChallange.pdf`](../KeyloopCodingChallange.pdf), the brief this
+> repository implements, with assumptions logged separately below as that brief requires:
+> *"If a requirement is unclear, please make a reasonable assumption and document it in your System
+> Design Document."*
 
 - **Domain:** Ownership
 - **Task:** Build an Appointment Scheduler application to replace manual booking systems.
@@ -25,14 +26,14 @@ consider scalability, performance, reliability, maintainability, and observabili
 
 **Backend.** RESTful API + persistent database (PostgreSQL via Prisma). The client layer is
 stubbed via the OpenAPI spec served at `/docs` and cURL examples in
-[`06_api_contracts.md`](06_api_contracts.md), per this collection's accepted approach: *"Mock
+[`06_api_contracts.md`](06_api_contracts.md) — one of the three forms the brief names: *"Mock
 or stub the client-side layer with a simple test harness, cURL examples, or a basic API contract
 (e.g., OpenAPI spec)."*
 
 ## Assumptions
 
-Ambiguities in the brief and the reasonable assumption made for each, per this collection's
-convention to document these here:
+Ambiguities in the brief and the reasonable assumption made for each — the brief asks for exactly
+this, and this is the document where they live:
 
 | Ambiguity | Assumption made | Why |
 |---|---|---|
