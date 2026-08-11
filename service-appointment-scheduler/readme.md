@@ -13,6 +13,20 @@ Backend implementation: a RESTful API + Postgres, OpenAPI-documented, client lay
 > what you'd learn, and the traps. This `readme.md` is the project's own front page; the case study
 > is the one written for someone learning from it.
 
+## Suggested reading path
+
+Five stopping points, each complete on its own — read further only if you want to. Skipping straight
+to "half a day" without the earlier rows works too; it's just a longer way to arrive at the same
+understanding §D.3 and §D.4 of the case study state directly.
+
+| Budget | Read, in order | What you'll have |
+|---|---|---|
+| 2 min | [`../README.md`](../README.md) — the collection index | Whether this problem is worth your time (prevalence/difficulty ratings) |
+| 15 min | [`CASE_STUDY.md`](CASE_STUDY.md) start to end — especially §C (why it isn't CRUD) and §D.4 (the five alternatives rejected) | The whole argument: the problem, why it's hard, how it's solved, what you'd learn, the traps |
+| 1 hour | this file → [`docs/00_overview.md`](docs/00_overview.md) → [ADR-0002](docs/adr/0002-booking-concurrency-control.md) → [ADR-0003](docs/adr/0003-availability-and-selection-policy.md) → [`docs/03`](docs/03_system_architecture_diagrams.md) | The full design: every rejected alternative, and what was deliberately deferred and why |
+| half a day | [`RUN.md`](RUN.md) → `npm run test:integration` (watch two concurrent bookings collide) → `npm run test:e2e` → the [init migration](apps/scheduler-api/prisma/migrations/20260810051339_init/migration.sql) itself | Proof the guarantee is real — not just described |
+| optional | [`docs/12_ai_collaboration.md`](docs/12_ai_collaboration.md) → `.ai/plans/` in order (`init-source` → `booking-domain` → `hardening` → `submission-readiness`) → `.ai/memory/gotchas.jsonl` | How an AI-assisted build was directed, verified, and corrected — including the two places it was wrong |
+
 ## The problem this solves
 
 Stated verbatim from the brief this repository implements
