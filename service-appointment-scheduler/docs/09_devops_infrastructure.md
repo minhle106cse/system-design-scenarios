@@ -110,8 +110,8 @@ document should not imply otherwise.
 ## Fresh-clone path (what a reviewer actually runs)
 
 ```bash
-git clone <repo>
-cd service-appointment-scheduler
+git clone git@github.com:minhle106cse/system-design-scenarios.git
+cd system-design-scenarios/service-appointment-scheduler
 cp .env.example .env
 npm install
 npm run infra:up
@@ -119,6 +119,11 @@ npm run db:migrate
 npm run db:seed
 npm run dev
 ```
+
+> **This scenario is a subdirectory of the collection repository**, not a repository of its own. All
+> npm scripts, the Docker stack and both git hooks are rooted at this folder and work unchanged from
+> here; only the clone target moved. The scenario's own 18 commits were merged into the collection's
+> history rather than flattened, so `git log` still shows how it was built.
 
 > **Windows note, found running exactly this:** clone into a short path. Some migration directory
 > names push past `MAX_PATH` when the repository sits several levels deep under a temp directory,

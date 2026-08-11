@@ -49,7 +49,40 @@ function getChangedFiles() {
   }
 }
 
-const changedRaw = FORCE_ALL ? 'FORCE' : getChangedFiles()
+/**
+ * Git reports status paths relative to the REPOSITORY root, which is not necessarily this
+ * scenario's root — the scenario is a subdirectory of the collection repo. Every path is
+ * normalised back to scenario-relative here, ONCE, so `touched()` and `changedSourceFiles()`
+ * both see the same shape regardless of how the repository is nested.
+ *
+ * Why it matters: before this, paths arrived as `service-appointment-scheduler/apps/…`, were
+ * joined onto ROOT a second time, resolved to nothing, and `mtime()` returned 0 — which made
+ * `newestCode` 0 and the After-Task check pass unconditionally. A guard that enforces nothing,
+ * failing silently, is the exact failure class this file exists to prevent. Found by planting a
+ * probe file immediately after merging the two repositories, not by reasoning about it.
+ *
+ * Paths outside this scenario are dropped: a change in a sibling scenario is not this scenario's
+ * After-Task debt, and must not rebuild this scenario's knowledge index either.
+ */
+function normalizeStatus(raw) {
+  let gitRoot = ROOT
+  try {
+    gitRoot = execSync('git rev-parse --show-toplevel', { cwd: ROOT, encoding: 'utf-8' }).trim()
+  } catch {}
+
+  return String(raw)
+    .split('\n')
+    .map((line) => {
+      if (line.length < 4) return ''
+      const rel = path.relative(ROOT, path.resolve(gitRoot, line.slice(3).trim()))
+      if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return ''
+      return line.slice(0, 3) + rel.split(path.sep).join('/')
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+const changedRaw = FORCE_ALL ? 'FORCE' : normalizeStatus(getChangedFiles())
 
 function touched(pattern) {
   if (FORCE_ALL) return true
