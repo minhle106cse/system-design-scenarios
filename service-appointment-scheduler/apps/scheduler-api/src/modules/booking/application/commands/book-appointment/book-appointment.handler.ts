@@ -14,9 +14,9 @@ import {
 import type { SchedulerApiRepos } from '@/infrastructure/cqrs/scheduler-api-repos'
 import { recordBookingAttempt } from '@/infrastructure/observability/booking.metrics'
 import { Appointment } from '../../../domain/entities/appointment.entity'
-import { checkBusinessHours } from '../../../domain/services/business-hours'
+import { BusinessHoursCalculator } from '../../../domain/services/business-hours'
 import {
-  selectFirstFree,
+  ResourceSelector,
   type SelectableResource,
 } from '../../../domain/services/resource-selection'
 import { BusinessHoursConfig } from '../../business-hours.config'
@@ -54,6 +54,11 @@ export class BookAppointmentHandler implements ITransactionalCommandHandler<
   SchedulerApiRepos
 > {
   readonly kind = 'transactional' as const
+
+  // Stateless domain-service collaborator, held as a field like any other
+  // dependency of this handler — not a bare function import
+  // (`directives/domain_modeling.md` § Domain Services).
+  private readonly resourceSelector = new ResourceSelector()
 
   constructor(private readonly businessHours: BusinessHoursConfig) {}
 
@@ -102,7 +107,13 @@ export class BookAppointmentHandler implements ITransactionalCommandHandler<
       endAt: new Date(command.startAt.getTime() + serviceType.durationMinutes * 60_000),
     }
 
-    const outsideHours = checkBusinessHours(window, this.businessHours.get())
+    // Constructed per request from the current config, not held as a field —
+    // matches the previous behaviour of calling `this.businessHours.get()`
+    // fresh each time (the config can change between requests via env reload
+    // in tests; nothing here assumes it is fixed for the handler's lifetime).
+    const businessHoursCalculator = new BusinessHoursCalculator(this.businessHours.get())
+
+    const outsideHours = businessHoursCalculator.checkBusinessHours(window)
     if (outsideHours) {
       throw new AppointmentOutsideBusinessHoursError(outsideHours, window.startAt, window.endAt)
     }
@@ -124,7 +135,7 @@ export class BookAppointmentHandler implements ITransactionalCommandHandler<
       sortKey: bay.label,
       label: bay.label,
     }))
-    const selectedBay = selectFirstFree(bayCandidates, busy.serviceBayIds)
+    const selectedBay = this.resourceSelector.selectFirstFree(bayCandidates, busy.serviceBayIds)
     if (!selectedBay) {
       this.reject('no_free_service_bay')
     }
@@ -134,7 +145,10 @@ export class BookAppointmentHandler implements ITransactionalCommandHandler<
       sortKey: technician.name,
       name: technician.name,
     }))
-    const selectedTechnician = selectFirstFree(technicianCandidates, busy.technicianIds)
+    const selectedTechnician = this.resourceSelector.selectFirstFree(
+      technicianCandidates,
+      busy.technicianIds,
+    )
     if (!selectedTechnician) {
       this.reject('no_free_qualified_technician')
     }

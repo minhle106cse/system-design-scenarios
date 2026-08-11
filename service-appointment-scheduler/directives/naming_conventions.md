@@ -63,6 +63,19 @@ rename the class (its name is the correct one).
 - Singular/plural must match real semantics: one value → singular (`PORT`); a list of
   comma-separated values → plural (`CORS_ALLOWED_ORIGINS`).
 
+## 6. Domain Service (pure logic, class not functions)
+
+**Rule:** `{Concern}Calculator` / `{Concern}Selector` / `{Concern}Detector` — the suffix names the
+kind of operation, `{Concern}` names what it operates over. Never a plain module of `export
+function`s; see `directives/domain_modeling.md` §4 for the full rule (state as constructor config,
+genuinely stateless operations may stay `static`, domain-layer instances built with `new`, never
+`@Injectable`).
+
+Examples: `BusinessHoursCalculator` (business-hours arithmetic), `ResourceSelector` (bay/technician
+selection policy), `ExclusionViolationDetector` (Postgres exclusion-constraint error detection —
+infrastructure-layer, no I/O of its own, still follows this rule per §4's note on pure logic that
+happens to live under `infrastructure/`).
+
 ## ⚠️ How to apply this file
 
 - **Rules here apply to NEW code.** Any exception listed is known technical debt — don't mass-rename
