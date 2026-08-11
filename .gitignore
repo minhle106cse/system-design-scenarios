@@ -1,0 +1,10 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# Each scenario is self-contained and carries its own .gitignore for its
+# toolchain (node_modules, dist, .env, build caches). This root file covers only
+# what is genuinely collection-wide — do NOT duplicate a scenario's rules here,
+# or the two will drift and the scenario's copy will look redundant when it is
+# the authoritative one.
