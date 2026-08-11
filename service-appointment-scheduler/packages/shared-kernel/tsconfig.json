@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+
+    "declaration": true,
+    "sourceMap": true,
+    "declarationMap": true,
+  },
+  "include": ["src"],
+  "exclude": ["**/*.spec.ts"]
+}
+
+/*   "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "composite": true,
+    "outDir": "dist",
+    "rootDir": "src",
+
+      "sourceMap": true
+  }, */

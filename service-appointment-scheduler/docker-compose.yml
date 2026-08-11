@@ -1,0 +1,63 @@
+services:
+  # --------------------------------------------------------
+  # 1. PostgreSQL — primary DB AND the idempotency store (see
+  #    apps/scheduler-api/prisma/schema.prisma, .ai/plans/init-source.plan.md §8.3). No Redis:
+  #    Cortex's idempotency interceptor is Prisma-backed, and this repo keeps
+  #    that shape rather than adding a cache layer nothing else needs yet.
+  # --------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: scheduler-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${SCHEDULER_DB_NAME}
+    ports:
+      - '${DB_PORT}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker-init/init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------------------------------
+  # 2. Prometheus — scrapes apps/scheduler-api's /metrics on the host
+  #    (the app runs outside Docker for hot-reload, see RUN.md).
+  # --------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: scheduler-prometheus
+    ports:
+      - '${PROMETHEUS_PORT}:9090'
+    volumes:
+      - ./docker-init/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    restart: always
+
+  # --------------------------------------------------------
+  # 3. Grafana — dashboard + datasource provisioned as code (see
+  #    docker-init/grafana/provisioning/**).
+  # --------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: scheduler-grafana
+    ports:
+      - '${GRAFANA_PORT}:3000'
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker-init/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    restart: always
+
+volumes:
+  postgres_data:
+  prometheus_data:
+  grafana_data:

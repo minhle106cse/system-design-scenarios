@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 15s
+
+# No rule_files. The booking domain DOES now expose its own counters —
+# scheduler_api_booking_attempt_total and
+# scheduler_api_availability_check_duration_seconds — and the Grafana dashboard
+# queries them directly with rate()/histogram_quantile(). A recording rule is
+# still not warranted at this cardinality: it would add a second place for the
+# same expression to drift. Add one when a query is slow enough to notice, or
+# is duplicated across several panels and alerts.
+# See directives/observability_monitoring.md §3.
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # apps/scheduler-api runs on the host (hot-reload, see RUN.md) — Docker's
+  # host.docker.internal lets the containerized Prometheus reach it.
+  - job_name: 'scheduler-api'
+    static_configs:
+      - targets: ['host.docker.internal:4002']
+
+# No postgres-exporter job at T1/T2 (.ai/plans/init-source.plan.md §7) — deliberately not added
+# as a permanently-red scrape target. Trigger: DB-level metrics (connection
+# pool saturation, replication lag) become a real operational question.
