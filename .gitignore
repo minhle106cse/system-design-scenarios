@@ -161,6 +161,7 @@ token.json
 .turbo
 
 .ai/.after-task-guard
+.ai/.claude-drift-guard
 
 # Claude Code session-local state (machine/session-specific, not project content —
 # same treatment as .claude/settings.local.json)
