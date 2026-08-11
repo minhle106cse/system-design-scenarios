@@ -35,6 +35,29 @@ function sh(cmd) {
   }
 }
 
+/**
+ * Same as `sh`, but returns lines WITHOUT trimming the output as a whole.
+ *
+ * `git status --short` encodes the status in the first two columns, so the first line begins with
+ * a space for an unstaged change (" M path"). Trimming the whole output ate that space, and the
+ * subsequent `slice(3)` then cut one character too many — off the FIRST changed path only, turning
+ * `.claude/…` into `claude/…`. It stayed invisible for as long as the alphabetically-first changed
+ * file happened not to be one the checks cared about.
+ */
+function shLines(cmd) {
+  try {
+    return execSync(cmd, {
+      cwd: ROOT,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .split('\n')
+      .filter((l) => l.length > 0)
+  } catch {
+    return []
+  }
+}
+
 const mtime = (rel) => {
   try {
     return fs.statSync(path.join(ROOT, rel)).mtimeMs
@@ -43,13 +66,34 @@ const mtime = (rel) => {
   }
 }
 
+// `--porcelain` is load-bearing, not decoration: plain `git status --short` prints paths relative
+// to the CURRENT DIRECTORY (and only because `status.relativePaths` defaults to true — a config a
+// user can flip), while `--porcelain` guarantees they are relative to the REPOSITORY root. Pinning
+// the repo-root form makes this hook behave identically whether the scenario is its own repository
+// or a subdirectory of the collection, instead of depending on where it happens to sit.
+//
+// Paths are then mapped back to scenario-relative, and anything outside this scenario is dropped:
+// a change in a sibling scenario is not this scenario's After-Task debt.
+//
+// This mattered the moment the scenario repo was merged into the collection repo: paths arrived as
+// `service-appointment-scheduler/apps/…`, were joined onto ROOT a second time, resolved to nothing,
+// and `mtime()` returned 0 — so the debt check silently reported "nothing to log" for every change.
+// Caught by planting a probe file, not by reading the diff.
+const GIT_ROOT = sh('git rev-parse --show-toplevel') || ROOT
+
+function toScenarioRelative(statusPath) {
+  const rel = path.relative(ROOT, path.resolve(GIT_ROOT, statusPath))
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return null
+  return rel.split(path.sep).join('/')
+}
+
 const lines = []
 
 // ── Working tree ────────────────────────────────────────────────────────────
 // The recurring "is this landed or not?" confusion Cortex's version guards against is worth
 // keeping even without submodules: cheap to state, and impossible for a static CLAUDE.md to carry.
 const branch = sh('git rev-parse --abbrev-ref HEAD')
-const dirty = (sh('git status --short') || '').split('\n').filter(Boolean)
+const dirty = shLines('git status --short --porcelain')
 
 if (branch) {
   lines.push(
@@ -73,7 +117,8 @@ const newestMemory = Math.max(
   ...['errors', 'architecture', 'conventions', 'gotchas'].map((c) => mtime(`.ai/memory/${c}.jsonl`))
 )
 const unlogged = dirty
-  .map((l) => l.slice(3).trim())
+  .map((l) => toScenarioRelative(l.slice(3).trim()))
+  .filter(Boolean)
   // `[.-]spec\.ts$`, matching sync.cjs: three test suffixes exist (`*.spec.ts`, `*.int-spec.ts`,
   // `*.e2e-spec.ts` — directives/testing_standard.md §1.1) and `.endsWith('.spec.ts')` caught only
   // the first, so writing an integration or e2e test registered as production-source debt.

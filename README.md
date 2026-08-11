@@ -36,6 +36,15 @@ Each scenario is written so you can stop at any depth and still have got somethi
 **Start with `CASE_STUDY.md`.** It is the door into every scenario, and it exists in both
 English and Vietnamese.
 
+```bash
+git clone git@github.com:minhle106cse/system-design-scenarios.git
+cd system-design-scenarios/service-appointment-scheduler   # then follow its RUN.md
+```
+
+Each scenario is a **subdirectory of this repository**, not a submodule — clone once and everything
+is there. Their individual commit histories were merged in rather than squashed, so `git log` shows
+how each was actually built, mistakes included.
+
 ---
 
 ## The criteria every scenario is described against

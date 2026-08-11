@@ -86,6 +86,15 @@ Two Claude Code hooks (`.claude/settings.json`) automate the loop:
 - **`UserPromptSubmit` → `.claude/hooks/turn-context.cjs`** — injects branch + uncommitted paths +
   After-Task debt. State, not prose. (Ported from Cortex with the submodule-descent logic removed
   — this repo has no `.gitmodules`, see `.ai/plans/init-source.plan.md` §6.1.1.)
+- ⚠️ **This scenario is a subdirectory of the `system-design-scenarios` repository, not its own
+  repo.** Both hooks therefore read `git status --short --porcelain` (repo-root-relative, and
+  independent of the `status.relativePaths` config) and map each path back to scenario-relative,
+  dropping anything outside this folder — a change in a sibling scenario is not this scenario's
+  After-Task debt. Before that normalisation existed, every path arrived prefixed with
+  `service-appointment-scheduler/`, was joined onto the scenario root a second time, resolved to
+  nothing, and both checks silently reported "nothing to log". **If you change how either hook reads
+  git status, re-verify by planting a probe source file** — this failure mode is invisible in the
+  output.
 - **`Stop` → `scripts/sync.cjs`** — after every response, detects what changed and runs only what's
   needed: rebuild `shared-kernel` (if its `src/` changed), `prisma generate` (if a schema changed),
   and **regenerate `.ai/KNOWLEDGE_INDEX.md`** (if `directives/`, `docs/`, `.ai/memory/`, or

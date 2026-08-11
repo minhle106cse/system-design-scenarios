@@ -36,6 +36,15 @@ Mỗi scenario được viết để bạn dừng ở bất kỳ độ sâu nào
 **Bắt đầu từ `CASE_STUDY.md`.** Đó là cửa vào của mọi scenario, và luôn có cả bản tiếng Anh lẫn tiếng
 Việt.
 
+```bash
+git clone git@github.com:minhle106cse/system-design-scenarios.git
+cd system-design-scenarios/service-appointment-scheduler   # rồi làm theo RUN.md của nó
+```
+
+Mỗi scenario là một **thư mục con của repository này**, không phải submodule — clone một lần là có
+tất cả. Lịch sử commit riêng của từng scenario được **gộp vào** chứ không bị squash, nên `git log`
+cho thấy đúng cách nó đã được xây, kể cả những chỗ sai.
+
 ---
 
 ## Bộ tiêu chí mọi scenario đều được mô tả theo
