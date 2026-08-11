@@ -90,11 +90,17 @@ Two Claude Code hooks (`.claude/settings.json`) automate the loop:
   needed: rebuild `shared-kernel` (if its `src/` changed), `prisma generate` (if a schema changed),
   and **regenerate `.ai/KNOWLEDGE_INDEX.md`** (if `directives/`, `docs/`, `.ai/memory/`, or
   `PROJECT_STATUS.md` changed). It also **BLOCKS the turn from ending** (`decision: "block"`) when
-  source files changed with no newer `.ai/memory` / `PROJECT_STATUS` entry — After-Task is the one
-  protocol step with real teeth. It blocks at most **once per code state** (guard file
-  `.ai/.after-task-guard`); if an entry genuinely isn't warranted, say so explicitly and stop.
-  Worktree-topology warnings stay warn-only and go to the user. (Also ported with submodule logic
-  removed — see `.ai/plans/init-source.plan.md` §6.3.)
+  source files changed with **no newer `.ai/memory/*.jsonl` entry** — After-Task is the one protocol
+  step with real teeth. **Touching `.ai/PROJECT_STATUS.md` does not clear it**: the memory entry is
+  step 1 (mandatory, every task), the status file is step 4 (conditional), and while the status file
+  counted, the check could be satisfied by the artifact least likely to carry a reusable lesson.
+  It blocks at most **once per code state** (guard file `.ai/.after-task-guard`); if an entry
+  genuinely isn't warranted, say so explicitly and stop. Worktree-topology and CLAUDE.md-drift
+  warnings stay warn-only and go to the user. (Also ported with submodule logic removed — see
+  `.ai/plans/init-source.plan.md` §6.3.)
+- Both hooks skip the three test suffixes (`*.spec.ts`, `*.int-spec.ts`, `*.e2e-spec.ts`) when
+  deciding what counts as changed source, and their file lists must stay identical — they are two
+  halves of one check, and if they disagree the turn opens with "no debt" and ends with a block.
 
 `.ai/knowledge_builder.py` is the generator; `sync.cjs` runs it with **host `python`** (it probes
 `python`/`python3`/`py`). Run TypeScript via **`turbo`** (`npm run check` = `typecheck lint
@@ -152,7 +158,10 @@ reason `init-source.plan.md` is left untouched even where it is now dated.
 
 Current plans: [`init-source.plan.md`](.ai/plans/init-source.plan.md) (port the base),
 [`booking-domain.plan.md`](.ai/plans/booking-domain.plan.md) (the scheduler domain),
-[`hardening.plan.md`](.ai/plans/hardening.plan.md) (post-audit hardening).
+[`hardening.plan.md`](.ai/plans/hardening.plan.md) (post-audit hardening),
+[`submission-readiness.plan.md`](.ai/plans/submission-readiness.plan.md) (commit history, the read
+path, the e2e suite, CI), plus [`video-runbook.md`](.ai/plans/video-runbook.md), which is a runbook
+rather than an implementation plan and so carries no *References & Compliance* section.
 
 ## 📝 After-Task Protocol (run every non-trivial task — don't wait to be asked)
 

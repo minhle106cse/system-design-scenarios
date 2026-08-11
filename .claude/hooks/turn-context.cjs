@@ -64,19 +64,27 @@ if (branch) {
 // ── After-Task debt ─────────────────────────────────────────────────────────
 // Same check scripts/sync.cjs runs at Stop, surfaced here instead at the START of a turn,
 // where it can still be acted on. The Stop-hook copy necessarily arrives after the work is done.
-const newestKnowledge = Math.max(
-  mtime('.ai/PROJECT_STATUS.md'),
+// Memory only — `.ai/PROJECT_STATUS.md` is deliberately NOT in this list. It is After-Task step 4
+// (conditional on a phase changing); the memory entry is step 1 (mandatory). Counting the status
+// file made the most-edited, least-reusable artifact able to clear the debt on its own. Must stay
+// identical to sync.cjs's `memoryFiles`, or the two halves of the same check disagree: this one
+// would report "no debt" at the start of a turn and the Stop hook would block at the end of it.
+const newestMemory = Math.max(
   ...['errors', 'architecture', 'conventions', 'gotchas'].map((c) => mtime(`.ai/memory/${c}.jsonl`))
 )
 const unlogged = dirty
   .map((l) => l.slice(3).trim())
-  .filter((f) => /\/src\/.+\.ts$/.test(f) && !f.endsWith('.spec.ts'))
-  .filter((f) => mtime(f) > newestKnowledge)
+  // `[.-]spec\.ts$`, matching sync.cjs: three test suffixes exist (`*.spec.ts`, `*.int-spec.ts`,
+  // `*.e2e-spec.ts` — directives/testing_standard.md §1.1) and `.endsWith('.spec.ts')` caught only
+  // the first, so writing an integration or e2e test registered as production-source debt.
+  .filter((f) => /\/src\/.+\.ts$/.test(f) && !/[.-]spec\.ts$/.test(f))
+  .filter((f) => mtime(f) > newestMemory)
 
 if (unlogged.length) {
   lines.push(
     `⚠️ After-Task debt: ${unlogged.length} changed source file(s) are newer than the last ` +
-      `.ai/memory + PROJECT_STATUS entry. Clear that before piling on more work.`
+      `.ai/memory/*.jsonl entry. Clear that before piling on more work (updating ` +
+      `.ai/PROJECT_STATUS.md does not clear it).`
   )
 }
 
