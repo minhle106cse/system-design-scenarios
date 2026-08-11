@@ -94,6 +94,27 @@ on the same bay and technician at the same instant. Enforcing it only in the boo
 leave the hole open to `prisma/seed.ts`, a data-fix script, or any future write path: the same
 reasoning ADR-0002 §3 uses to justify the exclusion constraints themselves.
 
+## The index that keeps `Appointment` reads from scanning every dealership
+
+`@@index([dealershipId, status, startAt])`, added in `20260811095104_appointment_dealership_status_start_index`
+— a plain composite btree index, fully expressible in Prisma's DSL, unlike the two constraints
+above. `BookAppointmentHandler`'s mid-flight busy-set check and every `GET /availability` call both
+filter `Appointment` by exactly this predicate shape (`dealershipId` + `status` + a `startAt`/`endAt`
+range); without a leading `dealershipId` index, both did a sequential scan of **every** appointment
+in the system, not just the requested dealership's.
+
+Measured, not assumed: seeded 6,000 appointments across 30 dealerships directly in Postgres and ran
+the exact predicate both methods use. Before the index: `Seq Scan`, all 6,000 rows read, 114 buffers,
+2.2ms. After: `Bitmap Index Scan`, only the target dealership's 200 rows read, 8–9 buffers, 0.24–0.3ms.
+The scaling class changes, not just the constant — the old plan is O(appointments across the whole
+system), the new one is O(this dealership's appointments), so every dealership added previously made
+every *other* dealership's bookings slower too.
+
+Column order: equality predicates first (`dealershipId`, `status`), then the one range predicate
+that can use sorted index access (`startAt`). `endAt`'s `>` condition stays a post-index filter —
+Postgres can only use one range condition for sorted access per index, and it only has to filter the
+already-narrowed per-dealership rows, which is cheap (confirmed in the `EXPLAIN` output above).
+
 ## Soft delete
 
 `Customer`, `Vehicle`, `Dealership`, `ServiceBay`, `Technician`, `ServiceType`, and `Appointment`
