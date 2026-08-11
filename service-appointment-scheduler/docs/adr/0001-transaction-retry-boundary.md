@@ -295,6 +295,52 @@ Reviewing the one real saga in Cortex surfaced two problems:
 
 `directives/cqrs_pattern.md` §3-4 reflects this amendment.
 
+## 9d. AMENDMENT (2026-08-11) — `recordObservation` was blind to `MarkedTransientError`, even though `isTransient` already retried it
+
+Ported from Cortex (`211399c`) — `packages/shared-kernel/src/resilience/prisma-transient-error.ts`
+is otherwise byte-identical between the two repos, and the gap this fixes is structural to the file
+itself, not specific to any one service's error set.
+
+Auditing `isTransient` next to `recordObservation` in that file (§9b item 2 fixed the opposite
+direction of this same class of bug, 2026-07-30) found the two functions **do not share scope**,
+despite reading as if they must:
+
+- `isTransient` retries both `P2034` **and** any error declaring `transient: true`
+  (`MarkedTransientError` — an escape hatch for a domain/application error that is safe to retry
+  even though it isn't a raw Prisma error, e.g. an optimistic-concurrency conflict detected via a
+  `@@unique` violation and re-thrown as a typed error before `CommandBus` ever sees the underlying
+  Prisma code).
+- `recordObservation` only counts `OBSERVED_CODES` (`P2034`/`P2028`) via the structural check
+  `isPrismaKnownRequestError`, which requires a `clientVersion` field — a `MarkedTransientError` has
+  none (it's a domain error, not a real Prisma error), so it **never gets counted**, even on a
+  request where a retry genuinely happened.
+
+Consequence: a hot contention point driving frequent retries through the `MarkedTransientError` path
+would be invisible to `*_db_transient_error_total`, traceable only through per-attempt retry-warning
+log lines. Not a repeat of §9b item 2 (that was counting **too much** — business errors leaking in);
+this is the opposite — a valid retry branch counted **too little**. Same root cause either way: two
+separate predicates for one concept ("what counts as transient") drift apart the moment one changes
+and the other doesn't.
+
+**Fix**: `recordObservation` gained a second branch counting `isMarkedTransient(error)` under a
+synthetic label `code="A2001"` — shaped like a Prisma code (letter + 4 digits) so it reads
+consistently next to `P2034`/`P2028` on a dashboard, but deliberately `A`, not `P` — Prisma owns the
+real `Pxxxx` namespace, and reusing it for a made-up code risks colliding with a genuine future
+Prisma code or misleading anyone who greps Prisma's docs for it. Kept as its own branch rather than
+folded into `OBSERVED_CODES`, preserving §9b item 2's original scoping intent — don't count every
+business error, only the ones that are actually retried.
+
+Added a spec asserting `isTransient` and `recordObservation` **agree on the same input**, not two
+specs that each pass in isolation while silently disagreeing with each other — the exact shape of
+bug this amendment closes.
+
+**Not currently exercised in this repo**: no error in `apps/scheduler-api` marks `transient: true`
+today (`common/errors/booking.error.ts` says so explicitly — ADR-0002/ADR-0003's slot-conflict errors
+are deliberately the opposite, never retried). The fix is ported anyway because
+`prisma-transient-error.ts` is shared, ported infrastructure, and the defect is in the mechanism
+itself — the moment any future domain error here is marked `transient: true`, the gap would exist
+silently unless closed now.
+
 ## 8. References
 
 **Architectural precedent**

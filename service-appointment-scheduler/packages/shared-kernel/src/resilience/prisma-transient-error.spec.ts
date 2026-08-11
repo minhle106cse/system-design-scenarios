@@ -37,6 +37,29 @@ describe('makePrismaTransientErrorHelpers', () => {
       expect(() => recordObservation(knownRequestError('P2002'), false)).not.toThrow()
       expect(() => recordObservation(new Error('boom'), false)).not.toThrow()
     })
+
+    it('counts a domain error marked transient:true under code="A2001" — regression: isTransient retried it while recordObservation stayed silent (ADR-0001 §9d)', async () => {
+      // Own instance, own metric prefix: prom-client's default registry throws
+      // on a duplicate Counter name, so this can't reuse the describe-block's
+      // shared `recordObservation` and still read back a clean count of only
+      // this test's increments.
+      const { register } = await import('prom-client')
+      const metricPrefix = `test_marked_${Math.random().toString(36).slice(2)}`
+      const helpers = makePrismaTransientErrorHelpers({ metricPrefix })
+      const markedTransientError = { transient: true as const }
+
+      // isTransient already retried this before the fix — assert it again here
+      // so the two assertions stay pinned to the SAME input, not drift into
+      // two predicates that quietly stop agreeing with each other.
+      expect(helpers.isTransient(markedTransientError)).toBe(true)
+      expect(() => helpers.recordObservation(markedTransientError, true)).not.toThrow()
+
+      const metric = await register.getSingleMetricAsString(
+        `${metricPrefix}_db_transient_error_total`,
+      )
+      expect(metric).toContain('code="A2001"')
+      expect(metric).toContain('retried="true"')
+    })
   })
 })
 
