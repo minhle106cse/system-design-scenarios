@@ -71,12 +71,13 @@ Everything else *points* to the home; it does not copy.
 1. **Docs sync-trigger** — a task that changes schema / API / observability MUST reconcile the
    matching `docs/NN_*.md` in the **same task** (`AGENTS.md` After-Task Protocol).
 2. **The `Stop` hook** (`scripts/sync.cjs`) — regenerates the index + `GOTCHAS.md`, and **blocks the
-   turn from ending** when source files changed with no newer `.ai/memory/*.jsonl` entry.
-   `.ai/PROJECT_STATUS.md` is deliberately **not** accepted as a substitute: it is a conditional
-   After-Task step, and while it counted, the mandatory step could be skipped by editing the one
-   file most likely to be touched for unrelated reasons. It also warns (warn-only) when `AGENTS.md`
-   is edited without `CLAUDE.md` — Claude Code auto-loads only the latter, which is why the latter
-   duplicates rather than links.
+   turn from ending** on two independent checks, each guarded to fire at most once per state:
+   source files changed with no newer `.ai/memory/*.jsonl` entry (`.ai/PROJECT_STATUS.md` is
+   deliberately **not** accepted as a substitute — it is a conditional After-Task step, and while it
+   counted, the mandatory step could be skipped by editing the one file most likely to be touched
+   for unrelated reasons); and `AGENTS.md` edited without `CLAUDE.md` in the same change — Claude
+   Code auto-loads only the latter, which is why the latter duplicates rather than links, and why
+   that check blocks rather than just warns.
    > Ported with the submodule-descent logic removed (`.ai/plans/init-source.plan.md` §6.3) — Cortex's version
    > filters root `git status` by submodule paths because every `apps/*` there is a git submodule
    > whose root status shows only a pointer. This repo has no submodules, so plain root

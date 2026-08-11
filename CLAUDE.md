@@ -7,9 +7,10 @@
 > reference-only: the docs↔directives litmus table, hook internals, and how the workflow is wired.
 > `.ai/KNOWLEDGE_ARCHITECTURE.md` explains how all the knowledge fits together.
 >
-> ⚠️ **Editing `AGENTS.md`? Port the change here in the same task.** Duplication drifts silently;
-> `scripts/sync.cjs` warns when one moves without the other, but the warning only helps if it is
-> acted on.
+> ⚠️ **Editing `AGENTS.md`? Port the change here in the same task.** `scripts/sync.cjs` **blocks the
+> turn from ending** if `AGENTS.md` moved and this file didn't (guard file
+> `.ai/.claude-drift-guard`, fires once per `AGENTS.md` state). If the edit genuinely didn't touch a
+> section this file mirrors, say so explicitly when the block fires and continue.
 
 ## 🧠 Session Start Protocol (do this first)
 

@@ -89,14 +89,21 @@ Two Claude Code hooks (`.claude/settings.json`) automate the loop:
 - **`Stop` → `scripts/sync.cjs`** — after every response, detects what changed and runs only what's
   needed: rebuild `shared-kernel` (if its `src/` changed), `prisma generate` (if a schema changed),
   and **regenerate `.ai/KNOWLEDGE_INDEX.md`** (if `directives/`, `docs/`, `.ai/memory/`, or
-  `PROJECT_STATUS.md` changed). It also **BLOCKS the turn from ending** (`decision: "block"`) when
-  source files changed with **no newer `.ai/memory/*.jsonl` entry** — After-Task is the one protocol
-  step with real teeth. **Touching `.ai/PROJECT_STATUS.md` does not clear it**: the memory entry is
-  step 1 (mandatory, every task), the status file is step 4 (conditional), and while the status file
-  counted, the check could be satisfied by the artifact least likely to carry a reusable lesson.
-  It blocks at most **once per code state** (guard file `.ai/.after-task-guard`); if an entry
-  genuinely isn't warranted, say so explicitly and stop. Worktree-topology and CLAUDE.md-drift
-  warnings stay warn-only and go to the user. (Also ported with submodule logic removed — see
+  `PROJECT_STATUS.md` changed). Two checks **BLOCK the turn from ending** (`decision: "block"`),
+  each guarded to fire at most once per state so neither loops forever:
+  - **After-Task discipline** — source files changed with **no newer `.ai/memory/*.jsonl` entry**.
+    **Touching `.ai/PROJECT_STATUS.md` does not clear it**: the memory entry is step 1 (mandatory,
+    every task), the status file is step 4 (conditional), and while the status file counted, the
+    check could be satisfied by the artifact least likely to carry a reusable lesson. Guard file
+    `.ai/.after-task-guard`.
+  - **`AGENTS.md`/`CLAUDE.md` drift** — `AGENTS.md` changed without `CLAUDE.md` in the same change.
+    Upgraded from warn-only: a rule only a human enforces is not a rule this project actually has.
+    Guard file `.ai/.claude-drift-guard`.
+
+  If either genuinely doesn't apply (no entry warranted; the `AGENTS.md` edit touched a section
+  `CLAUDE.md` doesn't mirror), say so explicitly and continue — the guard lets the turn end on the
+  second pass either way. Worktree-topology warnings stay warn-only, to the user. (Also ported with
+  submodule logic removed — see
   `.ai/plans/init-source.plan.md` §6.3.)
 - Both hooks skip the three test suffixes (`*.spec.ts`, `*.int-spec.ts`, `*.e2e-spec.ts`) when
   deciding what counts as changed source, and their file lists must stay identical — they are two

@@ -12,9 +12,11 @@
  *   apps/*\/prisma/**    → turbo db:generate
  *   directives/** | docs/** | .ai/memory/** | .ai/PROJECT_STATUS.md → knowledge_builder.py
  *
- * Also emits warn-only checks (never blocks):
- *   - After-Task discipline: code changed but no newer .ai/memory or PROJECT_STATUS entry
- *   - Worktree topology: running in a linked worktree (work may be in the main checkout)
+ * Also runs discipline checks. Two BLOCK the turn from ending (decision:"block", each with its own
+ * once-per-state guard file so neither loops forever); one stays warn-only:
+ *   - After-Task discipline (BLOCKS): code changed but no newer .ai/memory/*.jsonl entry
+ *   - CLAUDE.md/AGENTS.md drift (BLOCKS): AGENTS.md changed without CLAUDE.md
+ *   - Worktree topology (warns only): running in a linked worktree (work may be in the main checkout)
  *
  * Usage:
  *   node scripts/sync.cjs          # smart mode (detects changes)
@@ -145,6 +147,29 @@ function changedSourceFiles() {
 // not a reminder the agent can silently skip.
 const warnings = []
 
+// Populated by any check below that decides the turn should not end yet. Collected into one array,
+// rather than one variable per check, because more than one can fire on the same turn (e.g. AGENTS.md
+// edited without CLAUDE.md AND an unlogged source change) and both reasons need to reach the model,
+// not just whichever check happened to run last.
+const blockReasons = []
+
+// Shared by every guarded blocking check below: block at most ONCE per (thing-that-changed) state.
+// `stop_hook_active` is NOT in the public hook docs, so rather than depend on an unverified field,
+// each check keys its own guard file off the state it is itself watching. If the agent fixes the
+// thing, the key changes and the check passes silently; if it declines, the key is unchanged and the
+// turn is allowed to end (with a warning, not a second block) rather than looping forever.
+function blockOnceGuard(guardFile, key, stillOpenWarning) {
+  const fs = require('fs')
+  let alreadyBlocked = false
+  try { alreadyBlocked = fs.readFileSync(guardFile, 'utf-8').trim() === key } catch {}
+  if (alreadyBlocked) {
+    warnings.push(stillOpenWarning)
+    return false
+  }
+  try { fs.writeFileSync(guardFile, key) } catch {}
+  return true
+}
+
 // (B) Linked-worktree topology: this hook runs against the CURRENT tree. If the
 //     session sits in a git worktree but work happened in the main checkout, the
 //     sync here is misleading. Warn loudly instead of silently no-op'ing.
@@ -170,18 +195,39 @@ const warnings = []
 //      decision-relevant sections in full instead of linking to them — and duplication drifts the
 //      moment one file is edited and the other is not.
 //
-//      Warn-only, deliberately: plenty of AGENTS.md edits touch sections CLAUDE.md never mirrors
-//      (hook internals, the docs↔directives litmus table), so changing AGENTS.md alone is often
-//      correct. This is a nudge to check, not a rule that both must move together.
+//      BLOCKS (upgraded from warn-only): a warning here was easy to read past mid-task, and this is
+//      the same failure class as the After-Task check below — a rule that only a human enforces is
+//      not a rule this project actually has. Guarded like After-Task: blocks at most once per
+//      AGENTS.md state, so declining the port (a legitimate call — plenty of AGENTS.md edits touch
+//      sections CLAUDE.md never mirrors, e.g. hook internals or the docs↔directives litmus table)
+//      still lets the turn end, just with a visible warning instead of a second block.
 ;(function checkClaudeAgentsDrift() {
-  if (touched('AGENTS.md') && !touched('CLAUDE.md')) {
-    warnings.push(
-      '⚠️  AGENTS.md changed without CLAUDE.md — if the edit touched Session Start Protocol, ' +
-        'Task Classification, Citation Protocol, the After-Task Protocol or Hard Rules (the ' +
-        'sections CLAUDE.md duplicates in full, because Claude Code never auto-reads AGENTS.md), ' +
-        'port it to CLAUDE.md now.'
-    )
+  if (FORCE_ALL) return
+  if (!(touched('AGENTS.md') && !touched('CLAUDE.md'))) return
+
+  const fs = require('fs')
+  const mtime = (rel) => {
+    try { return fs.statSync(path.join(ROOT, rel)).mtimeMs } catch { return 0 }
   }
+  const guardFile = path.join(ROOT, '.ai/.claude-drift-guard')
+  const key = String(mtime('AGENTS.md'))
+  const canBlock = blockOnceGuard(
+    guardFile,
+    key,
+    '⚠️  AGENTS.md is still ahead of CLAUDE.md — already prompted once for this change; not blocking again.'
+  )
+  if (!canBlock) return
+
+  blockReasons.push(
+    'AGENTS.md changed without CLAUDE.md in the same change.\n\n' +
+      'Claude Code auto-loads ONLY CLAUDE.md at session start — AGENTS.md is never injected. ' +
+      'CLAUDE.md therefore duplicates, in full, the sections a task actually needs to make ' +
+      'decisions: Session Start Protocol, Task Classification, Citation Protocol, the After-Task ' +
+      'Protocol, and Hard Rules. If this AGENTS.md edit touched any of those, port it to CLAUDE.md ' +
+      'now — a change that lives only in AGENTS.md is invisible to the next session.\n\n' +
+      'If the edit only touched a section CLAUDE.md does not mirror (hook internals, the ' +
+      'docs↔directives litmus table, etc.), say so explicitly and continue.'
+  )
 })()
 
 // (A) After-Task discipline: code changed but knowledge not logged. Memory is
@@ -193,8 +239,6 @@ const warnings = []
 //     `decision: "block"` + `reason`, which stops the turn ending and feeds the reason back to
 //     the model. Nothing else in this project makes After-Task more than an honour system:
 //     AGENTS.md is prose the agent may silently skip.
-let afterTaskBlock = null
-
 ;(function checkDiscipline() {
   if (FORCE_ALL) return
   const fs = require('fs')
@@ -219,26 +263,17 @@ let afterTaskBlock = null
   const newestMemory = Math.max(0, ...memoryFiles.map(mtime))
   if (newestCode <= newestMemory) return
 
-  // Loop guard. Blocking a Stop hook makes the agent continue, which fires Stop again — an
-  // unguarded block never terminates. `stop_hook_active` is NOT in the public hook docs, so
-  // rather than depend on an unverified field this keys off the code state itself: block at most
-  // ONCE per (newest code mtime + file count). If the agent logs the lesson, the key changes and
-  // the check passes; if it deliberately declines, the key is unchanged and the turn ends.
   const guardFile = path.join(ROOT, '.ai/.after-task-guard')
   const key = `${newestCode}:${codeFiles.length}`
-  let alreadyBlocked = false
-  try { alreadyBlocked = fs.readFileSync(guardFile, 'utf-8').trim() === key } catch {}
+  const canBlock = blockOnceGuard(
+    guardFile,
+    key,
+    `⚠️  After-Task still unlogged for ${codeFiles.length} code file(s) — already prompted ` +
+      'once for this change; not blocking again.'
+  )
+  if (!canBlock) return
 
-  if (alreadyBlocked) {
-    warnings.push(
-      `⚠️  After-Task still unlogged for ${codeFiles.length} code file(s) — already prompted ` +
-        'once for this change; not blocking again.'
-    )
-    return
-  }
-
-  try { fs.writeFileSync(guardFile, key) } catch {}
-  afterTaskBlock =
+  blockReasons.push(
     `After-Task Protocol not run: ${codeFiles.length} source file(s) changed ` +
     `(${codeFiles.slice(0, 5).join(', ')}${codeFiles.length > 5 ? ', …' : ''}) but nothing newer ` +
     'exists in .ai/memory/*.jsonl. (Touching only .ai/PROJECT_STATUS.md does NOT clear this — the ' +
@@ -249,6 +284,7 @@ let afterTaskBlock = null
     'observability, reconcile the matching docs/NN_*.md in THIS task; (4) update ' +
     '.ai/PROJECT_STATUS.md if a phase/module changed.\n\n' +
     'If this genuinely warrants no entry (pure formatting, a revert), say so explicitly and stop.'
+  )
 })()
 
 // ─── Execution ───────────────────────────────────────────────────────────────
@@ -282,12 +318,17 @@ function emit(systemMessage, blockReason) {
   process.stdout.write(JSON.stringify(out))
 }
 
+// Both blocking checks above (After-Task, CLAUDE.md/AGENTS.md drift) push into this shared array
+// rather than each owning a variable, precisely so both can fire on the same turn and the model
+// sees both reasons rather than whichever check happened to run last silently winning.
+const combinedBlock = blockReasons.length ? blockReasons.join('\n\n───\n\n') : null
+
 if (tasks.length === 0) {
   // No build tasks — but still surface any discipline/topology warnings.
   const msg = warnings.length
     ? warnings.join('\n\n')
     : '✅ sync: no relevant changes detected.'
-  emit(msg, afterTaskBlock)
+  emit(msg, combinedBlock)
   process.exit(0)
 }
 
@@ -300,12 +341,12 @@ log('')
 if (DRY_RUN) {
   const cmds = tasks.map((t) => `  [${t.id}] ${t.cmd}`).join('\n')
   // Goes through emit() like every other exit path. It used to write its own JSON with only
-  // `systemMessage`, which silently discarded both `warnings` and `afterTaskBlock` — so the one
+  // `systemMessage`, which silently discarded both `warnings` and any block reason — so the one
   // invocation a human runs deliberately to see what sync would do was the one that showed neither
-  // the topology warnings nor the After-Task block.
+  // the topology warnings nor a pending block.
   emit(
     `sync --check: would run:\n${cmds}` + (warnings.length ? `\n\n${warnings.join('\n\n')}` : ''),
-    afterTaskBlock
+    combinedBlock
   )
   process.exit(0)
 }
@@ -328,7 +369,7 @@ log('═════════════════════════
 log(allOk ? '✅ All synced.' : '❌ Some tasks failed — check output above.')
 log('══════════════════════════════════\n')
 
-emit(summary, afterTaskBlock)
+emit(summary, combinedBlock)
 // Exit 0 even on task failure: the JSON `decision` above is what steers the agent, and a
 // non-zero exit here would be reported as a hook error on top of it, muddying both channels.
 process.exit(0)
