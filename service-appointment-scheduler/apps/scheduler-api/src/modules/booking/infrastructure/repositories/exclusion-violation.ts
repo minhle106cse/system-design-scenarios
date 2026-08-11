@@ -2,6 +2,14 @@
  * Detects ADR-0002's exclusion-constraint violation (Postgres `23P01`) and
  * tells the bay-constraint apart from the technician-constraint one.
  *
+ * A CLASS (`directives/domain_modeling.md` § Domain Services), not a bag of
+ * exported functions — held as a field on `PrismaAppointmentRepository`
+ * rather than imported as a bare function, the same shape any other
+ * collaborator of that repository is held in. It lives in `infrastructure/`
+ * and does no I/O itself; it is pure error-shape detection, converted for
+ * consistency with the rest of this module rather than because it touches a
+ * database.
+ *
  * **Verified against a real violation, not assumed** (`docs/adr/0003-availability-and-selection-policy.md`
  * §2.5 flagged this as the one fact that had to be checked, not guessed). Using
  * `@prisma/adapter-pg`, a raw Postgres error the Prisma query engine doesn't
@@ -51,36 +59,39 @@ interface PrismaRawDatabaseError {
   }
 }
 
-function asPrismaRawDatabaseError(error: unknown): PrismaRawDatabaseError | undefined {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    (error as { code?: unknown }).code === 'P2039' &&
-    typeof (error as { clientVersion?: unknown }).clientVersion === 'string'
-  ) {
-    return error as PrismaRawDatabaseError
-  }
-  return undefined
-}
-
 /** Which of ADR-0002's two constraints fired, or `undefined` for an unrelated `23P01`. */
 export type ExclusionConstraint = 'service_bay' | 'technician'
 
-/**
- * `undefined` when `error` is not this exclusion violation at all — a caller
- * must not assume every thrown error here is booking-related; `P2039` is
- * Postgres's catch-all for any raw error the engine has no specific code for.
- */
-export function detectExclusionViolation(error: unknown): ExclusionConstraint | undefined {
-  const cause = asPrismaRawDatabaseError(error)?.meta?.driverAdapterError?.cause
-  if (!cause || cause.code !== '23P01') return undefined
+export class ExclusionViolationDetector {
+  private asPrismaRawDatabaseError(error: unknown): PrismaRawDatabaseError | undefined {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      (error as { code?: unknown }).code === 'P2039' &&
+      typeof (error as { clientVersion?: unknown }).clientVersion === 'string'
+    ) {
+      return error as PrismaRawDatabaseError
+    }
+    return undefined
+  }
 
-  const message = typeof cause.message === 'string' ? cause.message : ''
-  if (message.includes('appointments_service_bay_no_overlap')) return 'service_bay'
-  if (message.includes('appointments_technician_no_overlap')) return 'technician'
+  /**
+   * `undefined` when `error` is not this exclusion violation at all — a
+   * caller must not assume every thrown error here is booking-related;
+   * `P2039` is Postgres's catch-all for any raw error the engine has no
+   * specific code for.
+   */
+  detect(error: unknown): ExclusionConstraint | undefined {
+    const cause = this.asPrismaRawDatabaseError(error)?.meta?.driverAdapterError?.cause
+    if (!cause || cause.code !== '23P01') return undefined
 
-  // 23P01 with neither constraint name means a THIRD exclusion constraint was
-  // added to this table since this file was written — fail loudly rather than
-  // silently mis-attributing it to one of the two known ones.
-  return undefined
+    const message = typeof cause.message === 'string' ? cause.message : ''
+    if (message.includes('appointments_service_bay_no_overlap')) return 'service_bay'
+    if (message.includes('appointments_technician_no_overlap')) return 'technician'
+
+    // 23P01 with neither constraint name means a THIRD exclusion constraint
+    // was added to this table since this file was written — fail loudly
+    // rather than silently mis-attributing it to one of the two known ones.
+    return undefined
+  }
 }

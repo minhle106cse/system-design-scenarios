@@ -6,11 +6,50 @@
 
 ## Phase
 
-**Scheduler domain implemented, hardened, and submission-ready.** Four phases done and verified,
+**Scheduler domain implemented, hardened, and submission-ready.** Five phases done and verified,
 each with its plan committed in `.ai/plans/`: init (`init-source.plan.md`), the booking domain
-(`booking-domain.plan.md`), a post-audit hardening pass (`hardening.plan.md`), and a
-submission-readiness pass (`submission-readiness.plan.md`). All four endpoints named in
-`docs/06_api_contracts.md` are real, not planned.
+(`booking-domain.plan.md`), a post-audit hardening pass (`hardening.plan.md`), a
+submission-readiness pass (`submission-readiness.plan.md`), and a query-optimization + OOP-refactor
+pass (`query-and-oop-refactor.plan.md`). All four endpoints named in `docs/06_api_contracts.md` are
+real, not planned.
+
+Done — query optimization + OOP domain services (`.ai/plans/query-and-oop-refactor.plan.md`):
+
+User code review found two real issues. Both fixed, both measured rather than assumed:
+
+- **Missing index on the hottest read in the module.** `findBusyResourceIds` (every booking
+  transaction) and `findOverlappingAppointments` (every `GET /availability` call) filter
+  `Appointment` by `dealershipId + status + startAt/endAt range`; no existing index led with
+  `dealershipId`, so both did a sequential scan across every dealership's appointments, not just the
+  one requested. Measured on a real 6,000-row/30-dealership fixture: `Seq Scan`, 114 buffers, 2.2ms
+  before → `Bitmap Index Scan`, 8–9 buffers, 0.24–0.3ms after `@@index([dealershipId, status,
+  startAt])` (migration `20260811095104_appointment_dealership_status_start_index`). The scaling
+  class changes, not just the constant — see `docs/04_database_schema.md`.
+- **Domain services were exported-function modules, not classes.** `business-hours.ts`,
+  `resource-selection.ts`, and `infrastructure/repositories/exclusion-violation.ts` converted to
+  `BusinessHoursCalculator`, `ResourceSelector`, `ExclusionViolationDetector` — state that repeated
+  at every call site (`BusinessHours`) moved into constructor state; genuinely stateless,
+  independently-multi-input-tested utilities (`zonedTimeToUtc`, `zonedDateOf`, `isoWeekdayOf`,
+  `filterFutureWindows`) stayed `static`. Domain-layer classes remain framework-free, constructed
+  with `new`, never `@Injectable` (lint-enforced). No directive previously covered domain-service
+  style — added `directives/domain_modeling.md` §4 and a naming rule in
+  `directives/naming_conventions.md` §6, rather than overriding an existing one.
+
+**Found, not caused, and not yet fixed**: `book-appointment.handler.int-spec.ts`'s concurrency test
+is flaky — reproduced on both the pre-refactor baseline and the refactored code at a similar rate.
+Root cause: `Promise.allSettled([dispatch(), dispatch()])` does not guarantee the two transactions'
+read steps interleave before either commits, so the losing request sometimes refuses via its own
+application-level check (`no_free_service_bay`) instead of the DB exclusion constraint
+(`service_bay_taken_concurrently`) the test hardcodes. **The guarantee itself never failed** — in
+every failing run, exactly one request still won and exactly one row still existed; only the exact
+409 reason string varied by which correct code path caught it. Logged to `.ai/memory/gotchas.jsonl`;
+needs a real synchronization barrier to fix properly, out of scope for this pass.
+
+**Verification, all green**: `npx turbo run typecheck lint test format:check build --force` (172
+tests, 0 lint errors) · `npm run test:e2e` (12/12) · `npm run test:integration` (3/3 on a clean run;
+the pre-existing flake above noted, not silently ignored) · `git diff` on both prior migrations
+(`20260810051339_init`, `20260810150000_service_type_duration_positive`) stays empty · the real
+Prisma-generated index name confirmed via `EXPLAIN` before the throwaway fixture was dropped.
 
 Done — init base (unchanged since last entry, still green):
 - Monorepo tooling, `packages/shared-kernel` (52 tests), `apps/scheduler-api` skeleton, Docker

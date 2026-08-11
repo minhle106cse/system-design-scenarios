@@ -3,12 +3,8 @@ import type { IQueryHandler } from '@scheduler/shared-kernel'
 import { QueryHandler } from '@/infrastructure/cqrs/decorators/query-handler.decorator'
 import { DealershipNotFoundError, ServiceTypeNotFoundError } from '@/common/errors/booking.error'
 import { startAvailabilityTimer } from '@/infrastructure/observability/booking.metrics'
-import {
-  businessDayBounds,
-  enumerateCandidateWindows,
-  filterFutureWindows,
-} from '../../../domain/services/business-hours'
-import { countFree } from '../../../domain/services/resource-selection'
+import { BusinessHoursCalculator } from '../../../domain/services/business-hours'
+import { ResourceSelector } from '../../../domain/services/resource-selection'
 import { BusinessHoursConfig } from '../../business-hours.config'
 import type { AvailabilityDto } from '../booking.dto'
 import { BOOKING_QUERY_REPOSITORY, type IBookingQueryRepository } from '../booking.query-repository'
@@ -28,6 +24,11 @@ export class CheckAvailabilityHandler implements IQueryHandler<
   CheckAvailabilityQuery,
   AvailabilityDto
 > {
+  // Stateless domain-service collaborator, held as a field like any other
+  // dependency of this handler — not a bare function import
+  // (`directives/domain_modeling.md` § Domain Services).
+  private readonly resourceSelector = new ResourceSelector()
+
   constructor(
     @Inject(BOOKING_QUERY_REPOSITORY) private readonly repo: IBookingQueryRepository,
     private readonly businessHours: BusinessHoursConfig,
@@ -58,14 +59,14 @@ export class CheckAvailabilityHandler implements IQueryHandler<
     if (!dealership) throw new DealershipNotFoundError(query.dealershipId)
     if (!serviceType) throw new ServiceTypeNotFoundError(query.serviceTypeId)
 
-    const hours = this.businessHours.get()
+    const businessHoursCalculator = new BusinessHoursCalculator(this.businessHours.get())
     // `enumerateCandidateWindows` returns nothing for a closed day (weekend,
     // configured holiday). Past slots are dropped separately: a request for
     // today must not advertise this morning, and a request for a past date must
     // return nothing at all — POST would reject every one of them anyway, so
     // offering them is a promise the write path won't keep.
-    const windows = filterFutureWindows(
-      enumerateCandidateWindows(query.date, hours, serviceType.durationMinutes),
+    const windows = BusinessHoursCalculator.filterFutureWindows(
+      businessHoursCalculator.enumerateCandidateWindows(query.date, serviceType.durationMinutes),
       new Date(),
     )
     if (windows.length === 0) {
@@ -77,7 +78,7 @@ export class CheckAvailabilityHandler implements IQueryHandler<
       }
     }
 
-    const dayBounds = businessDayBounds(query.date, hours)
+    const dayBounds = businessHoursCalculator.businessDayBounds(query.date)
     const [bays, technicians, appointments] = await Promise.all([
       this.repo.findDealershipBays(query.dealershipId),
       this.repo.findQualifiedTechnicians(query.dealershipId, query.serviceTypeId),
@@ -101,8 +102,8 @@ export class CheckAvailabilityHandler implements IQueryHandler<
         return {
           startAt: window.startAt.toISOString(),
           endAt: window.endAt.toISOString(),
-          availableBays: countFree(bays, busyBayIds),
-          availableTechnicians: countFree(technicians, busyTechnicianIds),
+          availableBays: this.resourceSelector.countFree(bays, busyBayIds),
+          availableTechnicians: this.resourceSelector.countFree(technicians, busyTechnicianIds),
         }
       })
       // Counts, not ids (ADR-0003 §2.6) — but a slot with zero of either is not

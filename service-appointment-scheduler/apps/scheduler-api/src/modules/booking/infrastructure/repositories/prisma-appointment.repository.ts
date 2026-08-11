@@ -6,7 +6,7 @@ import type {
 } from '../../domain/repositories/appointment.repository'
 import type { TimeWindow } from '../../domain/services/business-hours'
 import { AppointmentMapper } from '../mappers/appointment.mapper'
-import { detectExclusionViolation } from './exclusion-violation'
+import { ExclusionViolationDetector } from './exclusion-violation'
 import type { Prisma } from '@/generated'
 
 /**
@@ -15,6 +15,8 @@ import type { Prisma } from '@/generated'
  * (`directives/cqrs_pattern.md` §1).
  */
 export class PrismaAppointmentRepository implements IAppointmentRepository {
+  private readonly exclusionViolationDetector = new ExclusionViolationDetector()
+
   constructor(private readonly client: Prisma.TransactionClient) {}
 
   async findBusyResourceIds(dealershipId: string, window: TimeWindow): Promise<BusyResourceIds> {
@@ -52,7 +54,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       // the time this INSERT runs — if the database still rejects it, a
       // concurrent transaction committed the same bay or technician in between.
       // This is ADR-0002's guarantee firing, not a bug in the check above.
-      const constraint = detectExclusionViolation(error)
+      const constraint = this.exclusionViolationDetector.detect(error)
       if (constraint === 'service_bay') {
         throw new AppointmentSlotConflictError('service_bay_taken_concurrently')
       }
