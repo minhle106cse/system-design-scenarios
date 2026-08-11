@@ -131,7 +131,11 @@ function changedSourceFiles() {
     .forEach((line) => {
       const rel = line.slice(3).trim()
       if (!rel) return
-      if (/\/src\/.+\.ts$/.test(rel) && !rel.endsWith('.spec.ts')) out.push(rel)
+      // `-spec.ts`, not `.spec.ts`: this repo has three test suffixes (`*.spec.ts`,
+      // `*.int-spec.ts`, `*.e2e-spec.ts` — directives/testing_standard.md §1.1). Matching only
+      // the first counted the other two as production source, so adding an integration or e2e test
+      // demanded a memory entry while adding a unit test did not.
+      if (/\/src\/.+\.ts$/.test(rel) && !/[.-]spec\.ts$/.test(rel)) out.push(rel)
     })
   return out
 }
@@ -159,6 +163,27 @@ const warnings = []
   } catch {}
 })()
 
+// (A2) CLAUDE.md / AGENTS.md drift. Claude Code auto-loads ONLY CLAUDE.md at session start —
+//      verified first-hand in this repo: the opening system-reminder of a session carries
+//      CLAUDE.md's contents verbatim and never AGENTS.md's. Anything that lives in AGENTS.md alone
+//      is therefore invisible during ordinary task execution, which is why CLAUDE.md duplicates the
+//      decision-relevant sections in full instead of linking to them — and duplication drifts the
+//      moment one file is edited and the other is not.
+//
+//      Warn-only, deliberately: plenty of AGENTS.md edits touch sections CLAUDE.md never mirrors
+//      (hook internals, the docs↔directives litmus table), so changing AGENTS.md alone is often
+//      correct. This is a nudge to check, not a rule that both must move together.
+;(function checkClaudeAgentsDrift() {
+  if (touched('AGENTS.md') && !touched('CLAUDE.md')) {
+    warnings.push(
+      '⚠️  AGENTS.md changed without CLAUDE.md — if the edit touched Session Start Protocol, ' +
+        'Task Classification, Citation Protocol, the After-Task Protocol or Hard Rules (the ' +
+        'sections CLAUDE.md duplicates in full, because Claude Code never auto-reads AGENTS.md), ' +
+        'port it to CLAUDE.md now.'
+    )
+  }
+})()
+
 // (A) After-Task discipline: code changed but knowledge not logged. Memory is
 //     gitignored so git can't see it → compare mtimes (newest code vs newest
 //     memory/status). Heuristic, deterministic.
@@ -180,15 +205,19 @@ let afterTaskBlock = null
     try { return fs.statSync(path.join(ROOT, rel)).mtimeMs } catch { return 0 }
   }
   const newestCode = Math.max(...codeFiles.map(mtime))
-  const knowledgeFiles = [
-    '.ai/PROJECT_STATUS.md',
+  // Split on purpose: a memory .jsonl entry is what After-Task step 1 actually requires — mandatory,
+  // every task. `.ai/PROJECT_STATUS.md` is step 4, conditional on a phase/module having changed, so
+  // it must never satisfy the check on its own. Before the split, touching only PROJECT_STATUS.md
+  // passed, which means the check was watching the one file most likely to be edited for unrelated
+  // reasons and least likely to carry a reusable lesson.
+  const memoryFiles = [
     '.ai/memory/errors.jsonl',
     '.ai/memory/architecture.jsonl',
     '.ai/memory/conventions.jsonl',
     '.ai/memory/gotchas.jsonl',
   ]
-  const newestKnowledge = Math.max(0, ...knowledgeFiles.map(mtime))
-  if (newestCode <= newestKnowledge) return
+  const newestMemory = Math.max(0, ...memoryFiles.map(mtime))
+  if (newestCode <= newestMemory) return
 
   // Loop guard. Blocking a Stop hook makes the agent continue, which fires Stop again — an
   // unguarded block never terminates. `stop_hook_active` is NOT in the public hook docs, so
@@ -212,7 +241,8 @@ let afterTaskBlock = null
   afterTaskBlock =
     `After-Task Protocol not run: ${codeFiles.length} source file(s) changed ` +
     `(${codeFiles.slice(0, 5).join(', ')}${codeFiles.length > 5 ? ', …' : ''}) but nothing newer ` +
-    'exists in .ai/memory/*.jsonl or .ai/PROJECT_STATUS.md.\n\n' +
+    'exists in .ai/memory/*.jsonl. (Touching only .ai/PROJECT_STATUS.md does NOT clear this — the ' +
+    'memory entry is the mandatory step; PROJECT_STATUS is conditional, on top of it.)\n\n' +
     'Before finishing: (1) append the lesson/decision to the right .ai/memory/<category>.jsonl ' +
     '(canonical shape in directives/memory_sop.md); (2) if a rule was established or refined, ' +
     'edit the relevant directives/*.md now; (3) if the change touches schema, API contract, or ' +
@@ -269,8 +299,13 @@ log('')
 
 if (DRY_RUN) {
   const cmds = tasks.map((t) => `  [${t.id}] ${t.cmd}`).join('\n')
-  process.stdout.write(
-    JSON.stringify({ systemMessage: `sync --check: would run:\n${cmds}` })
+  // Goes through emit() like every other exit path. It used to write its own JSON with only
+  // `systemMessage`, which silently discarded both `warnings` and `afterTaskBlock` — so the one
+  // invocation a human runs deliberately to see what sync would do was the one that showed neither
+  // the topology warnings nor the After-Task block.
+  emit(
+    `sync --check: would run:\n${cmds}` + (warnings.length ? `\n\n${warnings.join('\n\n')}` : ''),
+    afterTaskBlock
   )
   process.exit(0)
 }

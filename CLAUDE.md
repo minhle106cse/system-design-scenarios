@@ -1,8 +1,15 @@
 # Claude Code Entry Point
 
-> **This file mirrors `AGENTS.md` (the canonical agent instruction file).** Read `AGENTS.md` for the
-> full Session Start Protocol, the docs↔directives boundary, how the AI workflow actually runs, and
-> the After-Task Protocol. Read `.ai/KNOWLEDGE_ARCHITECTURE.md` for how all the knowledge fits together.
+> **`AGENTS.md` is canonical; this file duplicates the sections you need to make decisions.**
+> Claude Code auto-loads **only this file** at session start — `AGENTS.md` is never injected — so
+> anything that lives there alone is invisible during ordinary work. The sections below are
+> therefore copied in full rather than linked. `AGENTS.md` still holds what is genuinely
+> reference-only: the docs↔directives litmus table, hook internals, and how the workflow is wired.
+> `.ai/KNOWLEDGE_ARCHITECTURE.md` explains how all the knowledge fits together.
+>
+> ⚠️ **Editing `AGENTS.md`? Port the change here in the same task.** Duplication drifts silently;
+> `scripts/sync.cjs` warns when one moves without the other, but the warning only helps if it is
+> acted on.
 
 ## 🧠 Session Start Protocol (do this first)
 
@@ -37,8 +44,49 @@ Source of truth: `.ai/KNOWLEDGE_INDEX.md` → `docs/00..12` → `readme.md`.
   — see `docs/adr/0002-booking-concurrency-control.md`.
 - Run TS via `turbo` (`npm run check`). `docker exec <container>` is only for infra (Postgres)
   during smoke tests — there is no agent sandbox.
-- After non-trivial work (After-Task Protocol): log a lesson to `.ai/memory/<category>.jsonl`; update
-  the relevant `directives/*.md`; if the change touches schema/API/observability, reconcile the
-  matching `docs/NN_*.md` in the **same task**; update `.ai/PROJECT_STATUS.md` if a phase/module
-  changed. The `Stop` hook regenerates `.ai/KNOWLEDGE_INDEX.md` — **edit the sources, not the
-  generated index.**
+
+## 🧭 Task Classification
+
+| Task | `KNOWLEDGE_INDEX` | `GOTCHAS.md` | Directive |
+|---|---|---|---|
+| Question / explain / review code | ✅ | ❌ | if area-specific |
+| Small fix / format / comment | ✅ | ❌ | — |
+| Debug build/test/runtime error | ✅ | ✅ | — |
+| Design a pattern / refactor architecture | ✅ | ✅ | ✅ |
+| Implement a complex new feature | ✅ | ✅ | ✅ |
+
+The ❌ are deliberate, not laziness: gotchas are a *"have I hit this before?"* lookup and buy
+nothing on a question or a typo fix.
+
+## 📎 Citation Protocol (plans must cite their sources)
+
+Any implementation plan you generate MUST contain a **"References & Compliance"** section listing
+exactly which `directives/*.md` and `docs/NN_*.md` files you read, and where each decision's logic
+came from. A plan missing this section may be rejected outright.
+
+**Plans live in `.ai/plans/<phase>.plan.md`, committed.** A plan kept only in a chat transcript or a
+scratch directory is not evidence of anything — and for most of this build the plans sat in an
+uncommitted working tree, which is exactly that failure.
+
+**Never retouch a plan after execution.** If it predicted something that turned out wrong, leave the
+wrong prediction in and annotate it — that contradiction *is* the evidence
+(`docs/12_ai_collaboration.md` §5). Rewriting a plan to match what happened converts the audit trail
+into fiction.
+
+## 📝 After-Task Protocol (every non-trivial task — don't wait to be asked)
+
+1. **Log the lesson** — one JSON line appended to the right `.ai/memory/<category>.jsonl`
+   (`errors` · `architecture` · `conventions` · `gotchas`), canonical shape
+   `{"timestamp","type","title","detail","context"}`; full rules in `directives/memory_sop.md`.
+   **This step is mandatory and is the one `scripts/sync.cjs` enforces** — it blocks the turn from
+   ending when source files changed and no `.jsonl` is newer. Touching `.ai/PROJECT_STATUS.md`
+   alone does *not* satisfy it.
+2. **Update the rule** — if a convention was established or refined, edit the relevant
+   `directives/*.md` **now**, not later.
+3. **Reconcile the spec** — if the change touches **schema, API contract, or observability**, update
+   the matching `docs/04` / `06` / `09` / `03` *in the same task*. Never leave a design doc
+   contradicting the code. (Stable-intent docs — `01`, `02` — change only when the intent does.)
+4. **Update live status** — if a module/phase changed, edit `.ai/PROJECT_STATUS.md` (step 4 is
+   conditional; step 1 is not).
+5. The `Stop` hook regenerates `.ai/KNOWLEDGE_INDEX.md` and `.ai/GOTCHAS.md` — **edit the sources,
+   never the generated index.**
