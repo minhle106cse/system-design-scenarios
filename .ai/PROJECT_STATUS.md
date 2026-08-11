@@ -176,6 +176,29 @@ Not started:
 - The video walkthrough itself — `.ai/plans/video-runbook.md` is the runbook for it, but the
   recording has no repo artifact by design.
 
+Done — bilingual case study (`.ai/plans/case-study-docs.plan.md`):
+
+The repository was complete as a *deliverable* and unreadable as a *learning resource* — a newcomer's
+only doors in were `readme.md` (the project's own front page) and nine spec documents written for
+someone reviewing a build. Added the missing genre:
+
+- **`CASE_STUDY.md` + `CASE_STUDY.vi.md`** at the scenario root — seven criteria groups (problem
+  identity incl. a prevalence rating and the same problem's aliases in seven other industries ·
+  requirements incl. what was never measured · why it's hard, with the TOCTOU timeline drawn out ·
+  the design and the five rejected alternatives · correctness and what each of the three test layers
+  structurally cannot prove · learning value incl. nine named traps and interview framing · evolution
+  at 10×/100× with deferral triggers). Links out to the spec rather than restating it.
+- **The collection README rewritten** (`../README.md` + `../README.vi.md`) — states the criteria
+  framework once so scenario #2 fills in a form rather than a blank page, plus a rated index
+  (prevalence ★, difficulty ★) and a per-scenario summary card.
+- Convention fixed and logged: English is the default filename, Vietnamese takes `.vi.md`, and
+  **only the entry-point layer is translated** — not `docs/`, `directives/`, ADRs or plans.
+
+**Verification**: every internal link in all four new documents resolved by script, both languages,
+both directory levels; every technical claim taken from the artifact rather than from another
+document (constraint SQL read from the migration, alternatives from ADR-0002 §4, counts from a real
+test run) — the discipline that the previous audit's one wrong finding came from ignoring.
+
 ## Current focus
 
 Record the video against `.ai/plans/video-runbook.md`. Everything else the brief asks for exists in
@@ -183,11 +206,13 @@ the repository and is verified.
 
 ## Live debts
 
-None blocking. Two open by decision rather than by omission, both stated here so neither reads as an
-oversight: **there is no git remote** (local commits only), and consequently **CI has never run on a
-runner** — the workflow is structurally reviewed and each of its steps verified locally, which is
-not the same as a green run.
+None blocking. Three open by decision rather than by omission, all stated here so none reads as an
+oversight: **there is no git remote** (local commits only); consequently **CI has never run on a
+runner** — the workflow is structurally reviewed and each of its steps verified locally, which is not
+the same as a green run; and **the parent collection folder is not a git repository**, so
+`../README.md` and `../README.vi.md` have no history — flagged to the user, since `git init` there
+changes how this repo nests and is their structural call, not a documentation task.
 
-`.ai/memory/gotchas.jsonl` (17 entries) and `architecture.jsonl` (3) carry this build's real lessons.
-`conventions.jsonl` and `errors.jsonl` are still **empty** — nothing so far was a distinct coding
-convention or a bare error→solution pair rather than a gotcha or a design decision.
+`.ai/memory/gotchas.jsonl` (20 entries), `architecture.jsonl` (5) and now `conventions.jsonl` (2)
+carry this build's real lessons. `errors.jsonl` is still **empty** — nothing so far was a bare
+error→solution pair rather than a gotcha or a design decision.

@@ -8,6 +8,11 @@ duration, and creates a persistent, non-overlapping appointment record.
 Backend implementation: a RESTful API + Postgres, OpenAPI-documented, client layer stubbed via
 `/docs` and the cURL examples in [docs/06_api_contracts.md](docs/06_api_contracts.md).
 
+> 📖 **New here? Start with the [case study](CASE_STUDY.md)** ([Tiếng Việt](CASE_STUDY.vi.md)) — what
+> the problem is, who really has it, why it isn't CRUD, the design and the alternatives rejected,
+> what you'd learn, and the traps. This `readme.md` is the project's own front page; the case study
+> is the one written for someone learning from it.
+
 ## The problem this solves
 
 Stated verbatim from the brief this repository implements
