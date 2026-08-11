@@ -25,6 +25,7 @@ inclusion and every deferral.
 
 | Question | Read |
 |---|---|
+| I'm new to this problem — what is it, why is it hard, and what would I learn? | [`../CASE_STUDY.md`](../CASE_STUDY.md) · [Tiếng Việt](../CASE_STUDY.vi.md) |
 | What are the actual requirements, and what did I assume where they were ambiguous? | [`01_business_requirements.md`](01_business_requirements.md) |
 | What can a user actually do? | [`02_use_cases.md`](02_use_cases.md) |
 | What's the architecture, the data flow, the tech choices, the observability strategy? | [`03_system_architecture_diagrams.md`](03_system_architecture_diagrams.md) — **the System Design Document** |
