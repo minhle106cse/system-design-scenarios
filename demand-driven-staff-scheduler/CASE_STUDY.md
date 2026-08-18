@@ -7,7 +7,7 @@ problem with no single correct answer, not a CRUD app with an extra button.**
 
 > This is the **door into the scenario** — written for someone learning from it, not for someone
 > reviewing a spec. It answers the seven criteria groups defined in the
-> [collection README](../README.md), and links out to the spec documents for detail rather than
+> collection's own criteria, and links out to the spec documents for detail rather than
 > repeating them.
 >
 > | You want | Go to |
@@ -120,7 +120,7 @@ correct algorithm; we are looking for a defensible approach and clear reasoning.
 
 ## B.2 What was built
 
-Every route above, plus both of the brief's stretch goals this repository chose to build —
+Every route above, plus **all five** of the brief's optional stretch goals (§8) —
 [full contract](docs/06_api_contracts.md):
 
 | Endpoint | Purpose |
@@ -153,13 +153,16 @@ Named so that "missing" is never confused with "deferred":
 - No authentication, authorisation, or multi-tenancy — the brief names all three out of scope.
 - No solver-grade optimality — the brief itself says none is defined; a greedy heuristic with a
   bounded rebalance is the defensible choice, not a shortcut (§D.4).
-- No per-staff availability, days off, or roles/skills matching — brief stretch goals 3 and 4,
-  time-boxed out; the `FeasibilityGate` already has the reason-code slot for the first of these
-  (`UNAVAILABLE`, currently reused for "unknown staff/shift reference").
-- No CSV export of the roster — brief stretch goal 5, not built.
-- `apps/web`'s UI is intentionally partial — one real screen proving the backend wiring, not all
-  seven. This collection's own priority is the backend design; see the sibling `readme.md`'s "Why
-  the stack changed mid-build" for the reasoning made explicit.
+- No statutory rest rules (e.g. a required gap between consecutive days) — a constraint spanning
+  *two* days, unlike the existing four; §G.3 keeps it as the interesting next exercise.
+- No multi-week or calendar-dated scheduling — a schedule is one *typical* week by the brief's own
+  framing, so demand cannot be trended over time.
+
+*(Superseded, kept rather than deleted: earlier revisions of this document listed per-staff
+availability, roles/skills, CSV export and "six of seven UI screens" as not built. All four have
+since shipped — §B.2 and §G.1 describe what actually exists. The entries are corrected here rather
+than quietly removed, since a case study that silently rewrites its own scope claims is worth less
+than one that shows them moving.)*
 
 ## B.5 Ambiguity — where the brief didn't say
 
@@ -173,7 +176,7 @@ and move on."* Seventeen were logged
 | Is a manually-edited roster allowed to violate a hard constraint? Stretch goal 1 invites manual adjustment. | No. `validateRoster` replays the **same** `FeasibilityGate` the generator uses. | Two entry points, one implementation of the rules — the reason manual editing can't quietly become the hole in the guarantee. |
 | Is the weekly-hours cap a hard limit or a target? | **Hard cap.** Fairness (soft) and the cap (hard) are enforced by different mechanisms — a gate rejects one, a scored pass merely prefers the other. | The brief itself distinguishes "must respect" (cap) from "should aim to" (fairness) in the same sentence; the implementation mirrors that distinction structurally, not just in prose. |
 | Are the CSV's day columns positional? The real file runs Fri…Thu while a schedule is Mon–Sun. | Columns are matched by **extracting the weekday token from the label**, never by position — and the file turned out to need this: a title row, a UTF-8 BOM, an empty header cell, and a comma *inside quotes* in every day label (`"Fri, 07 Aug"`), none of which the brief's own illustrative table shows. | Reading by position would silently rotate the whole week — Friday's demand lands on Monday, and every downstream number stays plausible. The most dangerous available bug in the entire import path, because nothing about the output looks wrong. |
-| Persistence: what and where? | **This changed mid-build.** The brief permits any storage; the repository first chose SQLite (no server), then reversed to PostgreSQL + Docker + a real NestJS backend — not because the brief demanded it, but because this collection's own standard does (see `readme.md`). `docs/01`'s own assumption table still describes the superseded SQLite choice; `docs/04_data_model.md`/`docs/03_architecture.md` describe what actually shipped. |
+| Persistence: what and where? | **This changed mid-build.** The brief permits any storage; the repository first chose SQLite (no server), then reversed to PostgreSQL + Docker + a real NestJS backend — not because the brief demanded it, but because this collection's own standard does (see `readme.md`). `docs/01`'s assumption 15 now records PostgreSQL + Docker and keeps the superseded SQLite argument as the reasoning it overrode, matching `docs/04_data_model.md`/`docs/03_architecture.md`. |
 
 ---
 
@@ -349,8 +352,8 @@ coverage quality, fairness — is measured, not proven, because no optimum is de
 
 ## E.2 Three test layers, each proving what the others structurally cannot
 
-80/80 tests in `packages/scheduling-core` alone, across layers that enter at different depths —
-deliberately, the same discipline scenario 01 uses:
+97 tests in `packages/scheduling-core` alone — 255 across the workspace — across layers that enter
+at different depths, deliberately, the same discipline scenario 01 uses:
 
 | Layer | Enters at | Proves | Structurally **cannot** prove |
 |---|---|---|---|
@@ -479,23 +482,20 @@ Every one of these is a decision, recorded with the condition that would reverse
 | Capability | Trigger |
 |---|---|
 | An LP/CP-SAT solver | Hard constraints multiply — skills, availability, statutory rest, multi-site |
-| Roles/skills, per-staff availability | Brief stretch goals 3/4 — the gate already has the slot |
 | Idempotency store | An append-only mutation appears (today: auto-schedule replaces, CSV import upserts — neither needs one) |
 | Prometheus/Grafana scraping infra | An explicit request, or a debugging need a log line can't answer (`/metrics` already exposes the registry) |
-| The remaining six `apps/web` UI screens | Time remaining — genuinely optional per this collection's stated priority (system design over UI completeness) |
+| Statutory rest rules | A constraint spanning two days, unlike the existing four — see §G.3 |
 
 ## G.3 Extending the scenario yourself
 
 Good exercises, roughly in order of difficulty:
 
-1. **Per-staff availability / days off** — the gate already has the reason-code slot (`H4`); wire a
-   real check instead of the current "unknown reference" reuse.
-2. **A skills/roles requirement** — a shift that must include at least one supervisor. Think about
-   whether this is a new hard constraint (a new `ReasonCode`) or a soft preference.
-3. **Statutory rest rules** — e.g. an 11-hour gap required between two shifts on consecutive days.
-   Note this is a constraint that spans *two days*, unlike the existing three.
-4. **CSV export of the roster** (brief stretch goal 5) — the read side of the importer, in reverse.
-5. **Multi-site rostering** — staff shared across more than one `Schedule`. This is the point where
+1. **Statutory rest rules** — e.g. an 11-hour gap required between two shifts on consecutive days.
+   Note this is a constraint that spans *two days*, unlike the existing four, so it cannot be a
+   pure function of `(staff, day, shift)` the way `H4` is.
+2. **Multi-week scheduling** — a schedule is one typical week today; real calendar dates change
+   what the summary table aggregates over.
+3. **Multi-site rostering** — staff shared across more than one `Schedule`. This is the point where
    `ADR-0002`'s LP/CP-SAT rejection is worth revisiting for real.
 
 ---
@@ -508,4 +508,4 @@ Good exercises, roughly in order of difficulty:
 | **The system design document** | [`docs/03_architecture.md`](docs/03_architecture.md) |
 | **The flagship decision, in full** | [`docs/adr/0001-constraint-enforcement-strategy.md`](docs/adr/0001-constraint-enforcement-strategy.md) |
 | **How the AI-assisted build was directed and verified** | [`docs/12_ai_collaboration.md`](docs/12_ai_collaboration.md) |
-| **Back to the collection** | [`../README.md`](../README.md) |
+| **Back to the collection** | a sibling repo in the same personal collection |

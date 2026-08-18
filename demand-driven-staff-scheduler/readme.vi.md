@@ -7,7 +7,7 @@ tới *scenario 01* bên dưới là một repo anh em trong bộ sưu tập đ�
 
 > ✅ **Trạng thái: thuật toán, dịch vụ backend, và toàn bộ UI đều đã xây xong.** Trái tim của bài
 > tập — `packages/scheduling-core` (Phase 1) — đã hoàn chỉnh: 97/97 test (unit + property +
-> golden-file), nằm trong tổng số 218 test toàn workspace. Backend phục vụ nó cũng vậy,
+> golden-file), nằm trong tổng số 255 test toàn workspace. Backend phục vụ nó cũng vậy,
 > `apps/scheduler-api` (NestJS + Fastify + CQRS + Postgres + Docker) — mọi thao tác ghi và đọc đề
 > bài yêu cầu, cộng thêm **cả năm** stretch goal tùy chọn (§8): sửa lịch thủ công/kéo-thả, coverage
 > view, lịch rảnh từng nhân viên, vai trò/kỹ năng, và xuất roster.

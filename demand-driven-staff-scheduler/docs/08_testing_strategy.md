@@ -38,17 +38,47 @@ rebalance pass, and the fraction of staff reaching `U_min`. Measured, not claime
 `@testing-library/react` and no plan to add them at this scope. Phase 3's UI screens push every
 piece of non-trivial logic — grid-building (`buildDemandGrid`/`buildRosterGrid`/`buildCoverageGrid`),
 CSV export, `HH:mm` ↔ minutes conversion, `ApiError` → manager-readable copy — into plain
-`src/lib/*.ts` functions, unit-tested under the existing `environment: 'node'` config (27 specs).
+`src/lib/*.ts` functions, unit-tested under the existing `environment: 'node'` config (27 specs
+when Phase 3 landed; 41 today).
 The six interactive components themselves (`*-manager.tsx`/`*-view.tsx`) are verified by running
 the real app in a browser against a real `apps/scheduler-api` + Postgres, not by a component-test
 suite — a scope decision, not an oversight (`docs/05_ui_guidelines.md` states the same rule).
 
+## Layer 3, filled in: the CQRS handlers
+
+Until 2026-08-19 `apps/scheduler-api`'s suite covered infrastructure (the Zod pipe, the exception
+filter, the logging interceptor, transient-error classification) and the CSV parser — but **not one
+of its 24 command/query handlers**. That was the real gap in this repo's testing, and it was
+invisible from the totals: the algorithm was proven over generated inputs and the endpoints had been
+exercised by hand against a live Postgres, so nothing *failed*; the layer that wires the two
+together simply had no automated statement about it.
+
+Handlers with genuine branching are now covered directly:
+
+| Spec | What it pins that nothing else could |
+|---|---|
+| `add-assignment.handler.spec.ts` | The manual path replays the same gate as auto-schedule (assumption 12) — H1/H2/H3 each rejected, touching-but-not-overlapping shifts allowed, and the load-bearing case: a violation owned by a **pre-existing** assignment is not blamed on the candidate |
+| `auto-schedule.handler.spec.ts` | Orchestration around `generateRoster` — full replace not append (assumption 11, what makes the endpoint idempotent), the run recorded with the parameters actually used, caps never exceeded, and an under-resourced week **reported rather than thrown** |
+| `update-shift.handler.spec.ts` | The merged-state check `zod_validation.md` rule 4 documents as its one exception — a PATCH carrying only `endMinute` validated against the *stored* `startMinute`, which Zod structurally cannot see |
+| `build-scheduling-input.spec.ts` | The Prisma-row → `SchedulingInput` seam four handlers share: demand keyed day-then-hour, `maxStaffPerHour: null` omitted rather than passed through, unavailability and multi-role links grouped per person |
+| `suggest-n.handler.spec.ts` | "Suggest from data" reports the suggestion **alongside** `current` and never applies it — ADR-0003's deliberate 18-vs-15 divergence is evidence a silent overwrite would erase |
+| `remove-assignment.handler.spec.ts` | The intentional asymmetry with add: no gate replay, because removal can only relax H1–H4 (ADR-0006 explains why a role shortfall still isn't a 422) |
+
+The `add-assignment` attribution branch was additionally checked by **mutation**: replacing
+`if (ownViolation)` with `if (violations.length > 0)` makes exactly the pre-existing-violation test
+fail and nothing else, so that test is known to be load-bearing rather than merely passing.
+
+Still deliberately untested: the remaining thin CRUD handlers (`add-staff`, `remove-role`, and
+similar), which are a repository call and a not-found check with no branching of their own — a test
+there would assert the mock, not the behaviour. The brief asks for *"tests where they add value"*,
+and that is the line drawn.
+
 ## Status
 
-Layers 1 and 2 are built and green — **97/97 specs** in `packages/scheduling-core` (unit +
-property + golden-file, up from 80 with the stretch goals' H4/roles additions). Layer 3's importer
-and roster-edit cases are covered by `apps/scheduler-api`'s own suite (27 specs) plus live
-verification against a real Postgres (every claim in `../.ai/PROJECT_STATUS.md`'s phase log is
-backed by a real `curl`/`psql` check, not an assumption). `apps/web`'s `src/lib/*.spec.ts`
-(41 specs) cover the UI's non-trivial logic, per the note above. `../.ai/PROJECT_STATUS.md` tracks
-current phase.
+All layers green — **255 specs** across the workspace: **97** in `packages/scheduling-core`
+(unit + property + golden-file, up from 80 with the stretch goals' H4/roles additions), **53** in
+`packages/shared-kernel`, **64** in `apps/scheduler-api` (up from 27, the handler specs above), and
+**41** in `apps/web`'s `src/lib/*.spec.ts` per the component-test note. Live verification against a
+real Postgres remains on top of this, not replaced by it — every claim in
+`../.ai/PROJECT_STATUS.md`'s phase log is backed by a real `curl`/`psql`/browser check.
+`../.ai/PROJECT_STATUS.md` tracks current phase.
