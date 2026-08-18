@@ -21,10 +21,22 @@ None of this proves the roster is *optimal* — no optimum is defined. What's me
 real numbers from the sample dataset: coverage rate, the max−min utilisation gap before/after the
 rebalance pass, and the fraction of staff reaching `U_min`. Measured, not claimed.
 
+## A deliberate fourth non-layer: no `apps/web` component tests (Phase 3)
+
+`apps/web` uses Vitest (`directives/testing_standard.md` §1) but has no `jsdom`/
+`@testing-library/react` and no plan to add them at this scope. Phase 3's UI screens push every
+piece of non-trivial logic — grid-building (`buildDemandGrid`/`buildRosterGrid`/`buildCoverageGrid`),
+CSV export, `HH:mm` ↔ minutes conversion, `ApiError` → manager-readable copy — into plain
+`src/lib/*.ts` functions, unit-tested under the existing `environment: 'node'` config (27 specs).
+The six interactive components themselves (`*-manager.tsx`/`*-view.tsx`) are verified by running
+the real app in a browser against a real `apps/scheduler-api` + Postgres, not by a component-test
+suite — a scope decision, not an oversight (`docs/05_ui_guidelines.md` states the same rule).
+
 ## Status
 
 Layers 1 and 2 are built and green — **80/80 specs** in `packages/scheduling-core` (unit +
 property + golden-file). Layer 3's importer and roster-edit cases are covered by
 `apps/scheduler-api`'s own suite plus live verification against a real Postgres (every claim in
 `../.ai/PROJECT_STATUS.md`'s phase log is backed by a real `curl`/`psql` check, not an assumption).
+`apps/web`'s `src/lib/*.spec.ts` (27 specs) cover the UI's non-trivial logic, per the note above.
 `../.ai/PROJECT_STATUS.md` tracks current phase.

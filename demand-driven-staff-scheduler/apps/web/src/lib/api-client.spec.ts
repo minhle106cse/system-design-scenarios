@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createSchedule, importDemand, ApiError } from './api-client'
+import { autoSchedule, createSchedule, importDemand, removeStaff, ApiError } from './api-client'
 
 function mockFetch(status: number, body: unknown) {
   return vi.fn().mockResolvedValue({
@@ -64,8 +64,50 @@ describe('api-client', () => {
     await expect(createSchedule('x')).rejects.toThrow(ApiError)
   })
 
+  it('omits the JSON Content-Type header for a bodyless POST (auto-schedule) -- Fastify 400s on Content-Type: application/json with an empty body', async () => {
+    const fetchMock = mockFetch(200, { success: true, data: { diagnostics: {} } })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await autoSchedule('s1')
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(init.method).toBe('POST')
+    expect(init.body).toBeUndefined()
+    expect(init.headers).toEqual({})
+  })
+
+  it('omits the JSON Content-Type header for a bodyless DELETE', async () => {
+    const fetchMock = mockFetch(204, { success: true })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await removeStaff('s1', 'staff1')
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(init.method).toBe('DELETE')
+    expect(init.headers).toEqual({})
+  })
+
+  it('resolves a real 204 No Content without throwing, even though its body cannot be parsed as JSON', async () => {
+    // A real fetch Response for 204 has no body at all -- .json() rejects. This used to be caught
+    // by request()'s parse-failure fallback (`body = null`), which then read `body?.success` as
+    // falsy and threw an ApiError even though the request succeeded (res.ok === true).
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 204,
+        json: () => Promise.reject(new Error('Unexpected end of JSON input')),
+      }),
+    )
+
+    await expect(removeStaff('s1', 'staff1')).resolves.toBeUndefined()
+  })
+
   it('omits the JSON Content-Type header for a FormData body (the CSV import route)', async () => {
-    const fetchMock = mockFetch(200, { success: true, data: { cells: [], warnings: [], errors: [] } })
+    const fetchMock = mockFetch(200, {
+      success: true,
+      data: { cells: [], warnings: [], errors: [] },
+    })
     vi.stubGlobal('fetch', fetchMock)
 
     const file = new File(['a,b\n1,2'], 'demand.csv', { type: 'text/csv' })

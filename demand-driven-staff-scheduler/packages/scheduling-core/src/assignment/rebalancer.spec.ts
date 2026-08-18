@@ -36,7 +36,7 @@ describe('rebalance', () => {
     const gapBefore = Math.abs(utilisationOf(heavy, state) - utilisationOf(idle, state));
     expect(gapBefore).toBeCloseTo(1, 5); // heavy=100%, idle=0%
 
-    state = rebalance(theInput, gate, state);
+    state = rebalance(theInput, { gate, state });
 
     const gapAfter = Math.abs(utilisationOf(heavy, state) - utilisationOf(idle, state));
     expect(gapAfter).toBeLessThan(gapBefore);
@@ -63,7 +63,7 @@ describe('rebalance', () => {
       ['3:wed-shift', state.countOn(3, 'wed-shift')],
     ]);
 
-    state = rebalance(theInput, gate, state);
+    state = rebalance(theInput, { gate, state });
 
     for (const [key, countBefore] of before) {
       const [day, shiftId] = key.split(':');
@@ -76,7 +76,7 @@ describe('rebalance', () => {
     const theInput = input([solo]);
     const gate = new FeasibilityGate(theInput);
     const state = new RosterState();
-    const result = rebalance(theInput, gate, state, 200);
+    const result = rebalance(theInput, { gate, state }, 200);
     expect(result).toBeDefined(); // completes without hanging — the real assertion is "this test finishes"
   });
 
@@ -88,6 +88,6 @@ describe('rebalance', () => {
     let state = new RosterState();
     const verdict = gate.eligible('heavy', 1, MON, state);
     if (verdict.ok) state.commit(verdict.eligibility);
-    expect(() => rebalance(theInput, gate, state, 0)).not.toThrow();
+    expect(() => rebalance(theInput, { gate, state }, 0)).not.toThrow();
   });
 });

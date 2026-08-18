@@ -37,14 +37,29 @@ interface ApiEnvelope<T> {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // A bodyless call (autoSchedule's POST, every DELETE) must NOT get `Content-Type:
+  // application/json` — Fastify's body parser 400s on that combination ("Body cannot be empty
+  // when content-type is set to 'application/json'"), a real bug this repo's own UI is the first
+  // caller to trip (curl verification never sent the header for an empty body).
+  const hasBody = init?.body !== undefined
   const isFormData = init?.body instanceof FormData
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(hasBody && !isFormData ? { 'Content-Type': 'application/json' } : {}),
       ...init?.headers,
     },
   })
+
+  // 204 No Content has no body to parse at all — every `removeX` (removeStaff/removeShift/
+  // removeAssignment) returns this on success. Parsing it as JSON always fails, which used to be
+  // read as `body?.success` being falsy and thrown as an ApiError even though `res.ok` was true —
+  // every DELETE call was broken this way until a real UI caller (Phase 3) hit it.
+  if (res.status === 204) {
+    if (!res.ok)
+      throw new ApiError('UNKNOWN_ERROR', `Request failed with status ${res.status}`, res.status)
+    return undefined as T
+  }
 
   // A non-JSON body (a proxy's HTML error page, a network-level failure surfaced by the runtime)
   // must not crash the caller trying to read `.data` off `undefined` — it becomes an ApiError too.
@@ -61,7 +76,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body.data as T
 }
 
-const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) })
+const json = (body: unknown): RequestInit => ({
+  method: 'POST',
+  body: JSON.stringify(body),
+})
 
 // ── Domain shapes — the wire format, docs/06_api_contracts.md ──────────────────────────────────
 
@@ -128,10 +146,7 @@ export interface ScheduleDetail {
 }
 
 export type ReasonCode =
-  | 'WOULD_EXCEED_MAX_HOURS'
-  | 'OVERLAPS_EXISTING_SHIFT'
-  | 'ALREADY_ASSIGNED'
-  | 'UNAVAILABLE'
+  'WOULD_EXCEED_MAX_HOURS' | 'OVERLAPS_EXISTING_SHIFT' | 'ALREADY_ASSIGNED' | 'UNAVAILABLE'
 
 export interface Violation {
   readonly staffId: string
@@ -180,7 +195,10 @@ export interface Diagnostics {
   readonly hours: readonly HourDiagnostic[]
   readonly staff: readonly StaffDiagnostic[]
   readonly unfilledSeats: readonly UnfilledSeat[]
-  readonly structural: { readonly floorStaffHours: number; readonly contractedStaffHours: number }
+  readonly structural: {
+    readonly floorStaffHours: number
+    readonly contractedStaffHours: number
+  }
 }
 
 export interface SummaryCell {
@@ -199,7 +217,27 @@ export interface SummaryReport {
   readonly averageTransactionsPerStaffHour: number | null
 }
 
+/** The parameter panel — `docs/05`'s Roster screen. All fields optional (`PATCH`, one at a time). */
+export interface UpdateScheduleData {
+  readonly name?: string
+  readonly transactionsPerStaffHour?: number
+  readonly minStaffWhenOpen?: number
+  readonly maxStaffPerHour?: number | null
+  readonly minUtilisationTarget?: number
+}
+
+/** `suggestTransactionsPerStaff`'s "Suggest from data" — `docs/01` assumption 1. `suggested` may
+ *  legitimately differ from `current` (ADR-0003); show both, never silently overwrite one. */
+export interface SuggestedN {
+  readonly suggested: number
+  readonly current: number
+}
+
 // ── Schedules — brief §2.1 ──────────────────────────────────────────────────────────────────────
+
+export function listSchedules(): Promise<readonly Schedule[]> {
+  return request<readonly Schedule[]>('/schedules')
+}
 
 export function createSchedule(name: string): Promise<Schedule> {
   return request<Schedule>('/schedules', json({ name }))
@@ -209,7 +247,25 @@ export function getSchedule(scheduleId: string): Promise<ScheduleDetail> {
   return request<ScheduleDetail>(`/schedules/${scheduleId}`)
 }
 
-export function autoSchedule(scheduleId: string): Promise<{ roster: unknown; diagnostics: Diagnostics }> {
+export function updateSchedule(scheduleId: string, data: UpdateScheduleData): Promise<Schedule> {
+  return request<Schedule>(`/schedules/${scheduleId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export function getSuggestedN(scheduleId: string): Promise<SuggestedN> {
+  return request<SuggestedN>(`/schedules/${scheduleId}/suggested-n`)
+}
+
+/**
+ * The response also carries `roster` (the in-memory `SchedulingResult.roster`, `day`-keyed —
+ * `scheduling-core`'s shape, not the DB's `dayOfWeek`). Deliberately not typed/returned here: the
+ * caller refreshes via `getSchedule()` afterwards for the persisted, `id`-bearing assignments it
+ * needs to render and to delete — re-declaring a second assignment shape just for this one
+ * response would be the exact kind of drift `buildSchedulingInput`'s docstring warns about.
+ */
+export function autoSchedule(scheduleId: string): Promise<{ diagnostics: Diagnostics }> {
   return request(`/schedules/${scheduleId}/auto-schedule`, { method: 'POST' })
 }
 
@@ -242,7 +298,9 @@ export function updateStaff(
 }
 
 export function removeStaff(scheduleId: string, staffId: string): Promise<void> {
-  return request<void>(`/schedules/${scheduleId}/staff/${staffId}`, { method: 'DELETE' })
+  return request<void>(`/schedules/${scheduleId}/staff/${staffId}`, {
+    method: 'DELETE',
+  })
 }
 
 // ── Shifts — brief §2.4 ──────────────────────────────────────────────────────────────────────────
@@ -266,7 +324,9 @@ export function updateShift(
 }
 
 export function removeShift(scheduleId: string, shiftId: string): Promise<void> {
-  return request<void>(`/schedules/${scheduleId}/shifts/${shiftId}`, { method: 'DELETE' })
+  return request<void>(`/schedules/${scheduleId}/shifts/${shiftId}`, {
+    method: 'DELETE',
+  })
 }
 
 // ── Demand — brief §2.3 ──────────────────────────────────────────────────────────────────────────

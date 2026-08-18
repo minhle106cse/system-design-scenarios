@@ -3,17 +3,26 @@
 Screens, and the rules that govern how they're built. Component-level conventions:
 `../directives/frontend_standard.md`.
 
-## Screens (plan §3.1)
+## Screens (plan §3.1) — all seven built (Phase 3)
 
 | Route | Brief § | Notes |
 |---|---|---|
-| `/` | 2.1 | Schedules list + create — the only route above a schedule |
-| `/s/[id]` → **Staff** | 2.2 | Table CRUD: name + max weekly hours |
-| → **Demand** | 2.3 | CSV drop zone → import result (accepted / warnings / errors) → day×hour heatmap |
-| → **Shifts** | 2.4 | CRUD, seeded with 07:00–15:00 and 15:00–23:00 |
-| → **Roster** | 2.5 | Auto-schedule button, the parameter panel, day×shift grid, manual add/remove |
-| → **Summary** | 2.6 | The aggregated table + the four week totals |
-| → **Coverage** | stretch 2 | Required vs scheduled per hour; gaps and overstaffing |
+| `/` | 2.1 | Schedules list (`GET /schedules`, Phase 3's new route) + create |
+| `/s/[id]` → **Staff** | 2.2 | Table CRUD: name + max weekly hours, total contracted hours shown |
+| → **Demand** | 2.3 | CSV drop zone → import result (accepted / warnings / errors, row/column-precise) → day×hour heatmap |
+| → **Shifts** | 2.4 | CRUD via `<input type="time">`, seeded with 07:00–15:00 and 15:00–23:00 |
+| → **Roster** | 2.5 | Parameter panel (`PATCH /schedules/:id` + "Suggest from data") + auto-schedule button + day×shift grid with manual add/remove/drag-drop + diagnostics banners + CSV export |
+| → **Summary** | 2.6 | The aggregated table + the four week totals, each ratio captioned per rule 2 + CSV export |
+| → **Coverage** | stretch 2 | Required vs scheduled per hour (live, not a stored snapshot) + per-staff "hours booked vs contracted" |
+
+`/s/[id]/layout.tsx` renders the shared tab nav and 404s via `notFound()` on an unknown schedule id.
+Every screen's page.tsx is an async Server Component (`getSchedule`/`getSummary`/`getCoverage`
+called directly, deduped by Next's per-request fetch memoization against the layout's own call);
+the interactive parts are separate Client Components under `src/components/` (`staff-manager.tsx`,
+`demand-manager.tsx`, `shift-manager.tsx`, `roster-manager.tsx`, `summary-view.tsx`,
+`coverage-view.tsx`), each following the pending/success/error mutation pattern
+`create-schedule-form.tsx` established. The ~6 primitives `frontend_standard.md` §2 named are built
+under `src/components/ui/` (`button`, `field`, `data-table`, `badge`, `banner`, `modal`).
 
 ## The three rules that come directly from the grading criteria
 
@@ -25,6 +34,15 @@ See `../directives/frontend_standard.md` §1 for the enforced version of these:
 
 ## Status build order
 
-These screens land in plan §12 Phase 3, after the algorithm (Phase 1) and the importer
-(Phase 2) are built and proven — building UI against an unproven core would mean re-doing both the
-UI and the algorithm together instead of once each. `../.ai/PROJECT_STATUS.md` tracks current phase.
+These screens landed in plan §12 Phase 3, after the algorithm (Phase 1) and the importer
+(Phase 2) were built and proven — building UI against an unproven core would have meant re-doing
+both the UI and the algorithm together instead of once each. `../.ai/PROJECT_STATUS.md` tracks
+current phase.
+
+## No component test layer (deliberate, see `docs/08_testing_strategy.md`)
+
+`apps/web` has no `jsdom`/`@testing-library/react` — Phase 3 kept Vitest's existing `environment:
+'node'` and pushed every non-trivial piece of logic (grid-building, CSV export, time parsing,
+error-message copy) into `src/lib/*.ts`, unit-tested there. Components themselves (the six
+`*-manager.tsx`/`*-view.tsx` files) are verified by actually running the app in a browser, not by
+a rendering-library test suite — a deliberate scope decision (user-directed), not an oversight.

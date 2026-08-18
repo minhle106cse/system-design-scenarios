@@ -18,7 +18,7 @@ export default [
     files: ['src/**/*.ts'],
     languageOptions: {
       parser: tsParser,
-      parserOptions: { project: './tsconfig.json' },
+      parserOptions: { project: './tsconfig.eslint.json', tsconfigRootDir: import.meta.dirname },
     },
     plugins: { '@typescript-eslint': tsPlugin },
     rules: {

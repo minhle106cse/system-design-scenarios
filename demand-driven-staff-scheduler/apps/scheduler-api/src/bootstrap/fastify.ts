@@ -11,6 +11,12 @@ export async function setupFastify(app: NestFastifyApplication) {
   await fastify.register(cors, {
     origin: process.env.CORS_ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
     credentials: true,
+    // @fastify/cors's own default is 'GET,HEAD,POST' (narrower than the `cors` npm package's
+    // GET,HEAD,PUT,PATCH,POST,DELETE) — silently blocked every PATCH (staff/shifts/schedules) and
+    // DELETE (staff/shifts/roster assignments) route from a real browser via preflight, invisible
+    // to curl/Swagger verification since neither goes through CORS. First real cross-origin caller
+    // (apps/web, Phase 3) is what surfaced it.
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   })
 
   await fastify.register(helmet)

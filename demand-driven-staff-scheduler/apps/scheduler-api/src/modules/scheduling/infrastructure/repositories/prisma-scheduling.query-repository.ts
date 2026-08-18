@@ -10,6 +10,21 @@ import type { AssignmentSource } from '../../domain/entities/assignment.entity'
 export class PrismaSchedulingQueryRepository implements ISchedulingQueryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Brief §2.1's "list" half of `/` — newest first, soft-deleted rows excluded by PrismaService's extension. */
+  async findAllSchedules() {
+    const rows = await this.prisma.client.schedule.findMany({ orderBy: { createdAt: 'desc' } })
+    return rows.map((schedule) => ({
+      id: schedule.id,
+      name: schedule.name,
+      transactionsPerStaffHour: schedule.transactionsPerStaffHour,
+      minStaffWhenOpen: schedule.minStaffWhenOpen,
+      maxStaffPerHour: schedule.maxStaffPerHour,
+      minUtilisationTarget: schedule.minUtilisationTarget,
+      createdAt: schedule.createdAt,
+      updatedAt: schedule.updatedAt,
+    }))
+  }
+
   async findScheduleDetail(scheduleId: string): Promise<ScheduleDetail | null> {
     const schedule = await this.prisma.client.schedule.findUnique({ where: { id: scheduleId } })
     if (!schedule) return null

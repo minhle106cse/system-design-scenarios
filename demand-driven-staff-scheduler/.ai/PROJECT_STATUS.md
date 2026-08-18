@@ -329,27 +329,103 @@ that were already written down:
   5-vs-7 warning rather than assert one repo's pin, since copying the wrong shape breaks a schema.
   All 13 templates now carry a `SPECIALIZE:` header; verified 0 dangling citations remain.
 
+## Phase 3 — `apps/web`'s remaining six UI screens (this session)
+
+The user asked directly whether the repo actually met the take-home brief; the answer was no —
+`apps/web` had exactly one working screen (`create-schedule-form.tsx`), and the brief's §5 states
+*"UI is required — this is not a command-line or API-only exercise"* with a graded criterion asking
+whether the UI is *"clear enough for a non-technical manager."* This was Current focus item 1 below,
+previously marked optional; it wasn't optional against the brief's own stated requirements, just
+deferred. Closed this session, plan-first (`.ai/plans/...` — a `/plan` mode session, approved before
+any code).
+
+**Four backend gaps found and closed first** (the UI could not be built to spec without them):
+`GET /schedules` (brief §2.1's list half — the route never existed; `IScheduleRepository.findAll()`
+was dead code with no caller, removed rather than left as a second, unused read path),
+`PATCH /schedules/:id` (the parameter panel `docs/05` already documented but had no route),
+`GET /schedules/:id/suggested-n` (exposes `suggestTransactionsPerStaff`, assumption 1's "Suggest
+from data" — never wired to an endpoint before). **A fourth investigated candidate turned out NOT
+to be a bug**: three docstrings (`shift.entity.ts`, `create-schedule.handler.ts`,
+`SchedulesController.create`) all claimed `CreateScheduleHandler` seeds the two default shifts, but
+its body plainly doesn't — traced one layer further and found `PrismaScheduleRepository.create()`
+already does the seeding via a nested Prisma write. A fix was drafted and reverted before commit
+once the real call chain was found (logged to `.ai/memory/gotchas.jsonl` — the near-miss is the
+lesson).
+
+**All seven screens now built**: `/` (list, was create-only), and `/s/[id]/{staff, demand, shifts,
+roster, summary, coverage}` (all six new). Shared layout + tab nav at `src/app/s/[id]/layout.tsx`.
+Six primitives under `src/components/ui/` (`docs/05`/`frontend_standard.md` §2). Non-trivial logic
+factored into `src/lib/*.ts` (grid-building, CSV export, time parsing, error copy) and unit-tested
+there — 27 new specs, Vitest `environment: 'node'`, no `jsdom` added (user-directed scope: verify
+components by running the real app in a browser instead). Roster screen (§2.5) is the load-bearing
+one: parameter panel wired to the new `PATCH`, "Suggest from data" wired to the new
+`suggested-n` route (shows both numbers, never auto-applies — ADR-0003's N=15-vs-18 divergence is
+deliberate evidence, not a bug to silently reconcile), auto-schedule, manual add/remove, HTML5
+drag-and-drop with the `+`/`×` buttons kept alongside it as the keyboard-operable path, diagnostics
+banners, CSV export.
+
+**Verified end-to-end against a live Postgres, in a real browser** (not just unit tests):
+`docker compose up -d` → seed (12 staff, 2 shifts, 112 demand cells across several schedules from
+earlier sessions) → both apps running → full walkthrough of a freshly-created schedule: list →
+create (confirmed 2 shifts seeded on create, not 0) → add staff → import the real CSV via a direct
+multipart POST (112 cells, heatmap renders correctly) → auto-schedule (diagnostics banners render:
+structural shortfall, unfilledSeats with reasons) → manual add/remove assignment (verified both the
+success path and the `422 ROSTER_VIOLATION`/`ALREADY_ASSIGNED` banner) → parameter panel save →
+"Suggest from data" → summary (both week-level ratios captioned, `null` renders `—`) → coverage
+(live-recomputed, "Hours booked vs contracted" labels, `belowTarget` badge). `npm run
+typecheck`/`lint`/`test` clean across both apps (scheduler-api: 5 suites/27 tests; web: 6
+suites/30 tests after the fixes below), `next build` succeeds (all 9 routes compile).
+
+**Four real, pre-existing bugs found only by this browser verification — none of them caught by
+unit tests, typecheck, curl, or Swagger, because none of those exercise a real cross-origin browser
+client**, all fixed in this session (`.ai/memory/errors.jsonl`/`gotchas.jsonl`/`conventions.jsonl`):
+1. `api-client.ts`'s `request()` sent `Content-Type: application/json` on every bodyless call
+   (`autoSchedule`'s `POST`, every `DELETE`) — Fastify 400s on that exact combination. Broke
+   Auto-schedule from any UI.
+2. Same function always parsed the response as JSON, including `204 No Content` (every `removeX`
+   `DELETE`'s success response) — the failed parse was read as `body?.success` being falsy and
+   thrown as an `ApiError` even though `res.ok` was `true`. Broke every Remove button.
+3. `@fastify/cors` v11's own default `methods` is `'GET,HEAD,POST'` — narrower than the `cors` npm
+   package's familiar default — silently blocking every `PATCH`/`DELETE` route via CORS preflight
+   since Phase C. Invisible to curl/Swagger (neither goes through CORS); `apps/web` is the first
+   real cross-origin caller these routes ever had. Fixed by setting `methods` explicitly.
+4. `roster-manager.tsx` mirrored a server-fetched prop (`suggestedN.current`) into
+   `useState(suggestedN)` — React does not re-run a `useState` initializer on a later prop change,
+   so the "Suggest from data" caption kept showing the pre-save `N` after "Save parameters"
+   succeeded. Fixed by reading `schedule.transactionsPerStaffHour` directly from the prop every
+   render instead of mirroring it into state — a general rule now worth remembering for this
+   `router.refresh()`-based mutation pattern.
+
+Also caught and reverted BEFORE committing: a fifth "bug" (CreateScheduleHandler not seeding
+`DEFAULT_SHIFTS`) that traced out to be a false positive — `PrismaScheduleRepository.create()`
+already seeds them one layer down. Logged as a gotcha about not stopping the trace at the file with
+the interesting-looking docstring.
+
+**Found and fixed while formatting**: `apps/web` had no `.prettierrc` of its own (unlike
+`apps/scheduler-api`/`packages/shared-kernel`) — a repo-root `npx prettier --write` reformatted
+every file to prettier's bare defaults (double quotes, semicolons), silently breaking the app's
+established single-quote/no-semicolon style. Added `apps/web/.prettierrc` matching
+`apps/scheduler-api`'s values and re-ran (logged to `.ai/memory/conventions.jsonl`).
+
+`docs/06_api_contracts.md` (3 new routes), `docs/05_ui_guidelines.md` (all seven screens marked
+built), `docs/08_testing_strategy.md` (the no-component-test-layer decision stated explicitly), and
+`directives/frontend_standard.md` (`router.refresh()` convention, the real 6 primitives, the
+drag-and-drop-needs-a-keyboard-path rule) all reconciled in this session, not left for later.
+
 ## Current focus
 
-**`backend-architecture-reversal.plan.md` is fully executed — all six phases (A–F) done — and every
-Live debt Phase F itself created has since been closed, including a follow-up cross-scenario
-directive audit that found and fixed real drift Phase F's own pass missed** (see the log entry
-above). What remains is optional, not blocking any status claim this repo currently makes:
+**`backend-architecture-reversal.plan.md` (all six phases A–F) and Phase 3 (the UI) are both done.**
+What remains is optional, not blocking any status claim this repo currently makes:
 
-1. `apps/web`'s remaining six UI screens (plan §3.1) — optional per this collection's stated
-   priority (system design over UI completeness), `readme.md`'s "Why the stack changed mid-build"
-   makes this explicit rather than leaving it unexplained.
-2. `../_templates/` is unproven until a third scenario in this collection actually uses it —
+1. `../_templates/` is unproven until a third scenario in this collection actually uses it —
    treat it as a hypothesis about what reduces cross-scenario drift, not a guarantee, until then.
+2. Stretch goals the brief names but this repo hasn't built: per-staff availability/days-off,
+   roles/skills (e.g. "a shift must include at least one supervisor"). Not started, not planned —
+   named here so their absence reads as scope, not oversight.
 
 ## Live debts
 
-*(None outstanding as of this session.)* Both entries this section used to carry are resolved — the
-three `directives/*.md` files (reconciled to the real NestJS/CQRS shape, see the Phase F log entry
-above) and the collection `../README.md`/`../README.vi.md` scenario-index rows (added once
-`CASE_STUDY.md`/`.vi.md` existed to link to — `CASE_STUDY.md`/`.vi.md` written this session, the
-seven-group A–G structure matching scenario 01's depth; `readme.vi.md` also added for both this
-scenario AND `../service-appointment-scheduler/` for cross-collection parity, user-directed scope).
+*(None outstanding as of this session.)*
 
 ## Decisions taken by the user, not by default
 

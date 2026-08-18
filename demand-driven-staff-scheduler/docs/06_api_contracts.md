@@ -17,11 +17,23 @@ The tables below show the `data`/`error.details` shape, not the envelope.
 
 | Route | Method | Body | `data` |
 |---|---|---|---|
+| `/schedules` | `GET` | — | `Schedule[]` — newest first, brief §2.1's "list" half of `/` (Phase 3) |
 | `/schedules` | `POST` | `{ name: string }` | `Schedule` — seeds the two default shifts (brief §2.4) |
 | `/schedules/:id` | `GET` | — | `{ schedule, staff, shifts, demandCells, assignments, latestRun }` — the whole schedule |
+| `/schedules/:id` | `PATCH` | `{ name?, transactionsPerStaffHour?, minStaffWhenOpen?, maxStaffPerHour?, minUtilisationTarget? }` | `Schedule` — the parameter panel (`docs/05`'s Roster screen, Phase 3) |
+| `/schedules/:id/suggested-n` | `GET` | — | `{ suggested, current }` or `422 INSUFFICIENT_CALIBRATION_DATA` — "Suggest from data" (assumption 1's `suggestTransactionsPerStaff`, Phase 3) |
 | `/schedules/:id/auto-schedule` | `POST` | — | `{ roster, diagnostics }` — full replace (assumption 11), brief §2.5 |
 | `/schedules/:id/summary` | `GET` | — | `SummaryReport` (plan §7.7), brief §2.6 |
 | `/schedules/:id/coverage` | `GET` | — | `Diagnostics` (`{ hours, staff, unfilledSeats, structural }`), brief §8 stretch |
+
+`suggested-n` 422s (`InsufficientCalibrationDataError`) when the schedule has no staff, no shifts,
+or no imported demand cells — `suggestTransactionsPerStaff` never throws on any of those inputs
+(each is pinned to degrade cleanly to `0`/no-op inside `@scheduler/scheduling-core`), but it
+silently collapses to `bestN = 1`, a number that looks like real calibration but isn't. The guard
+exists to fail loudly instead of returning a misleadingly "legitimate" `suggested` value; it does
+NOT apply to `auto-schedule`, which must keep generating (an empty/thin roster plus honest
+`diagnostics`) rather than ever throwing on a feasible-but-bad input. `error.details` is
+`{ staff, shifts, demand }`, `true` on whichever inputs are missing.
 
 ## Staff (`/api/v1/schedules/:scheduleId/staff`)
 

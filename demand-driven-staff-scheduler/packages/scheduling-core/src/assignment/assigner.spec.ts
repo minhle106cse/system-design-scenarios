@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { coveragePass, fairnessPass } from './assigner.js';
-import { FeasibilityGate, RosterState } from './feasibility-gate.js';
+import { FeasibilityGate, RosterState, type RosterContext } from './feasibility-gate.js';
 import { computeRequiredStaff } from '../demand/demand-model.js';
 import { computeShiftRequirements } from '../requirements/shift-requirements.js';
 import type { DemandGrid, SchedulingInput, Shift, Staff } from '../model/types.js';
@@ -30,6 +30,7 @@ describe('fairnessPass', () => {
     const input = buildInput([alreadyBusy, idle], busyDemand());
     const gate = new FeasibilityGate(input);
     const state = new RosterState();
+    const roster: RosterContext = { gate, state };
 
     // Pre-fill `alreadyBusy` to 100% utilisation via a direct commit (simulating prior work).
     const pre = gate.eligible('busy', 1, MORNING, state);
@@ -38,7 +39,7 @@ describe('fairnessPass', () => {
 
     const required = computeRequiredStaff(input.demand, input.parameters);
     const requirements = computeShiftRequirements(required, input.shifts);
-    fairnessPass(input, requirements, gate, state);
+    fairnessPass(input, requirements, roster);
 
     // idle (0% utilisation, below U_min=0.6) must have been picked for the evening seat over busy
     // (already 100%, above U_min, and also H2-blocked from a second morning-overlapping shift).
@@ -51,9 +52,10 @@ describe('fairnessPass', () => {
     const input = buildInput([a], busyDemand());
     const gate = new FeasibilityGate(input);
     const state = new RosterState();
+    const roster: RosterContext = { gate, state };
     const required = computeRequiredStaff(input.demand, input.parameters);
     const requirements = computeShiftRequirements(required, input.shifts);
-    fairnessPass(input, requirements, gate, state);
+    fairnessPass(input, requirements, roster);
     expect(state.all().length).toBeGreaterThan(0);
   });
 });
@@ -68,11 +70,12 @@ describe('coveragePass', () => {
     const input = buildInput(staff, busyDemand());
     const gate = new FeasibilityGate(input);
     const state = new RosterState();
+    const roster: RosterContext = { gate, state };
     const required = computeRequiredStaff(input.demand, input.parameters);
     const requirements = computeShiftRequirements(required, input.shifts);
 
-    fairnessPass(input, requirements, gate, state);
-    coveragePass(input, requirements, gate, state);
+    fairnessPass(input, requirements, roster);
+    coveragePass(input, requirements, roster);
 
     const morningCount = state.countOn(1, 'morning');
     const eveningCount = state.countOn(1, 'evening');
@@ -87,12 +90,13 @@ describe('coveragePass', () => {
     const input = buildInput([one], busyDemand());
     const gate = new FeasibilityGate(input);
     const state = new RosterState();
+    const roster: RosterContext = { gate, state };
     const required = computeRequiredStaff(input.demand, input.parameters);
     const requirements = computeShiftRequirements(required, input.shifts);
 
     expect(() => {
-      fairnessPass(input, requirements, gate, state);
-      coveragePass(input, requirements, gate, state);
+      fairnessPass(input, requirements, roster);
+      coveragePass(input, requirements, roster);
     }).not.toThrow();
 
     // Both morning and evening want more than 1 person (busy demand), but only 1 staff exists —

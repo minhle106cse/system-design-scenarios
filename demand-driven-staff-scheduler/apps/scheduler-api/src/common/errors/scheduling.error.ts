@@ -78,3 +78,28 @@ export class InvalidShiftTimeRangeError extends ApplicationError {
     })
   }
 }
+
+/**
+ * Guard for `GET /schedules/:id/suggested-n` (and any other calibration query). Every one of
+ * `suggestTransactionsPerStaff`'s edge cases (empty staff, empty shifts, empty demand) is already
+ * handled without throwing inside `@scheduler/scheduling-core` (`demand-model.ts`,
+ * `shift-requirements.ts` pin these deliberately — closed hour / zero-length shift ⇒ 0, not NaN),
+ * so this is NOT a crash guard. It exists because the algorithm degrades to a near-meaningless
+ * answer (`bestN` collapses to `1`) when one of the three inputs is missing — surfacing that as a
+ * 422 up front is more honest than returning a number that looks legitimate but isn't.
+ */
+export class InsufficientCalibrationDataError extends ApplicationError {
+  readonly code = 'INSUFFICIENT_CALIBRATION_DATA'
+  readonly statusCode = 422
+
+  constructor(missing: { staff: boolean; shifts: boolean; demand: boolean }) {
+    const parts: string[] = []
+    if (missing.staff) parts.push('staff')
+    if (missing.shifts) parts.push('shifts')
+    if (missing.demand) parts.push('demand data')
+    super(
+      `Cannot suggest transactionsPerStaffHour: no ${parts.join(', ')} on this schedule`,
+      missing,
+    )
+  }
+}

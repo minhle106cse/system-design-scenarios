@@ -1,0 +1,9 @@
+{
+  // ESLint-only tsconfig. tsconfig.json (the BUILD config) excludes *.spec.ts/*.prop-spec.ts so
+  // dist/ stays test-free — but eslint's parserOptions.project needs every *.ts file under src to
+  // be IN a project, or every spec file fails to parse ("TSConfig does not include this file").
+  // This file re-includes them for type info only; nothing here ever runs `tsc -p` against it.
+  "extends": "./tsconfig.json",
+  "include": ["src"],
+  "exclude": []
+}

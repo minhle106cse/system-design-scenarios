@@ -19,4 +19,6 @@ export const SCHEDULING_QUERY_REPOSITORY = Symbol('SCHEDULING_QUERY_REPOSITORY')
 
 export interface ISchedulingQueryRepository {
   findScheduleDetail(scheduleId: string): Promise<ScheduleDetail | null>
+  /** Brief §2.1's "list" half of `/` — newest first. */
+  findAllSchedules(): Promise<readonly Schedule[]>
 }

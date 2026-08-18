@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=@scheduler/web"],
       "port": 3000
+    },
+    {
+      "name": "scheduler-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--workspace=@scheduler/api"],
+      "port": 4102
     }
   ]
 }

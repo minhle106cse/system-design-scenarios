@@ -5,6 +5,7 @@ import { ShiftsController } from './presentation/controllers/shifts.controller'
 import { DemandController } from './presentation/controllers/demand.controller'
 import { RosterController } from './presentation/controllers/roster.controller'
 import { CreateScheduleHandler } from './application/commands/create-schedule/create-schedule.handler'
+import { UpdateScheduleHandler } from './application/commands/update-schedule/update-schedule.handler'
 import { AddStaffHandler } from './application/commands/add-staff/add-staff.handler'
 import { UpdateStaffHandler } from './application/commands/update-staff/update-staff.handler'
 import { RemoveStaffHandler } from './application/commands/remove-staff/remove-staff.handler'
@@ -15,9 +16,11 @@ import { ImportDemandHandler } from './application/commands/import-demand/import
 import { AddAssignmentHandler } from './application/commands/add-assignment/add-assignment.handler'
 import { RemoveAssignmentHandler } from './application/commands/remove-assignment/remove-assignment.handler'
 import { AutoScheduleHandler } from './application/commands/auto-schedule/auto-schedule.handler'
+import { ListSchedulesHandler } from './application/queries/list-schedules/list-schedules.handler'
 import { GetScheduleHandler } from './application/queries/get-schedule/get-schedule.handler'
 import { GetSummaryHandler } from './application/queries/get-summary/get-summary.handler'
 import { GetCoverageHandler } from './application/queries/get-coverage/get-coverage.handler'
+import { SuggestNHandler } from './application/queries/suggest-n/suggest-n.handler'
 import { PrismaSchedulingQueryRepository } from './infrastructure/repositories/prisma-scheduling.query-repository'
 import { SCHEDULING_QUERY_REPOSITORY } from './application/queries/scheduling.query-repository'
 
@@ -46,6 +49,7 @@ import { SCHEDULING_QUERY_REPOSITORY } from './application/queries/scheduling.qu
   ],
   providers: [
     CreateScheduleHandler,
+    UpdateScheduleHandler,
     AddStaffHandler,
     UpdateStaffHandler,
     RemoveStaffHandler,
@@ -56,9 +60,11 @@ import { SCHEDULING_QUERY_REPOSITORY } from './application/queries/scheduling.qu
     AddAssignmentHandler,
     RemoveAssignmentHandler,
     AutoScheduleHandler,
+    ListSchedulesHandler,
     GetScheduleHandler,
     GetSummaryHandler,
     GetCoverageHandler,
+    SuggestNHandler,
     { provide: SCHEDULING_QUERY_REPOSITORY, useClass: PrismaSchedulingQueryRepository },
   ],
 })
