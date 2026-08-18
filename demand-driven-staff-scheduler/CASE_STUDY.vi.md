@@ -7,7 +7,7 @@ bổ có ràng buộc, không có đáp án đúng duy nhất, chứ không ph�
 
 > Đây là **cửa vào của scenario** — viết cho người muốn học từ nó, không phải cho người đi review đặc
 > tả. Tài liệu trả lời bảy nhóm tiêu chí được định nghĩa trong
-> [README của tuyển tập](../README.vi.md), và dẫn link sang các tài liệu đặc tả để xem chi tiết thay
+> các tiêu chí của chính tuyển tập, và dẫn link sang các tài liệu đặc tả để xem chi tiết thay
 > vì chép lại chúng.
 >
 > | Bạn muốn | Đi tới |
@@ -122,7 +122,7 @@ nhất; chúng tôi tìm kiếm một cách tiếp cận có thể bảo vệ đ
 
 ## B.2 Đã xây dựng những gì
 
-Toàn bộ yêu cầu trên, cộng cả hai mục "stretch goal" của đề bài mà repo này chọn xây dựng —
+Toàn bộ yêu cầu trên, cộng **cả năm** stretch goal tùy chọn của đề bài (§8) —
 [hợp đồng API đầy đủ](docs/06_api_contracts.md):
 
 | Endpoint | Mục đích |
@@ -155,13 +155,16 @@ Nêu rõ để "chưa làm" không bị hiểu nhầm là "quên":
 - Không xác thực, phân quyền, hay đa tenant — đề bài nêu rõ cả ba đều ngoài phạm vi.
 - Không tối ưu cấp độ solver — chính đề bài nói không có định nghĩa nào cho điều đó; một heuristic
   tham lam (greedy) cộng rebalance có giới hạn là lựa chọn bảo vệ được, không phải đường tắt (§D.4).
-- Không có availability/ngày nghỉ theo từng nhân viên, không có ràng buộc vai trò/kỹ năng — stretch
-  goal 3 và 4 của đề bài, cắt bỏ vì giới hạn thời gian; `FeasibilityGate` đã có sẵn chỗ cho reason
-  code đầu tiên (`UNAVAILABLE`, hiện đang dùng lại cho "tham chiếu nhân viên/ca làm không tồn tại").
-- Không xuất CSV của lịch làm việc — stretch goal 5 của đề bài, chưa xây.
-- Giao diện `apps/web` cố tình chưa hoàn chỉnh — một màn hình thật chứng minh việc kết nối với
-  backend hoạt động, không phải cả bảy màn hình. Ưu tiên của chính tuyển tập này là thiết kế backend;
-  xem mục "Vì sao stack đổi giữa chừng" trong `readme.md` để hiểu lý lẽ được nói rõ, không giấu.
+- Không có luật nghỉ ngơi bắt buộc (vd khoảng cách tối thiểu giữa hai ngày liên tiếp) — một ràng
+  buộc trải trên **hai ngày**, khác với bốn ràng buộc hiện có; §G.3 giữ nó làm bài tập tiếp theo.
+- Không xếp lịch nhiều tuần hay theo ngày tháng thật — theo chính cách đề bài đặt vấn đề, một
+  schedule là *một tuần điển hình*, nên chưa thể phân tích xu hướng nhu cầu theo thời gian.
+
+*(Đã bị thay thế, giữ lại thay vì xóa: các bản trước của tài liệu này liệt kê availability theo
+nhân viên, vai trò/kỹ năng, xuất CSV và "sáu trên bảy màn hình UI" là chưa xây. Cả bốn đều đã
+hoàn thành — §B.2 và §G.1 mô tả những gì thực sự tồn tại. Các mục này được đính chính tại chỗ chứ
+không âm thầm gỡ đi, vì một case study tự viết lại phạm vi của chính nó thì kém giá trị hơn một
+case study cho thấy phạm vi đó đã dịch chuyển.)*
 
 ## B.5 Điểm mơ hồ — nơi đề bài không nói rõ
 
@@ -175,7 +178,7 @@ tiếp tục."* Mười bảy giả định đã được ghi lại
 | Lịch sửa tay có được phép vi phạm ràng buộc cứng không? Stretch goal 1 mời gọi chỉnh sửa thủ công. | Không. `validateRoster` replay lại **đúng** `FeasibilityGate` mà bộ tạo lịch dùng. | Hai điểm vào, một cách hiện thực duy nhất cho luật lệ — lý do đường sửa tay không thể âm thầm trở thành lỗ hổng của đảm bảo. |
 | Trần giờ/tuần của nhân viên là giới hạn cứng hay chỉ là mục tiêu? | **Giới hạn cứng.** Đây là con số duy nhất đề bài nói phải được tôn trọng. | *"Bản nháp **phải** tôn trọng trần giờ tối đa mỗi nhân viên"* — "phải", đối lập với "nên cố gắng" cho tính công bằng trong cùng một câu. Đề bài phân biệt hai điều đó; cách hiện thực cũng phân biệt về mặt cấu trúc, không chỉ trong lời văn. |
 | Các cột ngày trong CSV có theo vị trí không? File thật chạy Thứ Sáu…Thứ Năm trong khi schedule là Thứ Hai–Chủ Nhật. | Cột được khớp bằng cách **trích token tên ngày trong tuần từ nhãn cột**, không bao giờ theo vị trí — và file thật hóa ra cần đúng điều này: một dòng tiêu đề, một BOM UTF-8, một ô header đầu trống, và một dấu phẩy **nằm trong dấu ngoặc kép** ở mọi nhãn ngày (`"Fri, 07 Aug"`), không cái nào xuất hiện trong bảng minh họa của chính đề bài. | Đọc theo vị trí sẽ âm thầm xoay cả tuần — dữ liệu thứ Sáu rơi vào thứ Hai, và mọi con số phía sau vẫn trông hợp lý. Đây là lỗi nguy hiểm nhất có thể xảy ra trong toàn bộ đường import, chính vì không có gì trong kết quả trông sai cả. |
-| Lưu trữ dữ liệu: cái gì, ở đâu? | **Điều này đã đổi giữa chừng.** Đề bài cho phép bất kỳ hình thức lưu trữ nào; repo lúc đầu chọn SQLite (không cần server), sau đó đảo ngược sang PostgreSQL + Docker + một backend NestJS thật — không phải vì đề bài yêu cầu, mà vì chính chuẩn mực của tuyển tập này yêu cầu (xem `readme.md`). Bảng giả định của `docs/01` vẫn còn mô tả lựa chọn SQLite đã bị thay thế; `docs/04_data_model.md`/`docs/03_architecture.md` mô tả những gì thực sự đã được xây. |
+| Lưu trữ dữ liệu: cái gì, ở đâu? | **Điều này đã đổi giữa chừng.** Đề bài cho phép bất kỳ hình thức lưu trữ nào; repo lúc đầu chọn SQLite (không cần server), sau đó đảo ngược sang PostgreSQL + Docker + một backend NestJS thật — không phải vì đề bài yêu cầu, mà vì chính chuẩn mực của tuyển tập này yêu cầu (xem `readme.md`). Giả định 15 của `docs/01` giờ ghi PostgreSQL + Docker và giữ lại lập luận SQLite đã bị bác bỏ như thứ nó đã vượt qua, khớp với `docs/04_data_model.md`/`docs/03_architecture.md`. |
 
 ---
 
@@ -355,7 +358,7 @@ nào được định nghĩa (§C.1).
 
 ## E.2 Ba lớp test, mỗi lớp chứng minh điều các lớp khác về cấu trúc không thể
 
-80/80 test chỉ riêng trong `packages/scheduling-core`, trải trên các lớp đi vào ở độ sâu khác nhau —
+97 test chỉ riêng trong `packages/scheduling-core` — 255 test toàn workspace — trải trên các lớp đi vào ở độ sâu khác nhau —
 có chủ đích, cùng kỷ luật scenario 01 dùng:
 
 | Lớp | Đi vào ở | Chứng minh | Về cấu trúc **không thể** chứng minh |
@@ -487,24 +490,20 @@ Mỗi điều dưới đây là một quyết định, ghi lại cùng điều k
 | Năng lực | Điều kiện kích hoạt |
 |---|---|
 | Một solver LP/CP-SAT | Các ràng buộc cứng nhân lên — kỹ năng, availability, luật nghỉ bắt buộc, nhiều địa điểm |
-| Vai trò/kỹ năng, availability theo từng nhân viên | Stretch goal 3/4 của đề bài — gate đã có sẵn chỗ |
 | Kho lưu idempotency | Xuất hiện một thao tác ghi kiểu append-only (hiện tại: auto-schedule thay thế toàn bộ, import CSV thì upsert — cả hai đều không cần) |
 | Hạ tầng scrape Prometheus/Grafana | Một yêu cầu rõ ràng, hoặc một nhu cầu debug mà log không trả lời được (`/metrics` đã expose sẵn registry) |
-| Sáu màn hình UI còn lại của `apps/web` | Thời gian còn lại — thực sự tùy chọn theo đúng ưu tiên đã nêu của tuyển tập này (thiết kế hệ thống quan trọng hơn độ hoàn chỉnh của UI) |
+| Luật nghỉ ngơi bắt buộc | Một ràng buộc trải trên hai ngày, khác với bốn ràng buộc hiện có — xem §G.3 |
 
 ## G.3 Tự mở rộng scenario
 
 Các bài tập hay, xếp gần đúng theo độ khó tăng dần:
 
-1. **Availability/ngày nghỉ theo từng nhân viên** — gate đã có sẵn chỗ cho reason code (`H4`); nối
-   một kiểm tra thật thay vì cách dùng lại "tham chiếu không tồn tại" hiện tại.
-2. **Yêu cầu vai trò/kỹ năng** — một ca phải có ít nhất một supervisor. Nghĩ xem đây là một ràng buộc
-   cứng mới (một `ReasonCode` mới) hay chỉ là một ưu tiên mềm.
-3. **Luật nghỉ ngơi bắt buộc** — vd cần cách nhau 11 giờ giữa hai ca ở hai ngày liên tiếp. Lưu ý đây
-   là một ràng buộc trải trên **hai ngày**, khác với ba ràng buộc hiện có.
-4. **Xuất CSV của lịch làm việc** (stretch goal 5 của đề bài) — phần đọc của bộ import, theo chiều
-   ngược lại.
-5. **Xếp lịch nhiều địa điểm** — nhân viên dùng chung giữa nhiều hơn một `Schedule`. Đây là điểm mà
+1. **Luật nghỉ ngơi bắt buộc** — vd cần cách nhau 11 giờ giữa hai ca ở hai ngày liên tiếp. Lưu ý đây
+   là một ràng buộc trải trên **hai ngày**, khác với bốn ràng buộc hiện có, nên nó không thể là một
+   hàm thuần của `(nhân viên, ngày, ca)` như `H4`.
+2. **Xếp lịch nhiều tuần** — hiện một schedule là một tuần điển hình; ngày tháng thật sẽ đổi thứ mà
+   bảng tổng hợp gộp theo.
+3. **Xếp lịch nhiều địa điểm** — nhân viên dùng chung giữa nhiều hơn một `Schedule`. Đây là điểm mà
    việc từ chối LP/CP-SAT của `ADR-0002` đáng được xem xét lại thật sự.
 
 ---
@@ -517,4 +516,4 @@ Các bài tập hay, xếp gần đúng theo độ khó tăng dần:
 | **Tài liệu thiết kế hệ thống** | [`docs/03_architecture.md`](docs/03_architecture.md) |
 | **Quyết định chủ lực, đầy đủ** | [`docs/adr/0001-constraint-enforcement-strategy.md`](docs/adr/0001-constraint-enforcement-strategy.md) |
 | **Quá trình xây dựng có AI hỗ trợ được điều hướng và kiểm chứng thế nào** | [`docs/12_ai_collaboration.md`](docs/12_ai_collaboration.md) |
-| **Quay về tuyển tập** | [`../README.vi.md`](../README.vi.md) |
+| **Quay về tuyển tập** | một repo anh em trong cùng bộ sưu tập cá nhân |

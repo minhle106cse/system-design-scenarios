@@ -8,7 +8,7 @@ here.
 
 > ✅ **Status: the algorithm, the backend service, and the full UI are all built.** The heart of the
 > exercise — `packages/scheduling-core` (Phase 1) — is complete: 97/97 specs (unit + property +
-> golden-file), part of 218 across the workspace. So is the backend that serves it,
+> golden-file), part of 255 across the workspace. So is the backend that serves it,
 > `apps/scheduler-api` (NestJS + Fastify + CQRS + Postgres + Docker) — every write and read the
 > brief asks for, plus **all five** of its optional stretch goals (§8): manual drag-and-drop roster
 > editing, the coverage view, per-staff availability, roles/skills, and roster export. `apps/web`

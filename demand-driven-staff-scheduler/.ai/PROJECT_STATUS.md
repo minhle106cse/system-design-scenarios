@@ -519,6 +519,42 @@ than anything in the code:
 origin in `CORS_ALLOWED_ORIGINS` — with it running, Next.js falls back to 3001 and every API call is
 then blocked by CORS. Stop it before demoing.
 
+## Handler test coverage — the gap the totals were hiding (this session)
+
+The user asked whether the tests were complete. Audited by counting rather than trusting the 218
+total: `apps/scheduler-api` had 5 spec files, four of them infrastructure (Zod pipe, exception
+filter, logging interceptor, transient-error classification) plus the CSV parser — and **zero of
+its 24 command/query handlers**. The whole application layer, the code that wires the proven
+algorithm to persistence, had no automated statement about it. Nothing was failing, which is why
+it stayed invisible: `scheduling-core` is proven over generated inputs and every endpoint had been
+exercised by hand against a live Postgres, so the missing layer never announced itself.
+
+Six specs added, chosen for genuine branching rather than for coverage percentage — `add-assignment`
+(gate replay, assumption 12), `auto-schedule` (full-replace + run recording + infeasible-week
+reporting), `update-shift` (the merged-state check that is `zod_validation.md` rule 4's documented
+exception), `build-scheduling-input` (the row→`SchedulingInput` seam four handlers share),
+`suggest-n` (suggestion reported alongside `current`, never applied — ADR-0003's 18-vs-15
+divergence), and `remove-assignment` (the intentional no-gate-replay asymmetry). `apps/scheduler-api`
+went **27 → 64 specs**; the workspace total is **255** (97 scheduling-core + 53 shared-kernel +
+64 scheduler-api + 41 web).
+
+**The attribution branch was verified by mutation, not just by passing**: swapping
+`if (ownViolation)` for `if (violations.length > 0)` in `AddAssignmentHandler` made exactly the
+pre-existing-violation test fail and no other, then the handler was restored and confirmed
+byte-identical via `git diff`. Worth repeating for any future test that claims to pin a subtle
+branch — a green suite is not evidence the test would have caught the bug.
+
+**Deliberately still untested**, stated rather than quietly skipped: the remaining ~18 thin CRUD
+handlers (`add-staff`, `remove-role`, and similar) are a repository call plus a not-found check
+with no branching, where a test asserts the mock rather than the behaviour. The brief's own
+criterion is *"tests where they add value"*.
+
+Two real friction points hit while writing these, both logged: `jest.Mocked<T>` does not deep-mock
+nested repository objects, so `tx.assignments.replaceAll.mock.calls` fails typecheck and needs an
+explicit `as unknown as jest.Mock` at the access site; and `StaffUnavailability` has no
+`scheduleId` field (unlike its siblings), which a fixture assumed it did — caught by typecheck, not
+by the passing test run.
+
 ## Current focus
 
 **`backend-architecture-reversal.plan.md` (all six phases A–F), Phase 3 (the UI), and the stretch
