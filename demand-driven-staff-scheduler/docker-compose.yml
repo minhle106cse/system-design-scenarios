@@ -1,0 +1,32 @@
+services:
+  # --------------------------------------------------------
+  # PostgreSQL — the system of record for apps/scheduler-api (see
+  # apps/scheduler-api/prisma/schema.prisma, docs/04_data_model.md). No Redis, no idempotency
+  # store here yet — auto-schedule is a full replace and CSV import is an upsert, so nothing
+  # append-only needs one (backend-architecture-reversal.plan.md §6).
+  #
+  # Prometheus/Grafana are deliberately NOT ported yet — plan §6 states the trigger (an explicit
+  # request, or a debugging need a log line can't answer). Flagged here rather than silently
+  # dropped.
+  # --------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: staff-scheduler-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${SCHEDULER_DB_NAME}
+    ports:
+      - '${DB_PORT}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker-init/init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

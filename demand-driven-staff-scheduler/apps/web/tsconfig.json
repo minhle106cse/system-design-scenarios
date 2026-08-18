@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // tsconfig.base.json's `lib: ["ES2022"]` is right for the Node-shaped backend packages but
+    // has no DOM types — latent here until this session's first real client-side code
+    // (create-schedule-form.tsx's onChange handler, api-client.ts's File/FormData), which is the
+    // first thing in apps/web to ever reference an HTMLInputElement or the browser fetch/File
+    // globals. Every `create-next-app` scaffold sets this; this app just never had client code
+    // that would have caught its absence sooner.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "noEmit": true,
+    "allowJs": true,
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

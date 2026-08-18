@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.next/
+out/
+*.tsbuildinfo
+.env
+.env.local
+.env*.local
+coverage/
+.turbo/
+apps/*/src/generated/
+.DS_Store
+npm-debug.log*

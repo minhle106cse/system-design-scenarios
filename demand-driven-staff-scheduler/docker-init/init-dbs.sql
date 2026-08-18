@@ -1,0 +1,5 @@
+-- This repo has exactly one database. `POSTGRES_DB=${SCHEDULER_DB_NAME}` (see
+-- docker-compose.yml) already creates it via the Postgres entrypoint, so there is nothing left
+-- for this script to do on a fresh volume. Kept as an empty scaffold (mirrors
+-- ../service-appointment-scheduler/docker-init/init-dbs.sql) so the docker-compose.yml mount and
+-- the target tree shape stay honest about where DB init happens if that ever changes.

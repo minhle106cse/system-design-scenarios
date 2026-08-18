@@ -76,6 +76,7 @@ Hai tiêu chí được **chấm điểm** để bảng index có thể sắp x�
 | # | Scenario | Lĩnh vực | Thách thức cốt lõi | Phổ biến | Độ khó | Trạng thái |
 |---|---|---|---|---|---|---|
 | **01** | [Service Appointment Scheduler](service-appointment-scheduler/) | Ô tô / Sở hữu xe | Đặt chỗ một tài nguyên dùng chung sao cho đúng **khi có nhiều request đồng thời** | ★★★★★ | ★★★☆☆ | ✅ Hoàn thành |
+| **02** | [Demand-Driven Staff Scheduler](demand-driven-staff-scheduler/) | Vận hành nhân sự bán lẻ/dịch vụ | Phân bổ ca làm dưới **ràng buộc cứng và mềm cạnh tranh nhau, không có tối ưu định nghĩa sẵn** | ★★★★★ | ★★★☆☆ | ✅ Backend + thuật toán hoàn thành; UI cố tình chưa đầy đủ |
 
 ### 01 · Service Appointment Scheduler (Đặt lịch bảo dưỡng xe)
 
@@ -113,12 +114,47 @@ kèm theo một quy tắc về trình độ/điều kiện.
 
 ---
 
+### 02 · Demand-Driven Staff Scheduler (Lên lịch nhân viên theo nhu cầu)
+
+📖 **[Case study (Tiếng Việt)](demand-driven-staff-scheduler/CASE_STUDY.vi.md)** ·
+[English](demand-driven-staff-scheduler/CASE_STUDY.md) ·
+[Code](demand-driven-staff-scheduler/)
+
+**Bài toán.** Một quản lý cửa hàng cần biến một tuần dữ liệu giao dịch lịch sử theo giờ thành một
+lịch phân ca cho nhân viên: phủ giờ đông khách, tôn trọng trần giờ hợp đồng/tuần của mỗi nhân viên, và
+chia công việc công bằng cho mọi người — từ một quỹ giờ hợp đồng gần như không bao giờ vừa khít.
+
+**Vì sao nó không phải CRUD.** Không có tối ưu nào để hội tụ về — chính đề bài nói vậy. Ràng buộc
+cứng (không ai vượt trần giờ, không ai bị đặt trùng ca trong ngày) không bao giờ được vi phạm; các
+mục tiêu mềm (độ phủ, tính công bằng) cạnh tranh nhau và phải được **đo**, không phải tối đa hóa theo
+một hàm mục tiêu mà không ai định nghĩa.
+
+**Cách giải.** Mọi assignment đều đi qua một `FeasibilityGate` duy nhất — không có đường code nào có
+thể thêm một assignment không khả thi vào roster. Vì đảm bảo này là tính chất của một thuật toán chứ
+không phải một hàng database (trần giờ/tuần là một phép tổng hợp trên nhiều hàng mà không ràng buộc
+cấp-hàng nào nhìn thấy được), nó được chứng minh bằng **property-based testing** trên các input nhân
+viên/nhu cầu/ca làm được sinh ngẫu nhiên, không phải các ví dụ chọn tay — đây là phiên bản tương
+đương trực tiếp của test "hai request đồng thời thật" ở scenario 01.
+
+**Bạn học được gì.** Enforce một bất biến theo cấu trúc khi không ràng buộc database nào biểu diễn
+được · property-based testing như cơ chế chứng minh cho một thuật toán · từ chối một solver (LP/CP-
+SAT) có chủ đích, kèm điều kiện sẽ đổi câu trả lời · một package không dependency runtime như một
+ranh giới kiến trúc enforce bằng lint · một quyết định kiến trúc bị đảo ngược giữa chừng, giữ lại lập
+luận cũ thay vì xóa đi.
+
+**Bài toán này còn đúng với:** quản lý nhân lực tổng đài, lên lịch ca nhà hàng/kho vận, xếp lịch điều
+dưỡng, xếp lịch tổ lái giao thông công cộng — bất cứ đâu cần chuyển một tín hiệu nhu cầu đo được thành
+số người cần, rồi thành ca làm việc.
+
+---
+
 ## Quy ước dùng chung giữa các scenario
 
 Không được ép bằng code dùng chung — mỗi scenario đứng độc lập — mà giữ bằng thói quen:
 
 - **Cửa vào song ngữ.** Tiếng Anh là file mặc định; tiếng Việt mang hậu tố `.vi.md`
-  (`CASE_STUDY.md` / `CASE_STUDY.vi.md`). Chỉ dịch các cửa vào, không dịch tài liệu đặc tả bên trong.
+  (`CASE_STUDY.md` / `CASE_STUDY.vi.md`, `readme.md` / `readme.vi.md`). Chỉ dịch các cửa vào mà
+  người đọc dùng để duyệt tuyển tập, không dịch tài liệu đặc tả bên trong `docs/`.
 - **`docs/` là CÁI GÌ & VÌ SAO; `directives/` là LÀM NHƯ THẾ NÀO.** Phần đặc tả và các ADR mô tả hệ
   thống; các directive là quy trình code mà mọi người đóng góp (người hay AI) đều phải tuân theo.
 - **Mỗi scenario có đúng một quyết định chủ đạo**, được ghi thành ADR kèm những phương án nó đã loại

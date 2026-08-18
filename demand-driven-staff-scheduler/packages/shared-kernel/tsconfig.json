@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": true,
+    "declarationMap": true,
+    // Ported verbatim from ../service-appointment-scheduler, whose tsconfig.base.json predates
+    // this repo's stricter root config (added for packages/scheduling-core's value-object style,
+    // backend-architecture-reversal.plan.md). Relaxed here rather than hand-patching every
+    // `T | undefined` in ported infrastructure code that was never audited against it.
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["src"],
+  "exclude": ["**/*.spec.ts"]
+}
