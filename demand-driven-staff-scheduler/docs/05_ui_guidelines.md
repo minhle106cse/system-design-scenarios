@@ -8,12 +8,12 @@ Screens, and the rules that govern how they're built. Component-level convention
 | Route | Brief § | Notes |
 |---|---|---|
 | `/` | 2.1 | Schedules list (`GET /schedules`, Phase 3's new route) + create |
-| `/s/[id]` → **Staff** | 2.2 | Table CRUD: name + max weekly hours, total contracted hours shown |
+| `/s/[id]` → **Staff** | 2.2 | Table CRUD: name + max weekly hours, total contracted hours shown, an Availability column + editor (stretch 3, H4), a Roles column of toggleable chips + a per-schedule Roles CRUD section (stretch 4, D2) |
 | → **Demand** | 2.3 | CSV drop zone → import result (accepted / warnings / errors, row/column-precise) → day×hour heatmap |
-| → **Shifts** | 2.4 | CRUD via `<input type="time">`, seeded with 07:00–15:00 and 15:00–23:00 |
-| → **Roster** | 2.5 | Parameter panel (`PATCH /schedules/:id` + "Suggest from data") + auto-schedule button + day×shift grid with manual add/remove/drag-drop + diagnostics banners + CSV export |
+| → **Shifts** | 2.4 | CRUD via `<input type="time">`, seeded with 07:00–15:00 and 15:00–23:00, a Requires column + editor for per-role `minCount` (stretch 4) |
+| → **Roster** | 2.5 | Parameter panel (`PATCH /schedules/:id` + "Suggest from data") + auto-schedule button + day×shift grid with manual add/remove/drag-drop + diagnostics banners (including role shortfalls, stretch 4) + CSV export |
 | → **Summary** | 2.6 | The aggregated table + the four week totals, each ratio captioned per rule 2 + CSV export |
-| → **Coverage** | stretch 2 | Required vs scheduled per hour (live, not a stored snapshot) + per-staff "hours booked vs contracted" |
+| → **Coverage** | stretch 2 | Required vs scheduled per hour (live, not a stored snapshot) + per-staff "hours booked vs contracted" + a role-shortfalls banner (stretch 4), live-recomputed the same way |
 
 `/s/[id]/layout.tsx` renders the shared tab nav and 404s via `notFound()` on an unknown schedule id.
 Every screen's page.tsx is an async Server Component (`getSchedule`/`getSummary`/`getCoverage`
@@ -23,6 +23,9 @@ the interactive parts are separate Client Components under `src/components/` (`s
 `coverage-view.tsx`), each following the pending/success/error mutation pattern
 `create-schedule-form.tsx` established. The ~6 primitives `frontend_standard.md` §2 named are built
 under `src/components/ui/` (`button`, `field`, `data-table`, `badge`, `banner`, `modal`).
+Copy-generation helpers for the stretch-goal banners follow the same pattern as `error-copy.ts`:
+`availability.ts` (window/day-off formatting) and `role-copy.ts` (`describeRoleShortfall`) —
+non-trivial logic in `src/lib/`, unit-tested there, per `docs/08_testing_strategy.md`'s no-jsdom rule.
 
 ## The three rules that come directly from the grading criteria
 

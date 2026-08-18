@@ -28,7 +28,9 @@ function reasonCopy(
     case 'ALREADY_ASSIGNED':
       return `${staffName} is already assigned to ${shiftLabel}.`
     case 'UNAVAILABLE':
-      return `${staffName} isn't available for ${shiftLabel}.`
+      return `${staffName} isn't available for ${shiftLabel} — clear the block on the Staff tab or pick someone else.`
+    case 'UNKNOWN_REFERENCE':
+      return `That staff member or shift no longer exists on this schedule.`
   }
 }
 

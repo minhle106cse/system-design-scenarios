@@ -4,11 +4,14 @@ import { StaffController } from './presentation/controllers/staff.controller'
 import { ShiftsController } from './presentation/controllers/shifts.controller'
 import { DemandController } from './presentation/controllers/demand.controller'
 import { RosterController } from './presentation/controllers/roster.controller'
+import { RolesController } from './presentation/controllers/roles.controller'
 import { CreateScheduleHandler } from './application/commands/create-schedule/create-schedule.handler'
 import { UpdateScheduleHandler } from './application/commands/update-schedule/update-schedule.handler'
 import { AddStaffHandler } from './application/commands/add-staff/add-staff.handler'
 import { UpdateStaffHandler } from './application/commands/update-staff/update-staff.handler'
 import { RemoveStaffHandler } from './application/commands/remove-staff/remove-staff.handler'
+import { AddUnavailabilityHandler } from './application/commands/add-unavailability/add-unavailability.handler'
+import { RemoveUnavailabilityHandler } from './application/commands/remove-unavailability/remove-unavailability.handler'
 import { AddShiftHandler } from './application/commands/add-shift/add-shift.handler'
 import { UpdateShiftHandler } from './application/commands/update-shift/update-shift.handler'
 import { RemoveShiftHandler } from './application/commands/remove-shift/remove-shift.handler'
@@ -21,6 +24,11 @@ import { GetScheduleHandler } from './application/queries/get-schedule/get-sched
 import { GetSummaryHandler } from './application/queries/get-summary/get-summary.handler'
 import { GetCoverageHandler } from './application/queries/get-coverage/get-coverage.handler'
 import { SuggestNHandler } from './application/queries/suggest-n/suggest-n.handler'
+import { AddRoleHandler } from './application/commands/add-role/add-role.handler'
+import { UpdateRoleHandler } from './application/commands/update-role/update-role.handler'
+import { RemoveRoleHandler } from './application/commands/remove-role/remove-role.handler'
+import { SetStaffRolesHandler } from './application/commands/set-staff-roles/set-staff-roles.handler'
+import { SetShiftRoleRequirementsHandler } from './application/commands/set-shift-role-requirements/set-shift-role-requirements.handler'
 import { PrismaSchedulingQueryRepository } from './infrastructure/repositories/prisma-scheduling.query-repository'
 import { SCHEDULING_QUERY_REPOSITORY } from './application/queries/scheduling.query-repository'
 
@@ -46,6 +54,7 @@ import { SCHEDULING_QUERY_REPOSITORY } from './application/queries/scheduling.qu
     ShiftsController,
     DemandController,
     RosterController,
+    RolesController,
   ],
   providers: [
     CreateScheduleHandler,
@@ -53,6 +62,8 @@ import { SCHEDULING_QUERY_REPOSITORY } from './application/queries/scheduling.qu
     AddStaffHandler,
     UpdateStaffHandler,
     RemoveStaffHandler,
+    AddUnavailabilityHandler,
+    RemoveUnavailabilityHandler,
     AddShiftHandler,
     UpdateShiftHandler,
     RemoveShiftHandler,
@@ -65,6 +76,11 @@ import { SCHEDULING_QUERY_REPOSITORY } from './application/queries/scheduling.qu
     GetSummaryHandler,
     GetCoverageHandler,
     SuggestNHandler,
+    AddRoleHandler,
+    UpdateRoleHandler,
+    RemoveRoleHandler,
+    SetStaffRolesHandler,
+    SetShiftRoleRequirementsHandler,
     { provide: SCHEDULING_QUERY_REPOSITORY, useClass: PrismaSchedulingQueryRepository },
   ],
 })

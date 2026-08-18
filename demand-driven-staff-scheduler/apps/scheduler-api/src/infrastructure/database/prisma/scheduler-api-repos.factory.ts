@@ -7,12 +7,20 @@ import { PrismaShiftRepository } from '@/modules/scheduling/infrastructure/repos
 import { PrismaDemandCellRepository } from '@/modules/scheduling/infrastructure/repositories/prisma-demand-cell.repository'
 import { PrismaAssignmentRepository } from '@/modules/scheduling/infrastructure/repositories/prisma-assignment.repository'
 import { PrismaScheduleRunRepository } from '@/modules/scheduling/infrastructure/repositories/prisma-schedule-run.repository'
+import { PrismaStaffUnavailabilityRepository } from '@/modules/scheduling/infrastructure/repositories/prisma-staff-unavailability.repository'
+import { PrismaRoleRepository } from '@/modules/scheduling/infrastructure/repositories/prisma-role.repository'
+import { PrismaStaffRoleRepository } from '@/modules/scheduling/infrastructure/repositories/prisma-staff-role.repository'
+import { PrismaShiftRoleRequirementRepository } from '@/modules/scheduling/infrastructure/repositories/prisma-shift-role-requirement.repository'
 import type { IScheduleRepository } from '@/modules/scheduling/domain/repositories/schedule.repository'
 import type { IStaffMemberRepository } from '@/modules/scheduling/domain/repositories/staff-member.repository'
 import type { IShiftRepository } from '@/modules/scheduling/domain/repositories/shift.repository'
 import type { IDemandCellRepository } from '@/modules/scheduling/domain/repositories/demand-cell.repository'
 import type { IAssignmentRepository } from '@/modules/scheduling/domain/repositories/assignment.repository'
 import type { IScheduleRunRepository } from '@/modules/scheduling/domain/repositories/schedule-run.repository'
+import type { IStaffUnavailabilityRepository } from '@/modules/scheduling/domain/repositories/staff-unavailability.repository'
+import type { IRoleRepository } from '@/modules/scheduling/domain/repositories/role.repository'
+import type { IStaffRoleRepository } from '@/modules/scheduling/domain/repositories/staff-role.repository'
+import type { IShiftRoleRequirementRepository } from '@/modules/scheduling/domain/repositories/shift-role-requirement.repository'
 
 /**
  * Write-side Unit of Work for the whole service (docs/adr/0005-transaction-retry-boundary.md).
@@ -28,6 +36,10 @@ export interface SchedulerApiRepos {
   readonly demandCells: IDemandCellRepository
   readonly assignments: IAssignmentRepository
   readonly runs: IScheduleRunRepository
+  readonly unavailability: IStaffUnavailabilityRepository
+  readonly roles: IRoleRepository
+  readonly staffRoles: IStaffRoleRepository
+  readonly shiftRoleRequirements: IShiftRoleRequirementRepository
 }
 
 @Injectable()
@@ -46,6 +58,10 @@ export class SchedulerApiRepoFactory implements IRepoFactory<
       demandCells: new PrismaDemandCellRepository(tx),
       assignments: new PrismaAssignmentRepository(tx),
       runs: new PrismaScheduleRunRepository(tx),
+      unavailability: new PrismaStaffUnavailabilityRepository(tx),
+      roles: new PrismaRoleRepository(tx),
+      staffRoles: new PrismaStaffRoleRepository(tx),
+      shiftRoleRequirements: new PrismaShiftRoleRequirementRepository(tx),
     }
   }
 }

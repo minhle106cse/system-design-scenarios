@@ -73,7 +73,7 @@ describe('scheduling-core public surface (Phase 1 — wired)', () => {
     const roster = { assignments: [{ staffId: SEED_STAFF[0]!.id, shiftId: 'ghost-shift', day: 1 as const, source: 'MANUAL' as const }] };
     const violations = core.validateRoster(roster, input);
     expect(violations).toHaveLength(1);
-    expect(violations[0]!.reason).toBe('UNAVAILABLE');
+    expect(violations[0]!.reason).toBe('UNKNOWN_REFERENCE');
   });
 
   it('validateRoster catches a manually-introduced overlap (assumption 12)', () => {

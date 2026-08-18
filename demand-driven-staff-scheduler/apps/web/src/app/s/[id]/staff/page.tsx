@@ -12,5 +12,13 @@ export default async function StaffPage({
   const { id } = await params
   const detail = await getSchedule(id)
 
-  return <StaffManager scheduleId={id} staff={detail.staff} />
+  return (
+    <StaffManager
+      scheduleId={id}
+      staff={detail.staff}
+      unavailability={detail.unavailability}
+      roles={detail.roles}
+      staffRoles={detail.staffRoles}
+    />
+  )
 }

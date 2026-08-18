@@ -1,8 +1,9 @@
-import type { Diagnostics, StaffMember } from '@/lib/api-client'
+import type { Diagnostics, StaffMember, Shift, Role } from '@/lib/api-client'
 import { buildCoverageGrid, demandGridKey } from '@/lib/grid'
 import { coverageTone } from '@/lib/tone'
 import { DAYS_OF_WEEK, dayLabel } from '@/lib/week'
 import { formatHours, formatPercent } from '@/lib/format'
+import { describeRoleShortfall } from '@/lib/role-copy'
 import { Badge } from '@/components/ui/badge'
 import { Banner } from '@/components/ui/banner'
 
@@ -15,11 +16,17 @@ import { Banner } from '@/components/ui/banner'
 export function CoverageView({
   diagnostics,
   staff,
+  shifts,
+  roles,
 }: {
   readonly diagnostics: Diagnostics
   readonly staff: readonly StaffMember[]
+  readonly shifts: readonly Shift[]
+  readonly roles: readonly Role[]
 }) {
   const staffById = new Map(staff.map((s) => [s.id, s]))
+  const shiftById = new Map(shifts.map((s) => [s.id, s]))
+  const roleById = new Map(roles.map((r) => [r.id, r]))
   const hours = Array.from(new Set(diagnostics.hours.map((h) => h.hour))).sort((a, b) => a - b)
   const grid = buildCoverageGrid(diagnostics.hours)
   const { floorStaffHours, contractedStaffHours } = diagnostics.structural
@@ -38,6 +45,16 @@ export function CoverageView({
         <Banner tone="warning">
           {diagnostics.unfilledSeats.length} shift-day seat(s) couldn&apos;t be filled by
           auto-schedule. Check the Roster tab for details.
+        </Banner>
+      )}
+
+      {diagnostics.roleShortfalls.length > 0 && (
+        <Banner tone="warning">
+          <ul className="list-disc space-y-1 pl-4">
+            {diagnostics.roleShortfalls.map((s, i) => (
+              <li key={i}>{describeRoleShortfall(s, roleById, shiftById)}</li>
+            ))}
+          </ul>
         </Banner>
       )}
 

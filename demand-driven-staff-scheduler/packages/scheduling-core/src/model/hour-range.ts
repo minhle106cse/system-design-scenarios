@@ -22,6 +22,15 @@ export function shiftHours(shift: Shift): number {
   return (shift.endMinute - shift.startMinute) / 60;
 }
 
-export function shiftsOverlap(a: Shift, b: Shift): boolean {
+/** Any two minute ranges, not just Shifts — feasibility-gate.ts's H4 reuses this for an
+ * UnavailabilityWindow against a Shift (stretch-goals plan §1a: the plan's own text describes
+ * widening `overlapMinutes`'s parameter type for this; `shiftsOverlap` is the actual boolean-overlap
+ * function and needed no signature change beyond this widening, so it is reused here instead). */
+interface MinuteRange {
+  readonly startMinute: number;
+  readonly endMinute: number;
+}
+
+export function shiftsOverlap(a: MinuteRange, b: MinuteRange): boolean {
   return a.startMinute < b.endMinute && b.startMinute < a.endMinute;
 }

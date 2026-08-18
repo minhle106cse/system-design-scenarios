@@ -71,8 +71,40 @@ async function main() {
   )
   await prisma.demandCell.createMany({ data: demandCells })
 
+  // Stretch goal H4 (brief §8) — give two of the twelve staff a real availability block so the
+  // demo shows it firing (stretch-goals plan §1b). Ivy Chen: a full Tuesday off (the "day off"
+  // preset). Jack Osei: partial — unavailable Wednesday evening only, still eligible for
+  // Wednesday's morning shift, to show H4 is a window, not a day-level flag.
+  const staffRows = await prisma.staffMember.findMany({ where: { scheduleId: schedule.id } })
+  const ivy = staffRows.find((s) => s.name === 'Ivy Chen')
+  const jack = staffRows.find((s) => s.name === 'Jack Osei')
+  await prisma.staffUnavailability.createMany({
+    data: [
+      ...(ivy ? [{ staffId: ivy.id, dayOfWeek: 2, startMinute: 0, endMinute: 24 * 60 }] : []),
+      ...(jack ? [{ staffId: jack.id, dayOfWeek: 3, startMinute: 15 * 60, endMinute: 23 * 60 }] : []),
+    ],
+  })
+
+  // Stretch goal — roles/skills (brief §8, D2, stretch-goals plan §2b). Supervisor's minCount: 1 on
+  // both default shifts is held by the three 40h staff (Alice/Ben/Carla) — 120h of combined
+  // capacity against 14 seats × 8h = 112h of supervisor-covered demand (golden.spec.ts's own
+  // headroom calculation), so the seeded demo exercises the feature without a capacity shortfall.
+  // Barista has no minCount anywhere — exists so the UI's role picker shows a person can hold more
+  // than one role, without forcing every seat through a second requirement.
+  const supervisor = await prisma.role.create({ data: { scheduleId: schedule.id, name: 'Supervisor' } })
+  await prisma.role.create({ data: { scheduleId: schedule.id, name: 'Barista' } })
+  const supervisorNames = new Set(['Alice Nguyen', 'Ben Tran', 'Carla Diaz'])
+  const supervisorStaff = staffRows.filter((s) => supervisorNames.has(s.name))
+  await prisma.staffRole.createMany({
+    data: supervisorStaff.map((s) => ({ staffId: s.id, roleId: supervisor.id })),
+  })
+  const shiftRows = await prisma.shift.findMany({ where: { scheduleId: schedule.id } })
+  await prisma.shiftRoleRequirement.createMany({
+    data: shiftRows.map((s) => ({ shiftId: s.id, roleId: supervisor.id, minCount: 1 })),
+  })
+
   console.log(
-    `Seeded schedule ${schedule.id} — ${SEED_STAFF.length} staff, 2 shifts, ${demandCells.length} demand cells.`,
+    `Seeded schedule ${schedule.id} — ${SEED_STAFF.length} staff, 2 shifts, ${demandCells.length} demand cells, 2 unavailability windows, 2 roles (${supervisorStaff.length} supervisors).`,
   )
 }
 

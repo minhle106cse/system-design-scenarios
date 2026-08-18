@@ -35,6 +35,25 @@ describe('error-copy', () => {
     expect(msg).toMatch(/raise|pick someone else/i)
   })
 
+  it('explains UNAVAILABLE with the staff name and what to do (stretch-goals plan §1c)', () => {
+    const msg = describeViolation(
+      { staffId: 's1', shiftId: 'sh1', day: 1, reason: 'UNAVAILABLE' },
+      staffById,
+      shiftById,
+    )
+    expect(msg).toContain('Anna')
+    expect(msg).toMatch(/Staff tab|pick someone else/i)
+  })
+
+  it('explains UNKNOWN_REFERENCE distinctly from UNAVAILABLE', () => {
+    const msg = describeViolation(
+      { staffId: 'ghost', shiftId: 'ghost', day: 1, reason: 'UNKNOWN_REFERENCE' },
+      staffById,
+      shiftById,
+    )
+    expect(msg).toMatch(/no longer exists/i)
+  })
+
   it('falls back to a generic phrase when the staff/shift id is unknown', () => {
     const msg = describeViolation(
       { staffId: 'ghost', shiftId: 'ghost', day: 1, reason: 'UNAVAILABLE' },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coveragePass, fairnessPass } from './assigner.js';
+import { coveragePass, fairnessPass, rolePass } from './assigner.js';
 import { FeasibilityGate, RosterState, type RosterContext } from './feasibility-gate.js';
 import { computeRequiredStaff } from '../demand/demand-model.js';
 import { computeShiftRequirements } from '../requirements/shift-requirements.js';
@@ -22,6 +22,69 @@ function busyDemand(day: 1 = 1): DemandGrid {
   for (let h = 7; h < 23; h++) hours.set(h, 100); // deliberately busy — every seat wants headcount
   return new Map([[day, hours]]);
 }
+
+describe('rolePass (stretch-goals plan §2a)', () => {
+  const SUPERVISED_MORNING: Shift = {
+    id: 'morning',
+    label: 'Morning',
+    startMinute: 7 * 60,
+    endMinute: 15 * 60,
+    roleRequirements: [{ roleId: 'supervisor', minCount: 1 }],
+  };
+
+  it('fills the role seat with a role-holder even when a non-holder has lower utilisation', () => {
+    const supervisor: Staff = { id: 'sup', name: 'Sup', maxWeeklyHours: 40, roles: ['supervisor'] };
+    const nonHolder: Staff = { id: 'reg', name: 'Reg', maxWeeklyHours: 40 };
+    const input: SchedulingInput = {
+      staff: [supervisor, nonHolder],
+      shifts: [SUPERVISED_MORNING],
+      demand: busyDemand(),
+      parameters: { transactionsPerStaffHour: 18, minStaffWhenOpen: 1, minUtilisationTarget: 0.6 },
+    };
+    const gate = new FeasibilityGate(input);
+    const state = new RosterState();
+    const roster: RosterContext = { gate, state };
+    const required = computeRequiredStaff(input.demand, input.parameters);
+    const requirements = computeShiftRequirements(required, input.shifts);
+
+    rolePass(input, requirements, roster);
+
+    expect(state.assignmentsFor('sup').some((a) => a.day === 1 && a.shift.id === 'morning')).toBe(true);
+  });
+
+  it('leaves the seat unfilled — never invents a role-holder — when nobody holds the role', () => {
+    const nonHolder: Staff = { id: 'reg', name: 'Reg', maxWeeklyHours: 40 };
+    const input: SchedulingInput = {
+      staff: [nonHolder],
+      shifts: [SUPERVISED_MORNING],
+      demand: busyDemand(),
+      parameters: { transactionsPerStaffHour: 18, minStaffWhenOpen: 1, minUtilisationTarget: 0.6 },
+    };
+    const gate = new FeasibilityGate(input);
+    const state = new RosterState();
+    const roster: RosterContext = { gate, state };
+    const required = computeRequiredStaff(input.demand, input.parameters);
+    const requirements = computeShiftRequirements(required, input.shifts);
+
+    expect(() => rolePass(input, requirements, roster)).not.toThrow();
+    expect(state.countOn(1, 'morning')).toBe(0);
+  });
+
+  it('a shift with no roleRequirements is untouched by rolePass', () => {
+    const plain: Shift = { id: 'evening', label: 'Evening', startMinute: 15 * 60, endMinute: 23 * 60 };
+    const staff: Staff = { id: 'a', name: 'A', maxWeeklyHours: 40 };
+    const input: SchedulingInput = {
+      staff: [staff],
+      shifts: [plain],
+      demand: busyDemand(),
+      parameters: { transactionsPerStaffHour: 18, minStaffWhenOpen: 1, minUtilisationTarget: 0.6 },
+    };
+    const gate = new FeasibilityGate(input);
+    const state = new RosterState();
+    rolePass(input, computeShiftRequirements(computeRequiredStaff(input.demand, input.parameters), input.shifts), { gate, state });
+    expect(state.all()).toEqual([]);
+  });
+});
 
 describe('fairnessPass', () => {
   it('prefers a staff member below U_min over one already above it, even if the above-target one is idle so far', () => {

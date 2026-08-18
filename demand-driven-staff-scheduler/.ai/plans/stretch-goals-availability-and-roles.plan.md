@@ -3,6 +3,14 @@
 > Status: **planned, not started.** Written in a `/plan` mode session (2026-08-18), approved for
 > review by the user before execution — mirrors how `phase-3-ui-screens` was handled
 > (`.ai/PROJECT_STATUS.md` § Phase 3). Do not begin implementation until the user says so.
+>
+> **2026-08-18, later the same day — executed, both phases done.** The user asked to continue the
+> plan. Both Phase 1 (H4) and Phase 2 (roles) were built end-to-end (algorithm → API → UI → docs),
+> verified against a live Postgres in a real browser, per the plan's own Verification section
+> below. Left unedited above per this repo's rule against rewriting a plan after execution — see
+> `.ai/PROJECT_STATUS.md` for what actually shipped and where it diverged from this plan's text
+> (the golden-test supervisor pool, the `roleShortfalls`-skips-closed-days fix, minor UI-copy
+> wording not specified here).
 
 ## Context
 

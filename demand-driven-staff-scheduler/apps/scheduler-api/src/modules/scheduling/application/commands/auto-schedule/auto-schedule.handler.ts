@@ -28,13 +28,25 @@ export class AutoScheduleHandler implements ITransactionalCommandHandler<
     const schedule = await tx.schedules.findById(command.scheduleId)
     if (!schedule) throw new ScheduleNotFoundError(command.scheduleId)
 
-    const [staff, shifts, demandCells] = await Promise.all([
-      tx.staff.listByScheduleId(command.scheduleId),
-      tx.shifts.listByScheduleId(command.scheduleId),
-      tx.demandCells.listByScheduleId(command.scheduleId),
-    ])
+    const [staff, shifts, demandCells, unavailability, staffRoles, shiftRoleRequirements] =
+      await Promise.all([
+        tx.staff.listByScheduleId(command.scheduleId),
+        tx.shifts.listByScheduleId(command.scheduleId),
+        tx.demandCells.listByScheduleId(command.scheduleId),
+        tx.unavailability.listByScheduleId(command.scheduleId),
+        tx.staffRoles.listByScheduleId(command.scheduleId),
+        tx.shiftRoleRequirements.listByScheduleId(command.scheduleId),
+      ])
 
-    const input = buildSchedulingInput(schedule, staff, shifts, demandCells)
+    const input = buildSchedulingInput({
+      schedule,
+      staff,
+      shifts,
+      demandCells,
+      unavailability,
+      staffRoles,
+      shiftRoleRequirements,
+    })
 
     const result = generateRoster(input)
 

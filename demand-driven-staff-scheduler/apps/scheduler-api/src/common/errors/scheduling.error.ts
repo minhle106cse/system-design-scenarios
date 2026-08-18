@@ -67,6 +67,35 @@ export class RosterViolationError extends ApplicationError {
   }
 }
 
+export class UnavailabilityWindowNotFoundError extends ApplicationError {
+  readonly code = 'UNAVAILABILITY_WINDOW_NOT_FOUND'
+  readonly statusCode = 404
+
+  constructor(windowId: string) {
+    super('Unavailability window not found', { windowId })
+  }
+}
+
+export class RoleNotFoundError extends ApplicationError {
+  readonly code = 'ROLE_NOT_FOUND'
+  readonly statusCode = 404
+
+  constructor(roleId: string) {
+    super('Role not found', { roleId })
+  }
+}
+
+/** `@@unique([scheduleId, name])` (schema.prisma) would otherwise surface as a raw Prisma `P2002` —
+ *  this turns it into the same envelope shape every other domain error uses. */
+export class DuplicateRoleNameError extends ApplicationError {
+  readonly code = 'DUPLICATE_ROLE_NAME'
+  readonly statusCode = 409
+
+  constructor(name: string) {
+    super('A role with this name already exists on this schedule', { name })
+  }
+}
+
 export class InvalidShiftTimeRangeError extends ApplicationError {
   readonly code = 'INVALID_SHIFT_TIME_RANGE'
   readonly statusCode = 422

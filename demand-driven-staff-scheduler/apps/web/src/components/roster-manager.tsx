@@ -10,6 +10,7 @@ import {
   updateSchedule,
   type Assignment,
   type Diagnostics,
+  type Role,
   type Schedule,
   type ScheduleRun,
   type Shift,
@@ -17,6 +18,7 @@ import {
   type SuggestedN,
 } from '@/lib/api-client'
 import { describeApiError } from '@/lib/error-copy'
+import { describeRoleShortfall } from '@/lib/role-copy'
 import { buildRosterGrid, rosterGridKey } from '@/lib/grid'
 import { toRosterCsv } from '@/lib/csv-export'
 import { DAYS_OF_WEEK, dayLabel, formatMinutes } from '@/lib/week'
@@ -56,6 +58,7 @@ export function RosterManager({
   assignments,
   latestRun,
   suggestedN,
+  roles,
 }: {
   readonly scheduleId: string
   readonly schedule: Schedule
@@ -64,6 +67,7 @@ export function RosterManager({
   readonly assignments: readonly Assignment[]
   readonly latestRun: ScheduleRun | null
   readonly suggestedN: SuggestedN
+  readonly roles: readonly Role[]
 }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -91,6 +95,7 @@ export function RosterManager({
 
   const staffById = new Map(staff.map((s) => [s.id, s]))
   const shiftById = new Map(shifts.map((s) => [s.id, s]))
+  const roleById = new Map(roles.map((r) => [r.id, r]))
   const grid = buildRosterGrid(assignments)
 
   async function saveParameters(e: React.FormEvent) {
@@ -302,6 +307,15 @@ export function RosterManager({
             <Banner tone="info">
               {diagnostics.staff.filter((s) => s.belowTarget).length} staff member(s) are below the
               fair-share target this week - see Coverage for who.
+            </Banner>
+          )}
+          {diagnostics.roleShortfalls.length > 0 && (
+            <Banner tone="warning">
+              <ul className="list-disc space-y-1 pl-4">
+                {diagnostics.roleShortfalls.map((s, i) => (
+                  <li key={i}>{describeRoleShortfall(s, roleById, shiftById)}</li>
+                ))}
+              </ul>
             </Banner>
           )}
         </div>

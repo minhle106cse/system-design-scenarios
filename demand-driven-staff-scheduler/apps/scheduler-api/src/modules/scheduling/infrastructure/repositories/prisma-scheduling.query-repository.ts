@@ -29,7 +29,17 @@ export class PrismaSchedulingQueryRepository implements ISchedulingQueryReposito
     const schedule = await this.prisma.client.schedule.findUnique({ where: { id: scheduleId } })
     if (!schedule) return null
 
-    const [staff, shifts, demandCells, assignments, latestRun] = await Promise.all([
+    const [
+      staff,
+      shifts,
+      demandCells,
+      assignments,
+      latestRun,
+      unavailability,
+      roles,
+      staffRoles,
+      shiftRoleRequirements,
+    ] = await Promise.all([
       this.prisma.client.staffMember.findMany({ where: { scheduleId }, orderBy: { name: 'asc' } }),
       this.prisma.client.shift.findMany({ where: { scheduleId }, orderBy: { startMinute: 'asc' } }),
       this.prisma.client.demandCell.findMany({ where: { scheduleId } }),
@@ -38,6 +48,10 @@ export class PrismaSchedulingQueryRepository implements ISchedulingQueryReposito
         where: { scheduleId },
         orderBy: { generatedAt: 'desc' },
       }),
+      this.prisma.client.staffUnavailability.findMany({ where: { staff: { scheduleId } } }),
+      this.prisma.client.role.findMany({ where: { scheduleId }, orderBy: { name: 'asc' } }),
+      this.prisma.client.staffRole.findMany({ where: { staff: { scheduleId } } }),
+      this.prisma.client.shiftRoleRequirement.findMany({ where: { shift: { scheduleId } } }),
     ])
 
     return {
@@ -88,6 +102,21 @@ export class PrismaSchedulingQueryRepository implements ISchedulingQueryReposito
             diagnostics: latestRun.diagnostics,
           }
         : null,
+      unavailability: unavailability.map((w) => ({
+        id: w.id,
+        staffId: w.staffId,
+        dayOfWeek: w.dayOfWeek,
+        startMinute: w.startMinute,
+        endMinute: w.endMinute,
+      })),
+      roles: roles.map((r) => ({ id: r.id, scheduleId: r.scheduleId, name: r.name })),
+      staffRoles: staffRoles.map((sr) => ({ id: sr.id, staffId: sr.staffId, roleId: sr.roleId })),
+      shiftRoleRequirements: shiftRoleRequirements.map((r) => ({
+        id: r.id,
+        shiftId: r.shiftId,
+        roleId: r.roleId,
+        minCount: r.minCount,
+      })),
     }
   }
 }

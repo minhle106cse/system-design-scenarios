@@ -12,5 +12,12 @@ export default async function ShiftsPage({
   const { id } = await params
   const detail = await getSchedule(id)
 
-  return <ShiftManager scheduleId={id} shifts={detail.shifts} />
+  return (
+    <ShiftManager
+      scheduleId={id}
+      shifts={detail.shifts}
+      roles={detail.roles}
+      shiftRoleRequirements={detail.shiftRoleRequirements}
+    />
+  )
 }

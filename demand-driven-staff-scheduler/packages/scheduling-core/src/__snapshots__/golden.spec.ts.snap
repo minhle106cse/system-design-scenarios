@@ -1123,3 +1123,12 @@ exports[`golden file — the real CSV, the seeded team, N=18 (init plan §7.8) >
   "transactionsPerStaffHourOverall": 10.05921052631579,
 }
 `;
+
+exports[`golden file — the real CSV, the seeded team, N=18 (init plan §7.8) > with Ivy (seed-09) unavailable all of Tuesday: zero Tuesday assignments for her, roster otherwise unchanged in shape > structural-verdict-with-unavailability 1`] = `
+{
+  "contractedStaffHours": 368,
+  "floorStaffHours": 272,
+}
+`;
+
+exports[`golden file — the real CSV, the seeded team, N=18 (init plan §7.8) > with a Supervisor role required on both shifts, held by the 3×40h staff: enough supervisor-hours exist (120h capacity vs 112h needed) — no shortfalls > role-shortfalls-with-roles 1`] = `[]`;

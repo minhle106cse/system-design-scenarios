@@ -18,7 +18,11 @@ five-command sequence, `npm run dev`, both apps confirmed listening). `docs/04_d
 Earlier phases still stand: **Phase 0 (init)** and **Phase 1 (the algorithm,
 `packages/scheduling-core`)** are both complete and untouched by the reversal —
 `packages/scheduling-core` has zero runtime dependencies (ADR-0004) and was always going to be
-importable from any backend shape. 80/80 specs green (unit + property + golden-file).
+importable from any backend shape. 97/97 specs green (unit + property + golden-file) — was 80/80
+before the stretch goals' H4/roles additions, § below.
+
+Phase 3 (the seven UI screens) and the stretch goals (per-staff availability + roles/skills, §
+below) are also both done — see their own sections further down for what shipped.
 
 ### Backend architecture reversal — done so far
 
@@ -412,16 +416,66 @@ built), `docs/08_testing_strategy.md` (the no-component-test-layer decision stat
 `directives/frontend_standard.md` (`router.refresh()` convention, the real 6 primitives, the
 drag-and-drop-needs-a-keyboard-path rule) all reconciled in this session, not left for later.
 
+## Stretch goals — per-staff availability (H4) + roles/skills (this session)
+
+`stretch-goals-availability-and-roles.plan.md`, both phases, built end-to-end (algorithm → API →
+UI → docs) and verified against a live Postgres in a real browser — closing out the last two
+stretch goals the brief names (§8) that this repo hadn't built. Plan-first, per the user's own
+convention for non-trivial work; the plan's own D1–D5 design decisions (§29-59) are the record of
+*why*, not repeated here.
+
+**Phase 1 — availability (H4).** `packages/scheduling-core`: `UnavailabilityWindow` (optional on
+`Staff`), H4 implemented in `FeasibilityGate.eligible` and moved to the FRONT of the precedence
+chain (`H4 → H3 → H2 → H1` — H4 is a pure function of `(staff, day, shift)`, never `RosterState`,
+so it can't affect the permutation-determinism property H1–H3 already prove). `UNAVAILABLE` split
+from `validateRoster`'s "unknown reference" case into a new `UNKNOWN_REFERENCE` (D4) — the reuse
+was only ever safe while H4 was unimplemented. `apps/scheduler-api`: new `StaffUnavailability`
+model (no `deletedAt` — a config row, same class as `DemandCell`), `POST`/`DELETE
+.../staff/:staffId/unavailability`, `buildSchedulingInput` refactored from four positional args to
+an options object (D-note in the file: the fifth/sixth/seventh params this session and the next one
+added would have been unreadable positionally). `apps/web`: an Availability column + "day off"
+preset editor on the Staff tab, `error-copy.ts`'s `UNAVAILABLE` copy made specific
+("clear the block on the Staff tab or pick someone else").
+**Verified live**: seeded Ivy Chen with a full Tuesday off — auto-schedule produced **zero**
+Tuesday assignments for her; a manual add to a Tuesday shift → `422 ROSTER_VIOLATION`/`UNAVAILABLE`
+with that exact banner text — the case that proves the gate is shared by both paths.
+
+**Phase 2 — roles/skills.** New **ADR-0006**: a role minimum is answered as a seat-filling
+responsibility (`rolePass`, a new stage run FIRST in `generateRoster` — most-constrained-first),
+never as a sixth gate constraint — `FeasibilityGate`/`validateRoster` are completely unchanged (D5).
+`Diagnostics.roleShortfalls` (new required field) is the sole reporting surface, never a thrown
+error. `rebalancer.ts` gained `roleCoverageDidNotFall` alongside the existing `coverageDidNotFall`
+— without it, a fairness-improving move could silently swap a shift's only supervisor for a
+non-holder. `apps/scheduler-api`: three new models (`Role`/`StaffRole`/`ShiftRoleRequirement`, all
+uuid PK + `@@unique`, no `deletedAt`), five new routes (role CRUD + two `PUT`s for the
+many-to-many/seat-requirement sets), `DuplicateRoleNameError` translated from Prisma's raw `P2002`
+inside `PrismaRoleRepository` — application code can't import `@prisma/client` (`eslint.config.mjs`
+layer rule), so only the repository layer can catch that specific error. `apps/web`: a Roles
+section on the Staff tab (per-schedule CRUD + a toggleable-chip multi-select per staff row), a
+Requires column on the Shifts tab, `role-copy.ts`'s `describeRoleShortfall`, and a shortfall banner
+on both Roster and Coverage.
+**Verified live**: seeded 3 of 12 staff as Supervisor with `minCount: 1` on both shifts — no
+shortfalls (120h combined supervisor capacity vs 112h needed). Raised `minCount` to 4 (above the
+supervisor count) → `200` with an 11-entry `roleShortfalls` banner rendering in the real browser,
+not an error — D3's whole claim. Deleted one supervisor's assignment → the very next `GET
+/coverage` (no re-run) reflected the drop from `assigned: 3` to `assigned: 2`.
+
+A real fix found along the way: `roleShortfalls` initially fired on every day a shift existed,
+including days with zero demand (floor = target = 0) — a false shortfall on a closed day. Fixed to
+skip the same closed-day case `unfilledSeats`/`enumerateSeats` already skip, caught by a golden
+test against the real seed team (day 7's genuinely-lower Sunday demand), not by inspection.
+
+All 218 tests pass across the workspace (97 scheduling-core, up from 80; 53 shared-kernel; 27
+scheduler-api; 41 web, up from 30) — `npm run check` clean, 0 lint errors.
+
 ## Current focus
 
-**`backend-architecture-reversal.plan.md` (all six phases A–F) and Phase 3 (the UI) are both done.**
-What remains is optional, not blocking any status claim this repo currently makes:
+**`backend-architecture-reversal.plan.md` (all six phases A–F), Phase 3 (the UI), and the stretch
+goals (H4 + roles) are all done.** What remains is optional, not blocking any status claim this
+repo currently makes:
 
 1. `../_templates/` is unproven until a third scenario in this collection actually uses it —
    treat it as a hypothesis about what reduces cross-scenario drift, not a guarantee, until then.
-2. Stretch goals the brief names but this repo hasn't built: per-staff availability/days-off,
-   roles/skills (e.g. "a shift must include at least one supervisor"). Not started, not planned —
-   named here so their absence reads as scope, not oversight.
 
 ## Live debts
 

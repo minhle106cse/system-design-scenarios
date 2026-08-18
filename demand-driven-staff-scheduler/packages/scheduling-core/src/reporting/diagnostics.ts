@@ -10,6 +10,7 @@ import type {
   HourDiagnostic,
   ReasonCode,
   RequiredGrid,
+  RoleShortfall,
   SchedulingInput,
   ShiftRequirements,
   StaffDiagnostic,
@@ -89,6 +90,35 @@ function unfilledSeats(
   return result;
 }
 
+/** Every (day, shift, role) whose `minCount` was not met by the final roster — never blocking
+ *  (D3, D5). Skips `minCount === 0`, and skips a day the shift wasn't actually needed on (floor
+ *  === 0 && target === 0 — the same closed-day skip `unfilledSeats` and `enumerateSeats` use), so
+ *  a role requirement doesn't fire on a day with no demand for that shift at all. */
+function roleShortfalls(input: SchedulingInput, requirements: ShiftRequirements, state: RosterState): RoleShortfall[] {
+  const staffById = new Map(input.staff.map((s) => [s.id, s]));
+  const orderedShifts = [...input.shifts].sort((a, b) => a.startMinute - b.startMinute || (a.id < b.id ? -1 : 1));
+  const result: RoleShortfall[] = [];
+
+  for (const [day, byShift] of [...requirements.entries()].sort((a, b) => a[0] - b[0])) {
+    for (const shift of orderedShifts) {
+      const headcount = byShift.get(shift.id);
+      if (!headcount || (headcount.floor === 0 && headcount.target === 0)) continue;
+      for (const req of shift.roleRequirements ?? []) {
+        if (req.minCount <= 0) continue;
+        let assigned = 0;
+        for (const a of state.all()) {
+          if (a.day !== day || a.shift.id !== shift.id) continue;
+          if (staffById.get(a.staffId)?.roles?.includes(req.roleId)) assigned++;
+        }
+        if (assigned < req.minCount) {
+          result.push({ day, shiftId: shift.id, roleId: req.roleId, required: req.minCount, assigned });
+        }
+      }
+    }
+  }
+  return result;
+}
+
 function structuralVerdict(requirements: ShiftRequirements, input: SchedulingInput): StructuralVerdict {
   const shiftById = new Map(input.shifts.map((s) => [s.id, s]));
   let floorStaffHours = 0;
@@ -114,5 +144,6 @@ export function buildDiagnostics(
     staff: staffDiagnostics(input, state),
     unfilledSeats: unfilledSeats(input, requirements, gate, state),
     structural: structuralVerdict(requirements, input),
+    roleShortfalls: roleShortfalls(input, requirements, state),
   };
 }
