@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+generated
+src/generated
+.prisma
+.next
+.env
+*.log

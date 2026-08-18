@@ -76,6 +76,7 @@ Two dimensions are **rated**, so the index sorts:
 | # | Scenario | Domain | Core challenge | Prevalence | Difficulty | Status |
 |---|---|---|---|---|---|---|
 | **01** | [Service Appointment Scheduler](service-appointment-scheduler/) | Automotive retail / Ownership | Booking a shared resource correctly **under concurrent requests** | ★★★★★ | ★★★☆☆ | ✅ Complete |
+| **02** | [Demand-Driven Staff Scheduler](demand-driven-staff-scheduler/) | Retail / service workforce ops | Allocating shifts under **competing hard and soft constraints, with no optimum defined** | ★★★★★ | ★★★☆☆ | ✅ Backend + algorithm complete; UI partial by design |
 
 ### 01 · Service Appointment Scheduler
 
@@ -112,13 +113,48 @@ qualification rule.
 
 ---
 
+### 02 · Demand-Driven Staff Scheduler
+
+📖 **[Case study](demand-driven-staff-scheduler/CASE_STUDY.md)** ·
+[Tiếng Việt](demand-driven-staff-scheduler/CASE_STUDY.vi.md) ·
+[Code](demand-driven-staff-scheduler/)
+
+**The problem.** A store manager has to turn a week of historical hourly transaction counts into a
+staff roster: cover the busy hours, respect every staff member's contracted maximum weekly hours,
+and give everyone a fair share of the work — from a pool of contracted hours that is almost never
+exactly the right size.
+
+**Why it isn't CRUD.** There is no optimum to converge on — the brief says so explicitly. Hard
+constraints (nobody exceeds their cap, nobody double-books a day) must never be violated; soft
+objectives (coverage, fairness) compete with each other and have to be measured, not maximised
+against an objective function nobody defined.
+
+**How it's solved.** Every assignment passes through a single `FeasibilityGate` — there is no code
+path that can add an infeasible assignment to a roster. Because the guarantee is a property of an
+algorithm rather than a database row (the weekly-hours cap is an aggregate over rows no row-level
+constraint can see), it's proven by **property-based testing** over generated staff/demand/shift
+inputs, not hand-picked examples — this scenario's direct analogue of scenario 01's real-concurrent-
+request test.
+
+**What you learn.** Enforcing an invariant by construction when no database constraint can express
+it · property-based testing as the proof mechanism for an algorithm · rejecting a solver (LP/CP-SAT)
+deliberately, with the trigger that would change the answer · a zero-runtime-dependency package as
+a lint-enforced architecture boundary · an architecture decision reversed mid-build, with the
+overridden argument kept rather than deleted.
+
+**Also applies to:** call-centre workforce management, restaurant/warehouse shift planning, nurse
+rostering, transit crew scheduling — anything converting a measured demand signal into a headcount,
+then a headcount into shifts.
+
+---
+
 ## Conventions shared across scenarios
 
 Not enforced by shared code — each scenario is standalone — but held to by habit:
 
 - **Bilingual entry points.** English is the default file; Vietnamese takes a `.vi.md` suffix
-  (`CASE_STUDY.md` / `CASE_STUDY.vi.md`). Only the entry points are translated, not the internal
-  spec documents.
+  (`CASE_STUDY.md` / `CASE_STUDY.vi.md`, `readme.md` / `readme.vi.md`). Only the entry points a
+  reader browses the collection with are translated, not the internal spec documents under `docs/`.
 - **`docs/` is WHAT & WHY; `directives/` is HOW.** The spec and the ADRs describe the system; the
   directives are coding SOPs any contributor (human or agent) must follow.
 - **One flagship decision per scenario**, recorded as an ADR with the alternatives it rejected. An

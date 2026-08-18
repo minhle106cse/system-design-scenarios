@@ -1,5 +1,7 @@
 # Service Appointment Scheduler
 
+🇬🇧 English · [🇻🇳 Tiếng Việt](readme.vi.md)
+
 **Scenario A — The Unified Service Scheduler.** A resource-constrained appointment booking API for
 vehicle service: given a customer, vehicle, service type, dealership, and desired time, it checks
 real-time availability of both a service bay and a qualified technician for the full service
