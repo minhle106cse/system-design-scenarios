@@ -4,9 +4,10 @@
 // packages/scheduling-core/src/test-fixtures/real-demand-grid.ts is — kept this way even though
 // the CSV importer exists now (Phase D, application/commands/import-demand/) because a seed
 // script should not depend on an HTTP endpoint to populate its own database.
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client'
+import { DEFAULT_SHIFTS } from '../src/modules/scheduling/domain/entities/shift.entity'
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient()
 
 const SEED_STAFF: Array<{ name: string; maxWeeklyHours: number }> = [
   { name: 'Alice Nguyen', maxWeeklyHours: 40 },
@@ -21,10 +22,10 @@ const SEED_STAFF: Array<{ name: string; maxWeeklyHours: number }> = [
   { name: 'Jack Osei', maxWeeklyHours: 24 },
   { name: 'Kim Vu', maxWeeklyHours: 24 },
   { name: 'Liam Brooks', maxWeeklyHours: 16 },
-];
+]
 
 // CSV column order Fri..Thu (assumption 8); dayOfWeek 1=Mon..7=Sun.
-const COLUMN_DAYS = [5, 6, 7, 1, 2, 3, 4];
+const COLUMN_DAYS = [5, 6, 7, 1, 2, 3, 4]
 const ROWS: Array<{ hour: number; values: number[] }> = [
   { hour: 7, values: [22, 13, 7, 12, 22, 13, 16] },
   { hour: 8, values: [25, 44, 32, 32, 35, 33, 45] },
@@ -42,7 +43,7 @@ const ROWS: Array<{ hour: number; values: number[] }> = [
   { hour: 20, values: [34, 34, 24, 15, 26, 15, 32] },
   { hour: 21, values: [12, 7, 8, 4, 9, 10, 12] },
   { hour: 22, values: [5, 5, 6, 7, 2, 6, 6] },
-];
+]
 
 async function main() {
   const schedule = await prisma.schedule.create({
@@ -53,13 +54,12 @@ async function main() {
       minUtilisationTarget: 0.6,
       staff: { create: SEED_STAFF },
       shifts: {
-        create: [
-          { label: 'Morning', startMinute: 7 * 60, endMinute: 15 * 60 },
-          { label: 'Evening', startMinute: 15 * 60, endMinute: 23 * 60 },
-        ],
+        // Single source of truth — DEFAULT_SHIFTS (shift.entity.ts), same constant
+        // CreateScheduleHandler now seeds for every schedule created through the API.
+        create: DEFAULT_SHIFTS.map((s) => ({ ...s })),
       },
     },
-  });
+  })
 
   const demandCells = ROWS.flatMap(({ hour, values }) =>
     values.map((transactions, i) => ({
@@ -68,17 +68,19 @@ async function main() {
       hour,
       transactions,
     })),
-  );
-  await prisma.demandCell.createMany({ data: demandCells });
+  )
+  await prisma.demandCell.createMany({ data: demandCells })
 
-  console.log(`Seeded schedule ${schedule.id} — ${SEED_STAFF.length} staff, 2 shifts, ${demandCells.length} demand cells.`);
+  console.log(
+    `Seeded schedule ${schedule.id} — ${SEED_STAFF.length} staff, 2 shifts, ${demandCells.length} demand cells.`,
+  )
 }
 
 main()
   .catch((err: unknown) => {
-    console.error(err);
-    process.exitCode = 1;
+    console.error(err)
+    process.exitCode = 1
   })
   .finally(async () => {
-    await prisma.$disconnect();
-  });
+    await prisma.$disconnect()
+  })

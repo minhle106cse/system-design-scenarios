@@ -4,17 +4,15 @@
 
 [🇬🇧 English](readme.md) · 🇻🇳 Tiếng Việt
 
-> ✅ **Trạng thái: thuật toán, dịch vụ backend, và tính năng sửa lịch thủ công đều đã xây xong và
-> kiểm chứng trên một Postgres thật.** Trái tim của bài tập — `packages/scheduling-core`
-> (Phase 1) — đã hoàn chỉnh: 80/80 test (unit + property + golden-file). Backend phục vụ nó cũng
-> vậy, `apps/scheduler-api` (NestJS + Fastify + CQRS + Postgres + Docker) — mọi thao tác ghi và đọc
-> đề bài yêu cầu, kể cả hai stretch goal repo này chọn xây (sửa lịch thủ công, coverage view).
-> `apps/web` là một frontend thật nhưng chưa hoàn chỉnh: một màn hình hoạt động thật chứng minh việc
-> kết nối hai app, phần còn lại cố tình để sau — ưu tiên của tuyển tập này là thiết kế backend,
-> không phải độ hoàn chỉnh của UI (xem "Vì sao stack đổi giữa chừng" bên dưới). Chỉ còn việc dọn tài
-> liệu (Phase F). Trạng thái theo từng phase:
-> [`.ai/PROJECT_STATUS.md`](.ai/PROJECT_STATUS.md). Plan xây dựng gốc (đã bị thay thế về kiến trúc,
-> vẫn chính xác về thuật toán):
+> ✅ **Trạng thái: thuật toán, dịch vụ backend, và toàn bộ UI đều đã xây xong.** Trái tim của bài
+> tập — `packages/scheduling-core` (Phase 1) — đã hoàn chỉnh: 80/80 test (unit + property +
+> golden-file). Backend phục vụ nó cũng vậy, `apps/scheduler-api` (NestJS + Fastify + CQRS +
+> Postgres + Docker) — mọi thao tác ghi và đọc đề bài yêu cầu, kể cả hai stretch goal repo này chọn
+> xây (sửa lịch thủ công, coverage view). `apps/web` giờ có đủ mọi màn hình yêu cầu UI của đề bài —
+> tạo/liệt kê schedule, CRUD staff và shift, import CSV demand, auto-schedule kèm bảng tham số và
+> sửa tay/kéo-thả, bảng tổng hợp, và coverage view — chạy thật với API thật, không phải mock. Trạng
+> thái theo từng phase: [`.ai/PROJECT_STATUS.md`](.ai/PROJECT_STATUS.md). Plan xây dựng gốc (đã bị
+> thay thế về kiến trúc, vẫn chính xác về thuật toán):
 > [`.ai/plans/init-source.plan.md`](.ai/plans/init-source.plan.md); plan đảo ngược kiến trúc đã thay
 > thế nó: [`.ai/plans/backend-architecture-reversal.plan.md`](.ai/plans/backend-architecture-reversal.plan.md).
 
@@ -97,7 +95,7 @@ giá trị local, không phải bí mật. Chi tiết đầy đủ: [`RUN.md`](R
 | [`packages/scheduling-core/`](packages/scheduling-core/) | ✅ Thuật toán, hoàn chỉnh — 80/80 test (unit + property + golden-file), không dependency runtime |
 | [`packages/shared-kernel/`](packages/shared-kernel/) | CQRS bus, Unit-of-Work, lỗi, logger, resilience — hạ tầng chung được port một lần, dùng bởi `apps/scheduler-api` |
 | [`apps/scheduler-api/`](apps/scheduler-api/) | ✅ NestJS + Fastify + Postgres — schedule, nhân viên, ca làm, import CSV, auto-schedule, sửa lịch thủ công, coverage view. Mọi route đã kiểm chứng trên database thật, không chỉ unit test |
-| [`apps/web/`](apps/web/) | Next.js — một `src/lib/api-client.ts` thật gọi tới `apps/scheduler-api`, một màn hình hoạt động thật (tạo schedule). Sáu màn hình còn lại (plan §3.1) cố tình chưa xây — tùy chọn theo đúng ưu tiên của tuyển tập này, xem bên dưới |
+| [`apps/web/`](apps/web/) | ✅ Next.js — đủ bảy màn hình (plan §3.1), gọi thật tới `apps/scheduler-api`: liệt kê/tạo schedule, staff, import demand, ca làm, roster (auto-schedule + sửa tay/kéo-thả), summary, coverage |
 | [`directives/`](directives/README.md) | Cuốn luật coding mà repo này (và bất kỳ agent nào làm việc trên nó) tuân theo |
 
 ## Vì sao stack đổi giữa chừng
@@ -112,12 +110,15 @@ do repo này tồn tại. `backend-architecture-reversal.plan.md` §0 ghi lại 
 ngược này, kể cả lập luận đã bị bác bỏ — giữ lại, không xóa đi, vì một plan hóa ra sai là bằng chứng,
 không phải điều đáng xấu hổ cần sửa cho biến mất.
 
-Một hệ quả của việc xây backend đúng cách trước: bảy màn hình UI của `apps/web` (plan §3.1) phần lớn
-vẫn chưa được xây. Đó là một thứ tự có chủ đích, không phải một thiếu sót — yêu cầu frontend của đề
-bài là thật nhưng thứ yếu so với chủ đề thực sự của tuyển tập này, và nửa khó hơn (một dịch vụ CQRS
-đúng đắn, có test, dùng Postgres) đã được chứng minh trước khi dành thời gian còn lại cho các màn
-hình CRUD mà một quản lý sẽ nhận ra ngay lập tức. Nếu điều này quan trọng cho việc chấm điểm: backend
-chỉ cách `http://localhost:4102/docs` một bước để thao tác trực tiếp, không cần UI.
+Một hệ quả của việc xây backend đúng cách trước: bảy màn hình UI của `apps/web` (plan §3.1) đã đứng
+yên phần lớn trong nhiều phiên làm việc sau khi backend xong. Đó là một thứ tự có chủ đích, không
+phải trạng thái cuối — nửa khó hơn (một dịch vụ CQRS đúng đắn, có test, dùng Postgres) đã được
+chứng minh trước khi dành thời gian cho các màn hình CRUD, nhưng chính đề bài ở §5 nói rõ UI là bắt
+buộc, không phải tùy chọn (*"this is not a command-line or API-only exercise"*), nên việc để UI dở
+dang không thể là trạng thái nghỉ. Phase 3 (`.ai/PROJECT_STATUS.md`) đã đóng khoảng trống đó: cả
+bảy màn hình giờ đã tồn tại và nói chuyện với API thật. Backend vẫn có thể thao tác độc lập tại
+`http://localhost:4102/docs` nếu hữu ích cho việc chấm điểm, nhưng nó không còn là cách duy nhất để
+dùng app này.
 
 ## Stack công nghệ
 

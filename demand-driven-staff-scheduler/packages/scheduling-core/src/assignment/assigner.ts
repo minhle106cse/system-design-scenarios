@@ -1,7 +1,7 @@
 // Stage 3b — the assigner (init plan §7.5, ADR-0002). Two deterministic passes; the third
 // (rebalance) is rebalancer.ts. Every commit goes through FeasibilityGate — this file never
 // touches RosterState except via `commit` and its query methods.
-import { FeasibilityGate, type RosterState } from './feasibility-gate.js';
+import { FeasibilityGate, type RosterContext, type RosterState } from './feasibility-gate.js';
 import { compareByNameThenId, utilisationOf } from './utilisation.js';
 import type { DayOfWeek, SchedulingInput, Shift, ShiftId, ShiftRequirements, Staff } from '../model/types.js';
 
@@ -77,9 +77,9 @@ function fillSeatTo(
 export function fairnessPass(
   input: SchedulingInput,
   requirements: ShiftRequirements,
-  gate: FeasibilityGate,
-  state: RosterState,
+  roster: RosterContext,
 ): void {
+  const { gate, state } = roster;
   const seats = enumerateSeats(input.shifts, requirements);
   for (const seat of seats) {
     const { floor } = headcountOf(requirements, seat.day, seat.shift.id);
@@ -95,9 +95,9 @@ export function fairnessPass(
 export function coveragePass(
   input: SchedulingInput,
   requirements: ShiftRequirements,
-  gate: FeasibilityGate,
-  state: RosterState,
+  roster: RosterContext,
 ): void {
+  const { gate, state } = roster;
   const seats = enumerateSeats(input.shifts, requirements);
 
   for (const seat of seats) {

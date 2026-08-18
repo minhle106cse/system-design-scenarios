@@ -1,6 +1,6 @@
 // Stage 5 — diagnostics (init plan §7.6). generateRoster never throws and never silently drops a
 // seat: this is where every shortfall becomes a reported fact instead of a swallowed one.
-import { FeasibilityGate, type RosterState } from '../assignment/feasibility-gate.js';
+import { FeasibilityGate, type RosterContext, type RosterState } from '../assignment/feasibility-gate.js';
 import { utilisationOf } from '../assignment/utilisation.js';
 import { hoursTouchedBy, shiftHours } from '../model/hour-range.js';
 import type {
@@ -106,9 +106,9 @@ export function buildDiagnostics(
   input: SchedulingInput,
   required: RequiredGrid,
   requirements: ShiftRequirements,
-  gate: FeasibilityGate,
-  state: RosterState,
+  roster: RosterContext,
 ): Diagnostics {
+  const { gate, state } = roster;
   return {
     hours: hourDiagnostics(required, state, input.shifts),
     staff: staffDiagnostics(input, state),

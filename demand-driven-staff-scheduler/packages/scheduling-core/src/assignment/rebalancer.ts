@@ -2,7 +2,7 @@
 // assigner produced. RosterState still exposes only `commit` as a mutator — "moving" an
 // assignment is implemented by replaying every OTHER assignment through the gate into a fresh
 // RosterState, then committing the new one. No hidden second mutator is added.
-import { FeasibilityGate, RosterState, type EligibilityData } from './feasibility-gate.js';
+import { FeasibilityGate, RosterState, type EligibilityData, type RosterContext } from './feasibility-gate.js';
 import { compareByNameThenId, utilisationOf } from './utilisation.js';
 import type { SchedulingInput, Staff } from '../model/types.js';
 
@@ -69,11 +69,11 @@ function withoutAssignment(state: RosterState, excluded: EligibilityData, gate: 
  */
 export function rebalance(
   input: SchedulingInput,
-  gate: FeasibilityGate,
-  initialState: RosterState,
+  roster: RosterContext,
   maxIterations: number = DEFAULT_MAX_ITERATIONS,
 ): RosterState {
-  let state = initialState;
+  const { gate } = roster;
+  let state = roster.state;
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     const ranked = [...input.staff].sort(

@@ -24,17 +24,31 @@ of `qa_standard.md`'s Principle 3 before any screen is called done.
 
 ## 2. Component conventions
 
-- **~6 hand-rolled primitives** (plan §0), under `src/components/`: a data table, a button, a form
-  field, a badge/status pill, a modal/drawer, a toast/banner. Reach for one of these before writing
-  a bespoke element — a component library used at 5% costs more than it saves (plan §0), and so
-  does a sixth ad-hoc button style.
+- **6 hand-rolled primitives** (plan §0), under `src/components/ui/`: `data-table.tsx`,
+  `button.tsx`, `field.tsx`, `badge.tsx`, `modal.tsx`, `banner.tsx`. Reach for one of these before
+  writing a bespoke element — a component library used at 5% costs more than it saves (plan §0),
+  and so does a seventh ad-hoc button style.
 - Server Components by default (App Router). A component becomes a Client Component
   (`'use client'`) only when it needs interactivity (a form, a button handler, local state) — not
   because it's convenient to colocate.
 - Data fetching for a page happens in the page/layout server component (calling `api-client.ts`
   directly — Next.js's server runtime can call it exactly like a client component can, same
   functions either side), never a `useEffect` fetch-on-mount for data the server already has at
-  render time. `apps/web` has no route handlers of its own to fetch through (Phase E).
+  render time. `apps/web` has no route handlers of its own to fetch through (Phase E). A
+  layout and the page nested under it may both call the same `getSchedule(id)` — Next's per-request
+  fetch memoization collapses duplicate calls with identical URL+options into one real network
+  call, so this is not a double fetch (`src/app/s/[id]/layout.tsx` + every `page.tsx` under it).
+- **After every mutation, call `router.refresh()`** (`next/navigation`) rather than holding local
+  optimistic state — the Server Component re-fetches, so the screen never drifts from what the API
+  actually persisted. Pair every route that renders mutable server data with
+  `export const dynamic = 'force-dynamic'`, or `refresh()` has nothing to invalidate. See any of
+  `staff-manager.tsx`/`shift-manager.tsx`/`demand-manager.tsx`/`roster-manager.tsx` for the
+  pending/`await` mutation/`router.refresh()`/catch-into-banner shape, all copied from
+  `create-schedule-form.tsx`.
+- **A drag-and-drop interaction must have a keyboard-operable equivalent alongside it, not instead
+  of it.** `roster-manager.tsx`'s day×shift grid supports dragging a name to move it, but every
+  cell also keeps its `+`/`×` buttons — HTML5 drag-and-drop has no keyboard path, so removing the
+  buttons "now that drag-and-drop exists" would silently lock out anyone who can't use a mouse.
 
 ## 3. Styling
 
@@ -59,6 +73,7 @@ when a repeated pattern (a status color scale, e.g.) earns a named token.
 
 ## ⚠️ How to apply this file
 
-Applies to new screens (plan §3.1's seven routes) as they're built in Phase 3. When a genuinely new
-UI pattern is needed that doesn't fit the ~6 primitives, add it here in the same task that
-introduces it — don't let a seventh one-off component go undocumented.
+Applies to every screen under `src/app/s/[id]/*` — all seven of plan §3.1's routes are built
+(Phase 3: `staff`, `demand`, `shifts`, `roster`, `summary`, `coverage`, plus `/`'s list+create).
+When a genuinely new UI pattern is needed that doesn't fit the 6 primitives, add it here in the
+same task that introduces it — don't let a seventh one-off component go undocumented.

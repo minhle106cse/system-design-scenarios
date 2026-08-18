@@ -25,7 +25,7 @@ describe('buildDiagnostics — staff utilisation, the maxWeeklyHours=0 NaN trap 
     const required = computeRequiredStaff(input.demand, input.parameters);
     const requirements = computeShiftRequirements(required, input.shifts);
 
-    const diagnostics = buildDiagnostics(input, required, requirements, gate, state);
+    const diagnostics = buildDiagnostics(input, required, requirements, { gate, state });
     const staffDiag = diagnostics.staff.find((s) => s.staffId === 'z')!;
     expect(Number.isNaN(staffDiag.utilisation)).toBe(false);
     expect(staffDiag.utilisation).toBe(1);
@@ -39,7 +39,7 @@ describe('buildDiagnostics — staff utilisation, the maxWeeklyHours=0 NaN trap 
     const state = new RosterState();
     const required = computeRequiredStaff(input.demand, input.parameters);
     const requirements = computeShiftRequirements(required, input.shifts);
-    const diagnostics = buildDiagnostics(input, required, requirements, gate, state);
+    const diagnostics = buildDiagnostics(input, required, requirements, { gate, state });
     const staffDiag = diagnostics.staff.find((s) => s.staffId === 'idle')!;
     expect(staffDiag.utilisation).toBe(0);
     expect(staffDiag.belowTarget).toBe(true);
@@ -58,7 +58,7 @@ describe('buildDiagnostics — hour coverage status', () => {
     const verdict = gate.eligible('a', 1, MORNING, state);
     if (verdict.ok) state.commit(verdict.eligibility); // only 1 of 2 required staff assigned
 
-    const diagnostics = buildDiagnostics(input, required, requirements, gate, state);
+    const diagnostics = buildDiagnostics(input, required, requirements, { gate, state });
     const hourDiag = diagnostics.hours.find((h) => h.day === 1 && h.hour === 9)!;
     expect(hourDiag.required).toBe(2);
     expect(hourDiag.scheduled).toBe(1);
@@ -76,7 +76,7 @@ describe('buildDiagnostics — unfilled seats report the blocking reason for eve
     const required = computeRequiredStaff(input.demand, input.parameters);
     const requirements = computeShiftRequirements(required, input.shifts);
 
-    const diagnostics = buildDiagnostics(input, required, requirements, gate, state);
+    const diagnostics = buildDiagnostics(input, required, requirements, { gate, state });
     expect(diagnostics.unfilledSeats.length).toBeGreaterThan(0);
     const seat = diagnostics.unfilledSeats.find((s) => s.day === 1 && s.shiftId === 'morning')!;
     expect(seat.blockedReasons).toContain('WOULD_EXCEED_MAX_HOURS');
@@ -92,7 +92,7 @@ describe('buildDiagnostics — structural verdict', () => {
     const state = new RosterState();
     const required = computeRequiredStaff(input.demand, input.parameters);
     const requirements = computeShiftRequirements(required, input.shifts);
-    const diagnostics = buildDiagnostics(input, required, requirements, gate, state);
+    const diagnostics = buildDiagnostics(input, required, requirements, { gate, state });
     expect(diagnostics.structural.contractedStaffHours).toBe(40);
     expect(diagnostics.structural.floorStaffHours).toBeGreaterThan(0);
   });

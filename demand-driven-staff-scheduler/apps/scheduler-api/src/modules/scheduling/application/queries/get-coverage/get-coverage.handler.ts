@@ -67,6 +67,6 @@ export class GetCoverageHandler implements IQueryHandler<GetCoverageQuery, Diagn
       if (verdict.ok) state.commit(verdict.eligibility)
     }
 
-    return buildDiagnostics(input, required, requirements, gate, state)
+    return buildDiagnostics(input, required, requirements, { gate, state })
   }
 }

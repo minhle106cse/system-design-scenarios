@@ -4,17 +4,16 @@
 
 🇬🇧 English · [🇻🇳 Tiếng Việt](readme.vi.md)
 
-> ✅ **Status: the algorithm, the backend service, and manual roster editing are all built and
-> verified against a real Postgres.** The heart of the exercise — `packages/scheduling-core`
-> (Phase 1) — is complete: 80/80 specs (unit + property + golden-file). So is the backend that
-> serves it, `apps/scheduler-api` (NestJS + Fastify + CQRS + Postgres + Docker) — every write and
-> read the brief asks for, including the two stretch goals this repo chose to build (manual roster
-> editing, the coverage view). `apps/web` is a real but partial frontend: one working screen
-> proving the two-app wiring, the rest deliberately left for later — this collection's priority is
-> the backend design, not UI completeness (see "Why the stack changed mid-build" below). Only doc
-> polish (Phase F) remains. Live status, phase by phase:
-> [`.ai/PROJECT_STATUS.md`](.ai/PROJECT_STATUS.md). Original build plan (superseded on the
-> architecture, still accurate on the algorithm):
+> ✅ **Status: the algorithm, the backend service, and the full UI are all built.** The heart of the
+> exercise — `packages/scheduling-core` (Phase 1) — is complete: 80/80 specs (unit + property +
+> golden-file). So is the backend that serves it, `apps/scheduler-api` (NestJS + Fastify + CQRS +
+> Postgres + Docker) — every write and read the brief asks for, including the two stretch goals
+> this repo chose to build (manual roster editing, the coverage view). `apps/web` now covers every
+> screen the brief's UI requirement needs — creating/listing schedules, staff and shift CRUD, CSV
+> demand import, auto-schedule with a parameter panel and manual drag-and-drop editing, the
+> aggregated summary, and the coverage view — end to end against the real API, not mocked. Live
+> status, phase by phase: [`.ai/PROJECT_STATUS.md`](.ai/PROJECT_STATUS.md). Original build plan
+> (superseded on the architecture, still accurate on the algorithm):
 > [`.ai/plans/init-source.plan.md`](.ai/plans/init-source.plan.md); the architecture reversal that
 > superseded it: [`.ai/plans/backend-architecture-reversal.plan.md`](.ai/plans/backend-architecture-reversal.plan.md).
 
@@ -97,7 +96,7 @@ with local, non-secret values. Full detail: [`RUN.md`](RUN.md),
 | [`packages/scheduling-core/`](packages/scheduling-core/) | ✅ The algorithm, complete — 80/80 specs (unit + property + golden-file), zero runtime dependencies |
 | [`packages/shared-kernel/`](packages/shared-kernel/) | CQRS bus, Unit-of-Work, errors, logger, resilience — generic infra ported once, used by `apps/scheduler-api` |
 | [`apps/scheduler-api/`](apps/scheduler-api/) | ✅ NestJS + Fastify + Postgres — schedules, staff, shifts, CSV import, auto-schedule, manual roster editing, coverage view. Every route verified against a live database, not just unit-tested |
-| [`apps/web/`](apps/web/) | Next.js — a real `src/lib/api-client.ts` against `apps/scheduler-api`, one working screen (create a schedule). The other six screens (plan §3.1) are deliberately not built yet — optional per this collection's own priority, see below |
+| [`apps/web/`](apps/web/) | ✅ Next.js — all seven screens (plan §3.1) built against the real `apps/scheduler-api`: schedules list/create, staff, demand import, shifts, roster (auto-schedule + manual/drag-and-drop editing), summary, coverage |
 | [`directives/`](directives/README.md) | The coding rulebook this repo (and any agent working on it) follows |
 
 ## Why the stack changed mid-build
@@ -113,11 +112,14 @@ correction verbatim, including the argument it overrode — kept, not deleted, b
 turns out wrong is evidence, not an embarrassment to edit away.
 
 One consequence of building the backend properly first: `apps/web`'s seven UI screens (plan §3.1)
-are mostly still unbuilt. That is a deliberate ordering, not a shortfall — the brief's frontend
-requirement is real but secondary to this collection's actual subject, and the harder half (a
-correct, tested, Postgres-backed CQRS service) was proven before spending remaining time on CRUD
-screens a manager would recognize instantly. If this matters for grading: the backend is
-`http://localhost:4102/docs` away from being exercised directly, no UI required.
+stayed mostly unbuilt for several sessions after the backend itself was done. That was a deliberate
+ordering, not a final state — the harder half (a correct, tested, Postgres-backed CQRS service) was
+proven before spending time on CRUD screens a manager would recognize instantly, but the brief's
+own §5 is explicit that a UI is required, not optional (*"this is not a command-line or API-only
+exercise"*), so leaving it unbuilt was never going to be the resting state. Phase 3 (`.ai/PROJECT_STATUS.md`)
+closed that gap: all seven screens now exist and talk to the real API. The backend remains
+independently exercisable at `http://localhost:4102/docs` if that's useful for grading, but it is
+no longer the only way to use this app.
 
 ## Stack
 

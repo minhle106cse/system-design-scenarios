@@ -1,17 +1,39 @@
-// Public surface — frozen at init (init plan §2.3). The app codes against these four signatures.
-// Wired in Phase 1 (init plan §12) per phase-1-algorithm.plan.md's six-step build order.
+// Public surface — frozen at init (init plan §2.3). Wired in Phase 1 (init plan §12) per
+// phase-1-algorithm.plan.md's six-step build order.
+//
+// ⚠️ Only 4 of the exports below are what the app actually calls — generateRoster, summarise,
+// suggestTransactionsPerStaff, validateRoster, all defined further down this file. Everything
+// re-exported here is one STAGE of generateRoster's internal pipeline, surfaced for its own unit
+// tests and for validateRoster's replay — not a second way to run the algorithm. If you're
+// tracing what apps/scheduler-api calls, skip straight to those 4; if you're debugging one stage,
+// find its line below.
 
 export * from './model/types.js';
+
+// Stage 0 — shared arithmetic every later stage needs (minutes ↔ hours, does-shift-A-overlap-B).
 export { overlapMinutes, hoursTouchedBy, shiftHours, shiftsOverlap } from './model/hour-range.js';
-export { FeasibilityGate, RosterState, type Eligibility, type EligibilityData, type Verdict } from './assignment/feasibility-gate.js';
+
+// Stage 1 — demand → required staff per hour.
 export { computeRequiredStaff } from './demand/demand-model.js';
+
+// Stage 2 — required-per-hour → required-per-shift (floor/target).
 export { computeShiftRequirements } from './requirements/shift-requirements.js';
+
+// Stage 3a — the constraint chokepoint (H1-H3) + the mutable roster it gate-keeps. Every later
+// stage commits through THIS pair, never a second one — directives/domain_modeling.md §1.
+export { FeasibilityGate, RosterState, type Eligibility, type EligibilityData, type RosterContext, type Verdict } from './assignment/feasibility-gate.js';
+
+// Stage 3b — the two deterministic assignment passes (fairness floor, then coverage top-up).
 export { fairnessPass, coveragePass } from './assignment/assigner.js';
+
+// Stage 4 — bounded local search that improves fairness without ever dropping coverage.
 export { rebalance } from './assignment/rebalancer.js';
+
+// Stage 5 — turns the final RosterState into a report; never mutates it.
 export { buildDiagnostics } from './reporting/diagnostics.js';
 
 import { coveragePass, fairnessPass } from './assignment/assigner.js';
-import { FeasibilityGate, RosterState } from './assignment/feasibility-gate.js';
+import { FeasibilityGate, RosterState, type RosterContext } from './assignment/feasibility-gate.js';
 import { rebalance } from './assignment/rebalancer.js';
 import { computeRequiredStaff } from './demand/demand-model.js';
 import { computeShiftRequirements } from './requirements/shift-requirements.js';
@@ -44,15 +66,19 @@ export function generateRoster(input: SchedulingInput): SchedulingResult {
   const required = computeRequiredStaff(input.demand, input.parameters);
   const requirements = computeShiftRequirements(required, input.shifts);
   const gate = new FeasibilityGate(input);
-  let state = new RosterState();
+  const roster: RosterContext = { gate, state: new RosterState() };
 
-  fairnessPass(input, requirements, gate, state);
-  coveragePass(input, requirements, gate, state);
-  state = rebalance(input, gate, state);
+  // fairnessPass/coveragePass mutate roster.state's underlying RosterState in place (same
+  // instance throughout); rebalance is the one stage that returns a NEW RosterState, so roster is
+  // rebuilt (not reassigned in place — RosterContext is readonly, per directives/domain_modeling.md
+  // §1's "plain data" rule) to keep gate and state moving through the pipeline as one pair.
+  fairnessPass(input, requirements, roster);
+  coveragePass(input, requirements, roster);
+  const rebalanced: RosterContext = { gate, state: rebalance(input, roster) };
 
   return {
-    roster: state.toRoster('AUTO'),
-    diagnostics: buildDiagnostics(input, required, requirements, gate, state),
+    roster: rebalanced.state.toRoster('AUTO'),
+    diagnostics: buildDiagnostics(input, required, requirements, rebalanced),
   };
 }
 

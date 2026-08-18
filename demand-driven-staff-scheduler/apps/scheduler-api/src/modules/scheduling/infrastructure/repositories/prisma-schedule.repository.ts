@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import type {
   IScheduleRepository,
   CreateScheduleData,
+  UpdateScheduleData,
 } from '../../domain/repositories/schedule.repository'
 import type { Schedule } from '../../domain/entities/schedule.entity'
 import { DEFAULT_SCHEDULE_PARAMETERS } from '../../domain/entities/schedule.entity'
@@ -55,8 +56,8 @@ export class PrismaScheduleRepository implements IScheduleRepository {
     return row ? toDomain(row) : null
   }
 
-  async findAll(): Promise<Schedule[]> {
-    const rows = await this.tx.schedule.findMany({ orderBy: { createdAt: 'desc' } })
-    return rows.map(toDomain)
+  async update(id: string, data: UpdateScheduleData): Promise<Schedule> {
+    const row = await this.tx.schedule.update({ where: { id }, data })
+    return toDomain(row)
   }
 }
