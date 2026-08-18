@@ -468,6 +468,57 @@ test against the real seed team (day 7's genuinely-lower Sunday demand), not by 
 All 218 tests pass across the workspace (97 scheduling-core, up from 80; 53 shared-kernel; 27
 scheduler-api; 41 web, up from 30) — `npm run check` clean, 0 lint errors.
 
+## Submission-deliverable audit against the PDF itself (this session, user-directed)
+
+The user asked twice whether the repo actually meets the brief. Answered by reading
+`SWE_Take-Home_Staff_Scheduling_System.pdf` **directly** rather than
+`docs/01_business_requirements.md` (this repo's own quote of it) — which is what surfaced the
+problem, since the derived doc never captured the PDF's **§6 Deliverables** or **§9** at all, so
+nothing in the repo had ever been tracking them.
+
+**Functionally: complete, verified live, not just by test suite.** Booted the real API against the
+real Postgres and ran the whole brief in order — create schedule → 2 default shifts auto-seeded
+(07:00–15:00, 15:00–23:00) → 3 staff with different caps → import the brief's CSV
+(**112 cells / 3,058 transactions**, exact) → auto-schedule → summary → coverage. Two checks worth
+keeping: **Monday 07:00 = 12 transactions**, which is the `Mon` column of the PDF's own table and
+not `Fri`'s 22 — proving the importer matches columns by weekday token, the failure mode assumption
+8 exists for; and the deliberately-starved case, **272 required staff-hours against 70 contracted**,
+which returned 40/40 + 16/20 + 8/10 hours (zero cap violations, nobody at zero, 100/80/80%
+utilisation) plus 12 unfilled seats / 92 understaffed hours / a structural verdict — never throwing,
+which is §4's actual requirement. Summary arithmetic confirmed independently: 3058 ÷ 64 = 47.78
+overall vs 21.29 average-of-per-cell, both surfaced and correctly different (§2.6 says show both),
+and all 72 zero-staff cells return `null` → "–". All 5/5 stretch goals built. 218/218 tests.
+
+**Zero code defects found. Every defect was in the three graded deliverables**, and they were worse
+than anything in the code:
+- `docs/12_ai_collaboration.md` — a required deliverable, graded on *"honest"* — described the stack
+  reversal **backwards**, claiming the repo had been reversed *away* from NestJS/Postgres/Docker.
+  Rewritten, and enriched with the events that were actually the interesting AI-collaboration
+  material and had never been in it: the user overruling the agent on architecture, the four bugs
+  only a real cross-origin browser could expose, the `CreateScheduleHandler` "fix" reverted before
+  commit, and doc-drift as the project's most common defect class.
+- `readme.md`/`readme.vi.md` were **underselling the work to a grader**: "80/80 specs" (really
+  97/97), "17 logged assumptions" (21), "Five ADRs" (6), and "the two stretch goals this repo chose
+  to build" when **all five** were built.
+- **§6 requires the README to carry "a short description of your approach to the auto-scheduler"**
+  and it had none — only proof-strategy prose. Added as a four-stage section (demand→headcount, the
+  `N` method and its 18-vs-15 divergence, floor-then-top-up, the gate + 60% utilisation rule, and
+  the graceful-degradation numbers measured above), in both languages.
+- **§9's "note what you would do next"** was absent — added (overnight shifts, multi-week, component
+  tests, Prometheus/Grafana), each with its existing trigger rather than as vague future work.
+- Three links in each README pointed at `../README.md` / `../service-appointment-scheduler/`, which
+  **404 the moment `git subtree split` produces the standalone deliverable** — a dead link on line 3
+  of the README a grader opens first. Converted to plain text so both readings work.
+- §6's *"keep commit history intact"* cannot be satisfied retroactively (4 coarse commits, one of
+  256 files) and history is not being rewritten. Instead the README now states this plainly and
+  points at `.ai/plans/` + `PROJECT_STATUS.md` + `.ai/memory/*.jsonl` as the committed evolution
+  record.
+
+**Known environment hazard for the on-site demo (§6), not a repo bug:** another scenario's
+`scheduler-grafana` container binds port **3000**, which is exactly `apps/web`'s port and the only
+origin in `CORS_ALLOWED_ORIGINS` — with it running, Next.js falls back to 3001 and every API call is
+then blocked by CORS. Stop it before demoing.
+
 ## Current focus
 
 **`backend-architecture-reversal.plan.md` (all six phases A–F), Phase 3 (the UI), and the stretch
