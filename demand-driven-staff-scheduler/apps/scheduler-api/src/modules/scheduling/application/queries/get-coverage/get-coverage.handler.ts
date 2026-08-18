@@ -48,12 +48,15 @@ export class GetCoverageHandler implements IQueryHandler<GetCoverageQuery, Diagn
     const detail = await this.repo.findScheduleDetail(query.scheduleId)
     if (!detail) throw new ScheduleNotFoundError(query.scheduleId)
 
-    const input = buildSchedulingInput(
-      detail.schedule,
-      detail.staff,
-      detail.shifts,
-      detail.demandCells,
-    )
+    const input = buildSchedulingInput({
+      schedule: detail.schedule,
+      staff: detail.staff,
+      shifts: detail.shifts,
+      demandCells: detail.demandCells,
+      unavailability: detail.unavailability,
+      staffRoles: detail.staffRoles,
+      shiftRoleRequirements: detail.shiftRoleRequirements,
+    })
     const required = computeRequiredStaff(input.demand, input.parameters)
     const requirements = computeShiftRequirements(required, input.shifts)
     const gate = new FeasibilityGate(input)

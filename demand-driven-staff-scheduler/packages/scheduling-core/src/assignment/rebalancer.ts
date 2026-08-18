@@ -4,7 +4,7 @@
 // RosterState, then committing the new one. No hidden second mutator is added.
 import { FeasibilityGate, RosterState, type EligibilityData, type RosterContext } from './feasibility-gate.js';
 import { compareByNameThenId, utilisationOf } from './utilisation.js';
-import type { SchedulingInput, Staff } from '../model/types.js';
+import type { RoleId, SchedulingInput, Staff, StaffId } from '../model/types.js';
 
 const DEFAULT_MAX_ITERATIONS = 200;
 
@@ -37,6 +37,41 @@ function coverageDidNotFall(before: RosterState, after: RosterState): boolean {
     if ((afterCounts.get(key) ?? 0) < count) return false;
   }
   return true;
+}
+
+/** `(day:shiftId:roleId) -> count` — role-holders only, same seat-key shape as `seatCounts`. */
+function roleSeatCounts(state: RosterState, staffRoles: ReadonlyMap<StaffId, ReadonlySet<RoleId>>): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const d of state.all()) {
+    for (const roleId of staffRoles.get(d.staffId) ?? []) {
+      const key = `${d.day}:${d.shift.id}:${roleId}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
+ * `coverageDidNotFall` compares per-seat COUNTS only, so a swap can preserve headcount while
+ * destroying role coverage — moving the seat's only supervisor to a shift with no supervisor
+ * requirement changes zero seat counts but removes a role-holder from a seat that needed one.
+ * Required alongside `coverageDidNotFall`, not instead of it (stretch-goals plan §2a).
+ */
+function roleCoverageDidNotFall(
+  before: RosterState,
+  after: RosterState,
+  staffRoles: ReadonlyMap<StaffId, ReadonlySet<RoleId>>,
+): boolean {
+  const beforeCounts = roleSeatCounts(before, staffRoles);
+  const afterCounts = roleSeatCounts(after, staffRoles);
+  for (const [key, count] of beforeCounts) {
+    if ((afterCounts.get(key) ?? 0) < count) return false;
+  }
+  return true;
+}
+
+function buildStaffRoles(staff: readonly Staff[]): Map<StaffId, ReadonlySet<RoleId>> {
+  return new Map(staff.map((s) => [s.id, new Set(s.roles ?? [])]));
 }
 
 /** A fresh RosterState with every committed assignment EXCEPT `excluded`, replayed through the
@@ -74,6 +109,7 @@ export function rebalance(
 ): RosterState {
   const { gate } = roster;
   let state = roster.state;
+  const staffRoles = buildStaffRoles(input.staff);
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     const ranked = [...input.staff].sort(
@@ -104,6 +140,7 @@ export function rebalance(
           withoutIt.commit(verdict.eligibility);
 
           if (!coverageDidNotFall(state, withoutIt)) continue;
+          if (!roleCoverageDidNotFall(state, withoutIt, staffRoles)) continue;
           if (maxMinGap(input.staff, withoutIt) >= currentGap) continue; // must strictly shrink
 
           improved = withoutIt;

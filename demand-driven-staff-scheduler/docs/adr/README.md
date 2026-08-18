@@ -31,6 +31,7 @@ A directive states *what the rule is*; an ADR states *why that rule won over the
 | [0003](0003-demand-to-headcount-model.md) | Demand-to-Headcount Model — choosing and calibrating `N` | Accepted |
 | [0004](0004-scheduling-core-as-a-pure-package.md) | `scheduling-core` as a zero-dependency package | Accepted |
 | [0005](0005-transaction-retry-boundary.md) | Transaction & Retry Boundary — Unit of Work + inferred-from-signature + fail-fast at boot | Accepted — **ported**, see below |
+| [0006](0006-role-requirements-as-seat-requirements.md) | Role Requirements Are a Seat Requirement, Not a Gate Constraint | Accepted |
 
 0001–0004 were written for this scenario from scratch — numbering started at 0001 because nothing
 was ported verbatim at the time (`.ai/plans/init-source.plan.md` §6). That changed with the

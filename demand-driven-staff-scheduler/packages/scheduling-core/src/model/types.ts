@@ -7,10 +7,31 @@ export type DayOfWeek = 1 | 2 | 3 | 4 | 5 | 6 | 7; // 1 = Monday .. 7 = Sunday
 export type StaffId = string;
 export type ShiftId = string;
 
+/** A block of time a staff member cannot be scheduled (H4). "Day off" is the UI preset {0, 1440}. */
+export interface UnavailabilityWindow {
+  readonly day: DayOfWeek;
+  readonly startMinute: number;
+  readonly endMinute: number; // > startMinute, same rule as Shift (assumption 3)
+}
+
+export type RoleId = string;
+
+/** A shift-level seat requirement — "this shift needs at least `minCount` staff holding `roleId`"
+ *  (brief §8 stretch: "a shift must include at least one supervisor"). Applies to every day the
+ *  shift runs, not per-day (stretch-goals plan D2/§2a). */
+export interface RoleRequirement {
+  readonly roleId: RoleId;
+  readonly minCount: number;
+}
+
 export interface Staff {
   readonly id: StaffId;
   readonly name: string;
   readonly maxWeeklyHours: number;
+  /** Optional — exactOptionalPropertyTypes is on; `staffMemberArb` and every existing fixture omit it. */
+  readonly unavailability?: readonly UnavailabilityWindow[];
+  /** Many-to-many — "roles/**skills**" means a person can hold more than one (stretch-goals plan D2). */
+  readonly roles?: readonly RoleId[];
 }
 
 export interface Shift {
@@ -19,6 +40,8 @@ export interface Shift {
   /** Minutes from midnight. Plan §3.3 — shifts are stored as minutes, not TIME. */
   readonly startMinute: number;
   readonly endMinute: number; // endMinute > startMinute; overnight shifts are out of scope (assumption 3)
+  /** Optional — seat requirements by role (stretch-goals plan §2a). */
+  readonly roleRequirements?: readonly RoleRequirement[];
 }
 
 /** transactions[day][hour], hour 0-23. A missing (day, hour) entry means "closed" (assumption 2). */
@@ -55,7 +78,8 @@ export type ReasonCode =
   | 'WOULD_EXCEED_MAX_HOURS' // H1
   | 'OVERLAPS_EXISTING_SHIFT' // H2
   | 'ALREADY_ASSIGNED' // H3
-  | 'UNAVAILABLE'; // H4 (stretch)
+  | 'UNAVAILABLE' // H4 — real (stretch-goals plan §1a, 2026-08-18); checked first, see feasibility-gate.ts
+  | 'UNKNOWN_REFERENCE'; // validateRoster only — an assignment naming a staffId/shiftId not in input
 
 export interface Violation {
   readonly staffId: StaffId;
@@ -93,11 +117,22 @@ export interface StructuralVerdict {
   readonly contractedStaffHours: number;
 }
 
+/** A shift that ran without meeting one of its role minimums — reported, never blocking (D3, D5).
+ *  `assigned` counts only role-holders on that seat, not the seat's total headcount. */
+export interface RoleShortfall {
+  readonly day: DayOfWeek;
+  readonly shiftId: ShiftId;
+  readonly roleId: RoleId;
+  readonly required: number;
+  readonly assigned: number;
+}
+
 export interface Diagnostics {
   readonly hours: readonly HourDiagnostic[];
   readonly staff: readonly StaffDiagnostic[];
   readonly unfilledSeats: readonly UnfilledSeat[];
   readonly structural: StructuralVerdict;
+  readonly roleShortfalls: readonly RoleShortfall[];
 }
 
 export interface SchedulingResult {

@@ -23,8 +23,8 @@ export { computeShiftRequirements } from './requirements/shift-requirements.js';
 // stage commits through THIS pair, never a second one — directives/domain_modeling.md §1.
 export { FeasibilityGate, RosterState, type Eligibility, type EligibilityData, type RosterContext, type Verdict } from './assignment/feasibility-gate.js';
 
-// Stage 3b — the two deterministic assignment passes (fairness floor, then coverage top-up).
-export { fairnessPass, coveragePass } from './assignment/assigner.js';
+// Stage 3b — the assignment passes: roles (seat requirements) → fairness floor → coverage top-up.
+export { rolePass, fairnessPass, coveragePass } from './assignment/assigner.js';
 
 // Stage 4 — bounded local search that improves fairness without ever dropping coverage.
 export { rebalance } from './assignment/rebalancer.js';
@@ -32,7 +32,7 @@ export { rebalance } from './assignment/rebalancer.js';
 // Stage 5 — turns the final RosterState into a report; never mutates it.
 export { buildDiagnostics } from './reporting/diagnostics.js';
 
-import { coveragePass, fairnessPass } from './assignment/assigner.js';
+import { coveragePass, fairnessPass, rolePass } from './assignment/assigner.js';
 import { FeasibilityGate, RosterState, type RosterContext } from './assignment/feasibility-gate.js';
 import { rebalance } from './assignment/rebalancer.js';
 import { computeRequiredStaff } from './demand/demand-model.js';
@@ -56,11 +56,15 @@ import {
 
 /**
  * generateRoster — the whole pipeline (init plan §7): demand → required → shift requirements →
- * fairness pass → coverage pass → bounded rebalance → diagnostics. Never throws on a
+ * role pass → fairness pass → coverage pass → bounded rebalance → diagnostics. Never throws on a
  * feasible-but-bad input (CLAUDE.md hard rule) — an infeasible week is a diagnostics case, not an
  * error (init plan §7.6, assumption 7). Deterministic: same input twice → structurally equal
  * result (init plan §2.2), because nothing downstream of this function reads a clock or a random
  * seed and every internal ordering ties-breaks on (name, id) or (day, shift.id).
+ *
+ * `rolePass` runs FIRST (stretch-goals plan §2a) — a role minimum is the narrowest constraint
+ * (fewest eligible candidates), so filling it before fairness/coverage means a role shortfall
+ * reflects genuine lack of capacity, not an artefact of fill order.
  */
 export function generateRoster(input: SchedulingInput): SchedulingResult {
   const required = computeRequiredStaff(input.demand, input.parameters);
@@ -68,10 +72,11 @@ export function generateRoster(input: SchedulingInput): SchedulingResult {
   const gate = new FeasibilityGate(input);
   const roster: RosterContext = { gate, state: new RosterState() };
 
-  // fairnessPass/coveragePass mutate roster.state's underlying RosterState in place (same
+  // rolePass/fairnessPass/coveragePass mutate roster.state's underlying RosterState in place (same
   // instance throughout); rebalance is the one stage that returns a NEW RosterState, so roster is
   // rebuilt (not reassigned in place — RosterContext is readonly, per directives/domain_modeling.md
   // §1's "plain data" rule) to keep gate and state moving through the pipeline as one pair.
+  rolePass(input, requirements, roster);
   fairnessPass(input, requirements, roster);
   coveragePass(input, requirements, roster);
   const rebalanced: RosterContext = { gate, state: rebalance(input, roster) };
@@ -168,6 +173,17 @@ export function suggestTransactionsPerStaff(
  * (reason `UNAVAILABLE` — the frozen `ReasonCode` union has no dedicated "unknown reference" code;
  * H4 is otherwise unimplemented and unused, so this reuse is deliberate, not a collision with a
  * real H4 check).
+ *
+ * 2026-08-18 (stretch-goals plan §1a, D4): the prediction above stopped being safe once H4 became
+ * real — a dangling reference and a real availability block are now different facts, and reusing
+ * `UNAVAILABLE` for both would make a validateRoster caller unable to tell "fix your request" from
+ * "this person has that day off". Split: dangling references now report `UNKNOWN_REFERENCE`.
+ *
+ * Deliberately UNCHANGED by roles (stretch-goals plan §2a, D5): a role minimum is a per-SEAT
+ * question ("is this shift legal yet"), not a per-CANDIDATE one, and `FeasibilityGate.eligible`
+ * only ever answers the latter — there is no `ReasonCode` for a role shortfall and this function
+ * does not gain one. `Diagnostics.roleShortfalls` is the only surface for it. Do not "fix" this
+ * omission; see ADR-0006.
  */
 export function validateRoster(roster: Roster, input: SchedulingInput): Violation[] {
   const gate = new FeasibilityGate(input);
@@ -179,7 +195,7 @@ export function validateRoster(roster: Roster, input: SchedulingInput): Violatio
   for (const a of roster.assignments) {
     const shift = shiftById.get(a.shiftId);
     if (!staffIds.has(a.staffId) || !shift) {
-      violations.push({ staffId: a.staffId, day: a.day, shiftId: a.shiftId, reason: 'UNAVAILABLE' });
+      violations.push({ staffId: a.staffId, day: a.day, shiftId: a.shiftId, reason: 'UNKNOWN_REFERENCE' });
       continue;
     }
 

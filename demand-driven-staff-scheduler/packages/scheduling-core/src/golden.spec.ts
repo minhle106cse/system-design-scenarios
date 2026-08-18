@@ -82,4 +82,49 @@ describe('golden file — the real CSV, the seeded team, N=18 (init plan §7.8)'
     expect(summary.totalTransactions).toBe(REAL_TOTAL_TRANSACTIONS);
     expect(summary).toMatchSnapshot('summary-report');
   });
+
+  // Stretch-goals plan §1a/§2a (2026-08-18) — new snapshot KEYS, not a mutation of the four above,
+  // per the plan's own instruction: the existing four must stay byte-identical.
+  it('with Ivy (seed-09) unavailable all of Tuesday: zero Tuesday assignments for her, roster otherwise unchanged in shape', () => {
+    const input: SchedulingInput = {
+      ...seedInput(),
+      staff: SEED_STAFF.map((s) =>
+        s.id === 'seed-09' ? { ...s, unavailability: [{ day: 2 as const, startMinute: 0, endMinute: 24 * 60 }] } : s,
+      ),
+    };
+    const { roster, diagnostics } = generateRoster(input);
+    expect(roster.assignments.some((a) => a.staffId === 'seed-09' && a.day === 2)).toBe(false);
+    expect(validateRoster(roster, input)).toEqual([]);
+    expect(diagnostics.structural).toMatchSnapshot('structural-verdict-with-unavailability');
+  });
+
+  it('with a Supervisor role required on both shifts, held by the 3×40h staff: enough supervisor-hours exist (120h capacity vs 112h needed) — no shortfalls', () => {
+    // seed-01/02/03 are the three 40h-max staff (init plan §7.8) — 120h of combined supervisor
+    // capacity against 14 seats × 8h = 112h of supervisor-covered demand (2 shifts × 7 days).
+    // A supervisor pool drawn from the 24h/16h staff instead genuinely lacks the hours to cover
+    // every seat — that would be a capacity shortfall (D3's whole point), not a bug in rolePass.
+    const supervisorIds = new Set(['seed-01', 'seed-02', 'seed-03']);
+    const input: SchedulingInput = {
+      ...seedInput(),
+      staff: SEED_STAFF.map((s) => (supervisorIds.has(s.id) ? { ...s, roles: ['supervisor'] } : s)),
+      shifts: [MORNING, EVENING].map((s) => ({ ...s, roleRequirements: [{ roleId: 'supervisor', minCount: 1 }] })),
+    };
+    const { roster, diagnostics } = generateRoster(input);
+    expect(diagnostics.roleShortfalls).toEqual([]);
+    expect(validateRoster(roster, input)).toEqual([]);
+    expect(diagnostics.roleShortfalls).toMatchSnapshot('role-shortfalls-with-roles');
+  });
+
+  it('raising minCount above the number of supervisors reports a shortfall, never throws (D3)', () => {
+    const supervisorIds = new Set(['seed-01']);
+    const input: SchedulingInput = {
+      ...seedInput(),
+      staff: SEED_STAFF.map((s) => (supervisorIds.has(s.id) ? { ...s, roles: ['supervisor'] } : s)),
+      shifts: [MORNING, EVENING].map((s) => ({ ...s, roleRequirements: [{ roleId: 'supervisor', minCount: 4 }] })),
+    };
+    expect(() => generateRoster(input)).not.toThrow();
+    const { diagnostics } = generateRoster(input);
+    expect(diagnostics.roleShortfalls.length).toBeGreaterThan(0);
+    expect(diagnostics.roleShortfalls.every((s) => s.required === 4)).toBe(true);
+  });
 });

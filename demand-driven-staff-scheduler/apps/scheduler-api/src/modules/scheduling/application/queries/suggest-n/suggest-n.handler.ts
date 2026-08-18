@@ -43,12 +43,13 @@ export class SuggestNHandler implements IQueryHandler<SuggestNQuery, SuggestNRes
       throw new InsufficientCalibrationDataError(missing)
     }
 
-    const input = buildSchedulingInput(
-      detail.schedule,
-      detail.staff,
-      detail.shifts,
-      detail.demandCells,
-    )
+    const input = buildSchedulingInput({
+      schedule: detail.schedule,
+      staff: detail.staff,
+      shifts: detail.shifts,
+      demandCells: detail.demandCells,
+      unavailability: detail.unavailability,
+    })
     const suggested = suggestTransactionsPerStaff(input.demand, input.staff, input.shifts, {
       minStaffWhenOpen: input.parameters.minStaffWhenOpen,
       ...(input.parameters.maxStaffPerHour !== undefined && {

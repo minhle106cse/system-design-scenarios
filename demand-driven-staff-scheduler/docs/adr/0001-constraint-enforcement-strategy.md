@@ -10,6 +10,11 @@ Three hard constraints must never be violated by a generated or manually-edited 
 - **H2** — no staff member works two overlapping shifts on the same day.
 - **H3** — no staff member is assigned the same `(day, shift)` twice.
 
+  **2026-08-18 — a fourth joined this list**, per the Consequences section's own prediction below:
+  **H4** — no staff member is assigned a shift overlapping their declared unavailability. Not
+  rewritten into the sentence above (an accepted ADR's body is annotated, not edited) — see the
+  Consequences section for what actually shipped.
+
 Scenario 01 pushed its own correctness guarantee (no two overlapping appointments) into a
 PostgreSQL `EXCLUDE USING gist` constraint, making the bad state unrepresentable at the database
 layer. That move is not available here for any of the three constraints:
@@ -61,3 +66,11 @@ The guarantee lives in the algorithm, enforced **by construction**:
 - Adding a fourth hard constraint (e.g. H4 — per-staff availability, brief stretch goal 4) means
   adding a case to the gate and a reason code, not a new subsystem — the slot already exists
   (`ReasonCode` union, `model/types.ts`).
+
+  **2026-08-18 — this prediction held.** H4 was built (`stretch-goals-availability-and-roles.plan.md`
+  §1): one case in `FeasibilityGate.eligible` (checked first, ahead of H1–H3 — it is a pure function
+  of `(staff, day, shift)`, not `RosterState`, so it cannot affect replay-order determinism), no new
+  subsystem, no change to `validateRoster`'s shape. The one thing this note didn't anticipate:
+  `UNAVAILABLE` had been quietly doing double duty as `validateRoster`'s "unknown staffId/shiftId"
+  code, safe only because H4 was unimplemented — that reuse had to be split into a second code,
+  `UNKNOWN_REFERENCE`, once H4 became real (D4). See `docs/06_api_contracts.md`'s Roster section.

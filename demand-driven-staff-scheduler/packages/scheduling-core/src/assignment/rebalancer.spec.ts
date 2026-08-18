@@ -80,6 +80,25 @@ describe('rebalance', () => {
     expect(result).toBeDefined(); // completes without hanging — the real assertion is "this test finishes"
   });
 
+  it('never moves the only role-holder off a seat that needs the role, even if it would shrink the fairness gap (stretch-goals plan §2a)', () => {
+    const SUPERVISED_MON: Shift = { ...MON, roleRequirements: [{ roleId: 'supervisor', minCount: 1 }] };
+    const supervisor: Staff = { id: 'sup', name: 'Sup', maxWeeklyHours: 8, roles: ['supervisor'] }; // maxed at 100%
+    const idle: Staff = { id: 'idle', name: 'Idle', maxWeeklyHours: 40 }; // 0%, NOT a supervisor
+    const theInput: SchedulingInput = { ...input([supervisor, idle]), shifts: [SUPERVISED_MON, TUE, WED] };
+    const gate = new FeasibilityGate(theInput);
+    const state = new RosterState();
+    const verdict = gate.eligible('sup', 1, SUPERVISED_MON, state);
+    expect(verdict.ok).toBe(true);
+    if (verdict.ok) state.commit(verdict.eligibility);
+
+    const after = rebalance(theInput, { gate, state });
+
+    // `idle` has 0% utilisation and `sup` is at 100% — a plain fairness move would relocate `sup`'s
+    // only assignment to `idle`. That move must be rejected: `idle` doesn't hold `supervisor`, so
+    // moving it would leave the seat's role requirement unmet.
+    expect(after.assignmentsFor('sup').some((a) => a.day === 1 && a.shift.id === 'mon-shift')).toBe(true);
+  });
+
   it('respects a custom iteration cap without throwing', () => {
     const heavy: Staff = { id: 'heavy', name: 'Heavy', maxWeeklyHours: 16 };
     const idle: Staff = { id: 'idle', name: 'Idle', maxWeeklyHours: 40 };

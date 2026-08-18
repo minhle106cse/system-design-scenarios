@@ -31,14 +31,15 @@ export class AddAssignmentHandler implements ITransactionalCommandHandler<
     const schedule = await tx.schedules.findById(command.scheduleId)
     if (!schedule) throw new ScheduleNotFoundError(command.scheduleId)
 
-    const [staff, shifts, demandCells, existing] = await Promise.all([
+    const [staff, shifts, demandCells, existing, unavailability] = await Promise.all([
       tx.staff.listByScheduleId(command.scheduleId),
       tx.shifts.listByScheduleId(command.scheduleId),
       tx.demandCells.listByScheduleId(command.scheduleId),
       tx.assignments.listByScheduleId(command.scheduleId),
+      tx.unavailability.listByScheduleId(command.scheduleId),
     ])
 
-    const input = buildSchedulingInput(schedule, staff, shifts, demandCells)
+    const input = buildSchedulingInput({ schedule, staff, shifts, demandCells, unavailability })
 
     const candidate: CoreAssignment = {
       staffId: command.staffId,

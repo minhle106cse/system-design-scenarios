@@ -4,8 +4,8 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { generateRoster, validateRoster } from './index.js';
-import { shiftHours } from './model/hour-range.js';
-import type { DayOfWeek, DemandGrid, SchedulingInput, Shift, Staff } from './model/types.js';
+import { shiftHours, shiftsOverlap } from './model/hour-range.js';
+import type { DayOfWeek, DemandGrid, SchedulingInput, Shift, Staff, UnavailabilityWindow } from './model/types.js';
 
 const DAYS: readonly DayOfWeek[] = [1, 2, 3, 4, 5, 6, 7];
 
@@ -13,19 +13,40 @@ const DAYS: readonly DayOfWeek[] = [1, 2, 3, 4, 5, 6, 7];
 const staffIdArb = fc.uuid();
 const staffNameArb = fc.string({ minLength: 1, maxLength: 8 });
 
-function staffMemberArb(maxHoursArb: fc.Arbitrary<number>): fc.Arbitrary<Staff> {
-  return fc.record({ id: staffIdArb, name: staffNameArb, maxWeeklyHours: maxHoursArb });
+function staffMemberArb(maxHoursArb: fc.Arbitrary<number>, unavailabilityArb: fc.Arbitrary<UnavailabilityWindow[] | undefined> = fc.constant(undefined)): fc.Arbitrary<Staff> {
+  return fc.record(
+    { id: staffIdArb, name: staffNameArb, maxWeeklyHours: maxHoursArb, unavailability: unavailabilityArb },
+    { requiredKeys: ['id', 'name', 'maxWeeklyHours'] },
+  );
 }
 
 const normalStaffArb = staffMemberArb(fc.integer({ min: 0, max: 60 }));
 const zeroHoursStaffArb = staffMemberArb(fc.constant(0));
 const tinyCapStaffArb = staffMemberArb(fc.integer({ min: 1, max: 3 })); // smaller than a typical shift
 
+// degenerate H4 case: unavailable the entire week — every seat must come back UNAVAILABLE, never assigned.
+const unavailableAllWeekArb = staffMemberArb(
+  fc.integer({ min: 0, max: 60 }),
+  fc.constant(DAYS.map((day) => ({ day, startMinute: 0, endMinute: 24 * 60 }))),
+);
+
+// degenerate H4 case: one random window per staff member, sized like a real shift.
+const windowArb: fc.Arbitrary<UnavailabilityWindow> = fc.tuple(fc.constantFrom(...DAYS), fc.integer({ min: 0, max: 20 }), fc.integer({ min: 1, max: 8 })).map(
+  ([day, startHour, lengthHours]) => ({
+    day,
+    startMinute: startHour * 60,
+    endMinute: Math.min(24, startHour + lengthHours) * 60,
+  }),
+);
+const partiallyUnavailableArb = staffMemberArb(fc.integer({ min: 0, max: 60 }), fc.array(windowArb, { minLength: 1, maxLength: 3 }));
+
 const staffListArb: fc.Arbitrary<Staff[]> = fc.oneof(
   { weight: 2, arbitrary: fc.constant([] as Staff[]) }, // degenerate: zero staff
   { weight: 2, arbitrary: fc.array(normalStaffArb, { minLength: 1, maxLength: 1 }) }, // degenerate: one staff
   { weight: 2, arbitrary: fc.array(zeroHoursStaffArb, { minLength: 1, maxLength: 4 }) }, // degenerate: maxWeeklyHours = 0
   { weight: 2, arbitrary: fc.array(tinyCapStaffArb, { minLength: 1, maxLength: 4 }) }, // degenerate: max smaller than one shift
+  { weight: 2, arbitrary: fc.array(unavailableAllWeekArb, { minLength: 1, maxLength: 3 }) }, // degenerate: unavailable all week (H4)
+  { weight: 2, arbitrary: fc.array(partiallyUnavailableArb, { minLength: 1, maxLength: 4 }) }, // degenerate: some windows (H4)
   {
     weight: 5,
     arbitrary: fc
@@ -114,6 +135,31 @@ const parametersArb = fc.record({
   minUtilisationTarget: fc.double({ min: 0, max: 1, noNaN: true }),
 });
 
+// degenerate H4/roles case wrapper — applied AFTER staff/shifts are drawn together, since roles are
+// a relation between the two (stretch-goals plan §2a): "a role nobody holds" and "minCount above
+// team size" both need to see both arrays at once, unlike an independent per-field arbitrary.
+function withRolesArb(base: fc.Arbitrary<SchedulingInput>): fc.Arbitrary<SchedulingInput> {
+  return base.chain((input) =>
+    fc
+      .record({
+        supervisorIds: fc.subarray(input.staff.map((s) => s.id)),
+        // deliberately allows 0 (no requirement fires) and values ABOVE staff.length (degenerate:
+        // "minCount above team size" — no fill can ever satisfy it, must report, never throw)
+        minCount: fc.integer({ min: 0, max: input.staff.length + 2 }),
+        shiftIndex: input.shifts.length > 0 ? fc.integer({ min: 0, max: input.shifts.length - 1 }) : fc.constant(-1),
+      })
+      .map(({ supervisorIds, minCount, shiftIndex }) => {
+        const supervisorSet = new Set(supervisorIds);
+        const staff = input.staff.map((s) => (supervisorSet.has(s.id) ? { ...s, roles: ['supervisor'] } : s));
+        const shifts =
+          shiftIndex === -1
+            ? input.shifts
+            : input.shifts.map((sh, i) => (i === shiftIndex ? { ...sh, roleRequirements: [{ roleId: 'supervisor', minCount }] } : sh));
+        return { ...input, staff, shifts };
+      }),
+  );
+}
+
 const schedulingInputArb: fc.Arbitrary<SchedulingInput> = fc.record({
   staff: staffListArb,
   shifts: shiftListArb,
@@ -133,7 +179,8 @@ const overwhelmedInputArb: fc.Arbitrary<SchedulingInput> = fc
 
 const inputArb: fc.Arbitrary<SchedulingInput> = fc.oneof(
   { weight: 1, arbitrary: overwhelmedInputArb },
-  { weight: 9, arbitrary: schedulingInputArb },
+  { weight: 2, arbitrary: withRolesArb(schedulingInputArb) }, // degenerate: roles (stretch-goals plan §2a)
+  { weight: 7, arbitrary: schedulingInputArb },
 );
 
 function sortedAssignments(input: SchedulingInput, roster: ReturnType<typeof generateRoster>['roster']) {
@@ -150,6 +197,41 @@ describe('generateRoster — property-based (init plan §8.1, ⭐ the flagship l
       fc.property(inputArb, (input) => {
         const { roster } = generateRoster(input);
         expect(validateRoster(roster, input)).toEqual([]);
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('assertion 1b (H4): no generated assignment ever overlaps its own staff member\'s unavailability window', () => {
+    fc.assert(
+      fc.property(inputArb, (input) => {
+        const { roster } = generateRoster(input);
+        const staffById = new Map(input.staff.map((s) => [s.id, s]));
+        const shiftById = new Map(input.shifts.map((s) => [s.id, s]));
+        for (const a of roster.assignments) {
+          const staff = staffById.get(a.staffId)!;
+          const shift = shiftById.get(a.shiftId)!;
+          for (const w of staff.unavailability ?? []) {
+            if (w.day === a.day) expect(shiftsOverlap(w, shift)).toBe(false);
+          }
+        }
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('assertion 1c (roles): a reported roleShortfall always matches a recount from the roster, and never exceeds its minCount', () => {
+    fc.assert(
+      fc.property(inputArb, (input) => {
+        const { roster, diagnostics } = generateRoster(input);
+        const staffById = new Map(input.staff.map((s) => [s.id, s]));
+        for (const shortfall of diagnostics.roleShortfalls) {
+          const recount = roster.assignments.filter(
+            (a) => a.day === shortfall.day && a.shiftId === shortfall.shiftId && staffById.get(a.staffId)?.roles?.includes(shortfall.roleId),
+          ).length;
+          expect(shortfall.assigned).toBe(recount);
+          expect(shortfall.assigned).toBeLessThan(shortfall.required); // a "shortfall" that isn't short is a reporting bug
+        }
       }),
       { numRuns: 200 },
     );

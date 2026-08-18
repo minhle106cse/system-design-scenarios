@@ -122,6 +122,54 @@ describe('FeasibilityGate — H3 (already assigned), and precedence H3 → H2 �
   });
 });
 
+describe('FeasibilityGate — H4 (per-staff availability), checked first', () => {
+  const UNAVAILABLE_MONDAY: Staff = {
+    id: 'blocked',
+    name: 'Blocked',
+    maxWeeklyHours: 20,
+    unavailability: [{ day: 1, startMinute: 0, endMinute: 24 * 60 }], // Monday off, all day
+  };
+
+  it('blocks a shift overlapping the unavailability window', () => {
+    const gate = new FeasibilityGate(input([UNAVAILABLE_MONDAY]));
+    const verdict = gate.eligible('blocked', 1, MORNING, new RosterState());
+    expect(verdict).toEqual({ ok: false, reason: 'UNAVAILABLE' });
+  });
+
+  it('does not block a shift on a different day', () => {
+    const gate = new FeasibilityGate(input([UNAVAILABLE_MONDAY]));
+    const verdict = gate.eligible('blocked', 2, MORNING, new RosterState());
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('does not block a non-overlapping window on the same day', () => {
+    const partial: Staff = {
+      id: 'partial',
+      name: 'Partial',
+      maxWeeklyHours: 20,
+      unavailability: [{ day: 1, startMinute: 15 * 60, endMinute: 23 * 60 }], // Monday evening off
+    };
+    const gate = new FeasibilityGate(input([partial]));
+    const verdict = gate.eligible('partial', 1, MORNING, new RosterState()); // Monday morning — no overlap
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('takes precedence over H3 (ALREADY_ASSIGNED would otherwise fire)', () => {
+    const gate = new FeasibilityGate(input([UNAVAILABLE_MONDAY]));
+    const state = new RosterState();
+    // Nothing committed yet, so only H4 can be the reason — proves H4 runs before H3/H2/H1 fire
+    // for an already-blocked day rather than the gate reaching H1's hours check first.
+    const verdict = gate.eligible('blocked', 1, MORNING, state);
+    expect(verdict).toEqual({ ok: false, reason: 'UNAVAILABLE' });
+  });
+
+  it('staff with no unavailability field is never blocked by H4', () => {
+    const gate = new FeasibilityGate(input([ALICE]));
+    const verdict = gate.eligible('alice', 1, MORNING, new RosterState());
+    expect(verdict.ok).toBe(true);
+  });
+});
+
 describe('FeasibilityGate — unknown staffId is a caller bug, not a feasibility verdict', () => {
   it('throws rather than returning a reason code', () => {
     const gate = new FeasibilityGate(input([ALICE]));

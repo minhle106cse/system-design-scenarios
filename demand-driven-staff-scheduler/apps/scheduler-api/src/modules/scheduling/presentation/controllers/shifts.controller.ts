@@ -1,16 +1,21 @@
-import { Body, Controller, Delete, HttpCode, Param, Patch, Post } from '@nestjs/common'
+import { Body, Controller, Delete, HttpCode, Param, Patch, Post, Put } from '@nestjs/common'
 import { ApiOperation } from '@nestjs/swagger'
 import { CommandBus } from '@scheduler/shared-kernel'
 import { ZodValidationPipe } from '@/infrastructure/http/pipes/zod-validation.pipe'
 import { AddShiftCommand } from '../../application/commands/add-shift/add-shift.command'
 import { UpdateShiftCommand } from '../../application/commands/update-shift/update-shift.command'
 import { RemoveShiftCommand } from '../../application/commands/remove-shift/remove-shift.command'
+import { SetShiftRoleRequirementsCommand } from '../../application/commands/set-shift-role-requirements/set-shift-role-requirements.command'
 import {
   createShiftSchema,
   updateShiftSchema,
   type CreateShiftInput,
   type UpdateShiftInput,
 } from '../schemas/shift.schema'
+import {
+  setShiftRoleRequirementsSchema,
+  type SetShiftRoleRequirementsInput,
+} from '../schemas/role.schema'
 
 /** Brief §2.4 — add/edit/remove a shift (start time + end time only). */
 @Controller('schedules/:scheduleId/shifts')
@@ -45,5 +50,15 @@ export class ShiftsController {
   @ApiOperation({ summary: 'Remove a shift (brief §2.4) — soft delete' })
   async remove(@Param('shiftId') shiftId: string): Promise<void> {
     await this.commandBus.execute(new RemoveShiftCommand(shiftId))
+  }
+
+  @Put(':shiftId/role-requirements')
+  @ApiOperation({ summary: "Replace this shift's role requirements (brief §8 stretch, D2)" })
+  setRoleRequirements(
+    @Param('shiftId') shiftId: string,
+    @Body(new ZodValidationPipe(setShiftRoleRequirementsSchema))
+    body: SetShiftRoleRequirementsInput,
+  ) {
+    return this.commandBus.execute(new SetShiftRoleRequirementsCommand(shiftId, body.requirements))
   }
 }

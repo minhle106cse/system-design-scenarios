@@ -2,12 +2,21 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { addShift, removeShift, updateShift, type Shift } from '@/lib/api-client'
+import {
+  addShift,
+  removeShift,
+  updateShift,
+  setShiftRoleRequirements,
+  type Shift,
+  type Role,
+  type ShiftRoleRequirement,
+} from '@/lib/api-client'
 import { describeApiError } from '@/lib/error-copy'
 import { formatMinutes, parseTime, shiftHours } from '@/lib/week'
 import { Field } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
 import { Banner } from '@/components/ui/banner'
+import { Badge } from '@/components/ui/badge'
 import { DataTable } from '@/components/ui/data-table'
 import { Modal } from '@/components/ui/modal'
 
@@ -16,9 +25,13 @@ import { Modal } from '@/components/ui/modal'
 export function ShiftManager({
   scheduleId,
   shifts,
+  roles,
+  shiftRoleRequirements,
 }: {
   readonly scheduleId: string
   readonly shifts: readonly Shift[]
+  readonly roles: readonly Role[]
+  readonly shiftRoleRequirements: readonly ShiftRoleRequirement[]
 }) {
   const router = useRouter()
   const [label, setLabel] = useState('')
@@ -31,6 +44,8 @@ export function ShiftManager({
   const [editStart, setEditStart] = useState('')
   const [editEnd, setEditEnd] = useState('')
   const [confirmRemove, setConfirmRemove] = useState<Shift | null>(null)
+  const [requiresFor, setRequiresFor] = useState<Shift | null>(null)
+  const [draftRequirements, setDraftRequirements] = useState<Map<string, number>>(new Map())
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -99,6 +114,45 @@ export function ShiftManager({
     }
   }
 
+  const roleById = new Map(roles.map((r) => [r.id, r]))
+
+  function requirementsForShift(shiftId: string): readonly ShiftRoleRequirement[] {
+    return shiftRoleRequirements.filter((r) => r.shiftId === shiftId)
+  }
+
+  function openRequires(shift: Shift) {
+    setRequiresFor(shift)
+    setDraftRequirements(new Map(requirementsForShift(shift.id).map((r) => [r.roleId, r.minCount])))
+  }
+
+  function setDraftCount(roleId: string, minCount: number) {
+    setDraftRequirements((prev) => {
+      const next = new Map(prev)
+      if (minCount <= 0) next.delete(roleId)
+      else next.set(roleId, minCount)
+      return next
+    })
+  }
+
+  async function saveRequires() {
+    if (!requiresFor) return
+    setPending(true)
+    setError(null)
+    try {
+      await setShiftRoleRequirements(
+        scheduleId,
+        requiresFor.id,
+        [...draftRequirements].map(([roleId, minCount]) => ({ roleId, minCount })),
+      )
+      setRequiresFor(null)
+      router.refresh()
+    } catch (err) {
+      setError(describeApiError(err))
+    } finally {
+      setPending(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {error && <Banner tone="error">{error}</Banner>}
@@ -147,6 +201,28 @@ export function ShiftManager({
               ),
           },
           { header: 'Length', render: (s) => `${shiftHours(s)}h` },
+          {
+            header: 'Requires',
+            render: (s) => {
+              const reqs = requirementsForShift(s.id)
+              return (
+                <div className="flex flex-wrap items-center gap-1">
+                  {reqs.length === 0 ? (
+                    <span className="text-xs text-slate-400">No role requirements</span>
+                  ) : (
+                    reqs.map((r) => (
+                      <Badge key={r.roleId} tone="neutral">
+                        {roleById.get(r.roleId)?.name ?? 'Unknown role'} × {r.minCount}
+                      </Badge>
+                    ))
+                  )}
+                  <Button variant="secondary" onClick={() => openRequires(s)}>
+                    Edit
+                  </Button>
+                </div>
+              )
+            },
+          },
           {
             header: '',
             render: (s) =>
@@ -230,6 +306,44 @@ export function ShiftManager({
             Remove
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        open={requiresFor !== null}
+        title={`Role requirements — ${requiresFor?.label ?? ''}`}
+        onClose={() => setRequiresFor(null)}
+      >
+        {requiresFor && (
+          <div className="space-y-3">
+            {roles.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No roles defined yet — add one on the Staff tab first.
+              </p>
+            ) : (
+              roles.map((role) => (
+                <div key={role.id} className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-slate-700">{role.name}</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={draftRequirements.get(role.id) ?? 0}
+                    onChange={(e) => setDraftCount(role.id, Number(e.target.value))}
+                    className="w-20 rounded border border-slate-300 px-2 py-1 text-sm"
+                    aria-label={`Minimum ${role.name} on ${requiresFor.label}`}
+                  />
+                </div>
+              ))
+            )}
+            <div className="flex justify-end gap-2 border-t border-slate-200 pt-3">
+              <Button variant="secondary" onClick={() => setRequiresFor(null)}>
+                Cancel
+              </Button>
+              <Button disabled={pending} onClick={saveRequires}>
+                {pending ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

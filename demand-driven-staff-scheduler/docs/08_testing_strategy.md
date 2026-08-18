@@ -15,6 +15,17 @@ Layer 1 is the flagship — the direct analogue of scenario 01's concurrency tes
 `scheduling-core` is zero-dependency and runs in milliseconds (plan §2.2): a suite too slow to run
 stops being run.
 
+**Extended for the stretch goals** (`stretch-goals-availability-and-roles.plan.md`, 2026-08-18):
+`index.prop-spec.ts` gained two new degenerate `staffListArb` cases — a staff member unavailable
+the entire week (H4), and a role nobody holds / a `minCount` above team size (roles) — plus two new
+assertions run against the same combined `inputArb` every other assertion already runs against:
+**1b** (no generated assignment ever overlaps its own staff member's unavailability window) and
+**1c** (a reported `roleShortfall` always matches a recount from the roster, and never claims
+`assigned >= required`). Both are proven the same way assertion 1 proves H1–H3: over arbitrary
+generated inputs, not hand-picked examples. `golden.spec.ts` gained new snapshot **keys** for a
+with-unavailability and a with-roles run — the four pre-existing keys stayed byte-identical, per
+the repo's own rule against silently redefining what a passing snapshot suite already proved.
+
 ## On quality, honestly
 
 None of this proves the roster is *optimal* — no optimum is defined. What's measured instead, with
@@ -34,9 +45,10 @@ suite — a scope decision, not an oversight (`docs/05_ui_guidelines.md` states 
 
 ## Status
 
-Layers 1 and 2 are built and green — **80/80 specs** in `packages/scheduling-core` (unit +
-property + golden-file). Layer 3's importer and roster-edit cases are covered by
-`apps/scheduler-api`'s own suite plus live verification against a real Postgres (every claim in
-`../.ai/PROJECT_STATUS.md`'s phase log is backed by a real `curl`/`psql` check, not an assumption).
-`apps/web`'s `src/lib/*.spec.ts` (27 specs) cover the UI's non-trivial logic, per the note above.
-`../.ai/PROJECT_STATUS.md` tracks current phase.
+Layers 1 and 2 are built and green — **97/97 specs** in `packages/scheduling-core` (unit +
+property + golden-file, up from 80 with the stretch goals' H4/roles additions). Layer 3's importer
+and roster-edit cases are covered by `apps/scheduler-api`'s own suite (27 specs) plus live
+verification against a real Postgres (every claim in `../.ai/PROJECT_STATUS.md`'s phase log is
+backed by a real `curl`/`psql` check, not an assumption). `apps/web`'s `src/lib/*.spec.ts`
+(41 specs) cover the UI's non-trivial logic, per the note above. `../.ai/PROJECT_STATUS.md` tracks
+current phase.

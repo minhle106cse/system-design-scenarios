@@ -21,6 +21,7 @@ export default async function RosterPage({
       assignments={detail.assignments}
       latestRun={detail.latestRun}
       suggestedN={suggestedN}
+      roles={detail.roles}
     />
   )
 }

@@ -27,7 +27,8 @@ export interface RosterContext {
 }
 
 /**
- * H1–H4 (init plan §7.4). **Evaluation order is load-bearing and pinned: H3 → H2 → H1.**
+ * H1–H4 (init plan §7.4). **Evaluation order is load-bearing and pinned: H4 → H3 → H2 → H1**
+ * (H4 moved to the front, stretch-goals plan §1a, 2026-08-18 — see the note at its check below).
  * `ALREADY_ASSIGNED` is checked before `OVERLAPS_EXISTING_SHIFT` because a shift trivially
  * overlaps itself — reporting "overlaps" for an exact duplicate would be a misleading diagnostic.
  */
@@ -44,6 +45,15 @@ export class FeasibilityGate {
       // A caller bug (an unknown staffId), not a feasibility case — scheduling-core trusts its
       // input completely (directives/zod_validation.md §4); this is not user input to reject.
       throw new Error(`FeasibilityGate.eligible: unknown staffId "${staffId}" — not in SchedulingInput.staff`);
+    }
+
+    // H4 — per-staff availability. Checked FIRST: H1–H3 are roster-relative facts a manager can
+    // fix by moving assignments around; H4 is a fact about the person that no roster edit
+    // changes, so it is the more actionable diagnostic. Pure function of (staff, day, shift) —
+    // reads no RosterState, so it cannot make a verdict depend on replay order (the invariant
+    // rebalancer.ts:50-54 relies on).
+    if (staff.unavailability?.some((w) => w.day === day && shiftsOverlap(w, shift))) {
+      return { ok: false, reason: 'UNAVAILABLE' };
     }
 
     const existingOnDay = state.assignmentsOn(staffId, day);
@@ -64,9 +74,6 @@ export class FeasibilityGate {
     if (projectedHours > staff.maxWeeklyHours) {
       return { ok: false, reason: 'WOULD_EXCEED_MAX_HOURS' };
     }
-
-    // H4 — per-staff availability. Specified, unimplemented (init plan §1's stretch slot: the
-    // slot exists in ReasonCode/model/types.ts; nothing calls it yet).
 
     return { ok: true, eligibility: eligibilityOf({ staffId, day, shift }) };
   }

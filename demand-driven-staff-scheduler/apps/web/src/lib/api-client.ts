@@ -136,6 +136,33 @@ export interface ScheduleRun {
   readonly diagnostics: unknown
 }
 
+export interface StaffUnavailability {
+  readonly id: string
+  readonly staffId: string
+  readonly dayOfWeek: number // 1 = Monday .. 7 = Sunday
+  readonly startMinute: number
+  readonly endMinute: number
+}
+
+export interface Role {
+  readonly id: string
+  readonly scheduleId: string
+  readonly name: string
+}
+
+export interface StaffRole {
+  readonly id: string
+  readonly staffId: string
+  readonly roleId: string
+}
+
+export interface ShiftRoleRequirement {
+  readonly id: string
+  readonly shiftId: string
+  readonly roleId: string
+  readonly minCount: number
+}
+
 export interface ScheduleDetail {
   readonly schedule: Schedule
   readonly staff: readonly StaffMember[]
@@ -143,10 +170,18 @@ export interface ScheduleDetail {
   readonly demandCells: readonly DemandCell[]
   readonly assignments: readonly Assignment[]
   readonly latestRun: ScheduleRun | null
+  readonly unavailability: readonly StaffUnavailability[]
+  readonly roles: readonly Role[]
+  readonly staffRoles: readonly StaffRole[]
+  readonly shiftRoleRequirements: readonly ShiftRoleRequirement[]
 }
 
 export type ReasonCode =
-  'WOULD_EXCEED_MAX_HOURS' | 'OVERLAPS_EXISTING_SHIFT' | 'ALREADY_ASSIGNED' | 'UNAVAILABLE'
+  | 'WOULD_EXCEED_MAX_HOURS'
+  | 'OVERLAPS_EXISTING_SHIFT'
+  | 'ALREADY_ASSIGNED'
+  | 'UNAVAILABLE'
+  | 'UNKNOWN_REFERENCE'
 
 export interface Violation {
   readonly staffId: string
@@ -191,6 +226,14 @@ export interface UnfilledSeat {
   readonly blockedReasons: readonly ReasonCode[]
 }
 
+export interface RoleShortfall {
+  readonly day: number
+  readonly shiftId: string
+  readonly roleId: string
+  readonly required: number
+  readonly assigned: number
+}
+
 export interface Diagnostics {
   readonly hours: readonly HourDiagnostic[]
   readonly staff: readonly StaffDiagnostic[]
@@ -199,6 +242,7 @@ export interface Diagnostics {
     readonly floorStaffHours: number
     readonly contractedStaffHours: number
   }
+  readonly roleShortfalls: readonly RoleShortfall[]
 }
 
 export interface SummaryCell {
@@ -301,6 +345,69 @@ export function removeStaff(scheduleId: string, staffId: string): Promise<void> 
   return request<void>(`/schedules/${scheduleId}/staff/${staffId}`, {
     method: 'DELETE',
   })
+}
+
+// ── Availability / days off — brief §8 stretch, H4 ─────────────────────────────────────────────
+
+export function addUnavailability(
+  scheduleId: string,
+  staffId: string,
+  data: { dayOfWeek: number; startMinute: number; endMinute: number },
+): Promise<StaffUnavailability> {
+  return request<StaffUnavailability>(
+    `/schedules/${scheduleId}/staff/${staffId}/unavailability`,
+    json(data),
+  )
+}
+
+export function removeUnavailability(
+  scheduleId: string,
+  staffId: string,
+  windowId: string,
+): Promise<void> {
+  return request<void>(`/schedules/${scheduleId}/staff/${staffId}/unavailability/${windowId}`, {
+    method: 'DELETE',
+  })
+}
+
+// ── Roles/skills — brief §8 stretch, D2 ─────────────────────────────────────────────────────────
+
+export function addRole(scheduleId: string, name: string): Promise<Role> {
+  return request<Role>(`/schedules/${scheduleId}/roles`, json({ name }))
+}
+
+export function updateRole(scheduleId: string, roleId: string, name: string): Promise<Role> {
+  return request<Role>(`/schedules/${scheduleId}/roles/${roleId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function removeRole(scheduleId: string, roleId: string): Promise<void> {
+  return request<void>(`/schedules/${scheduleId}/roles/${roleId}`, { method: 'DELETE' })
+}
+
+/** Replace-the-whole-set (assumptions 10/11's precedent) — not add/remove-one for a multi-select. */
+export function setStaffRoles(
+  scheduleId: string,
+  staffId: string,
+  roleIds: readonly string[],
+): Promise<readonly StaffRole[]> {
+  return request<readonly StaffRole[]>(`/schedules/${scheduleId}/staff/${staffId}/roles`, {
+    method: 'PUT',
+    body: JSON.stringify({ roleIds }),
+  })
+}
+
+export function setShiftRoleRequirements(
+  scheduleId: string,
+  shiftId: string,
+  requirements: readonly { roleId: string; minCount: number }[],
+): Promise<readonly ShiftRoleRequirement[]> {
+  return request<readonly ShiftRoleRequirement[]>(
+    `/schedules/${scheduleId}/shifts/${shiftId}/role-requirements`,
+    { method: 'PUT', body: JSON.stringify({ requirements }) },
+  )
 }
 
 // ── Shifts — brief §2.4 ──────────────────────────────────────────────────────────────────────────

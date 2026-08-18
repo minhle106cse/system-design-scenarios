@@ -83,6 +83,72 @@ describe('buildDiagnostics — unfilled seats report the blocking reason for eve
   });
 });
 
+describe('buildDiagnostics — role shortfalls (stretch-goals plan §2a)', () => {
+  const SHIFT_WITH_SUPERVISOR: Shift = {
+    id: 'morning',
+    label: 'Morning',
+    startMinute: 7 * 60,
+    endMinute: 15 * 60,
+    roleRequirements: [{ roleId: 'supervisor', minCount: 1 }],
+  };
+
+  it('reports a shortfall when nobody with the role is assigned to the seat', () => {
+    const staff: Staff[] = [{ id: 'a', name: 'A', maxWeeklyHours: 40 }]; // no roles
+    const input: SchedulingInput = {
+      staff,
+      shifts: [SHIFT_WITH_SUPERVISOR],
+      demand: new Map([[1, new Map([[9, 10]])]]), // floor > 0 — the seat is actually needed, not closed
+      parameters: { transactionsPerStaffHour: 5, minStaffWhenOpen: 1, minUtilisationTarget: 0.6 },
+    };
+    const gate = new FeasibilityGate(input);
+    const state = new RosterState();
+    const verdict = gate.eligible('a', 1, SHIFT_WITH_SUPERVISOR, state);
+    if (verdict.ok) state.commit(verdict.eligibility); // filled, but not by a supervisor
+    const required = computeRequiredStaff(input.demand, input.parameters);
+    const requirements = computeShiftRequirements(required, input.shifts);
+
+    const diagnostics = buildDiagnostics(input, required, requirements, { gate, state });
+    const shortfall = diagnostics.roleShortfalls.find((s) => s.day === 1 && s.shiftId === 'morning');
+    expect(shortfall).toEqual({ day: 1, shiftId: 'morning', roleId: 'supervisor', required: 1, assigned: 0 });
+  });
+
+  it('reports nothing once a role-holder is assigned', () => {
+    const staff: Staff[] = [{ id: 'a', name: 'A', maxWeeklyHours: 40, roles: ['supervisor'] }];
+    const input: SchedulingInput = {
+      staff,
+      shifts: [SHIFT_WITH_SUPERVISOR],
+      demand: new Map([[1, new Map([[9, 10]])]]), // floor > 0 — the seat is actually needed, not closed
+      parameters: { transactionsPerStaffHour: 5, minStaffWhenOpen: 1, minUtilisationTarget: 0.6 },
+    };
+    const gate = new FeasibilityGate(input);
+    const state = new RosterState();
+    const verdict = gate.eligible('a', 1, SHIFT_WITH_SUPERVISOR, state);
+    if (verdict.ok) state.commit(verdict.eligibility);
+    const required = computeRequiredStaff(input.demand, input.parameters);
+    const requirements = computeShiftRequirements(required, input.shifts);
+
+    const diagnostics = buildDiagnostics(input, required, requirements, { gate, state });
+    expect(diagnostics.roleShortfalls.filter((s) => s.day === 1 && s.shiftId === 'morning')).toEqual([]);
+  });
+
+  it('a shift with no roleRequirements reports nothing', () => {
+    const plain: Shift = { id: 'evening', label: 'Evening', startMinute: 15 * 60, endMinute: 23 * 60 };
+    const staff: Staff[] = [{ id: 'a', name: 'A', maxWeeklyHours: 40 }];
+    const input: SchedulingInput = {
+      staff,
+      shifts: [plain],
+      demand: new Map(),
+      parameters: { transactionsPerStaffHour: 5, minStaffWhenOpen: 1, minUtilisationTarget: 0.6 },
+    };
+    const gate = new FeasibilityGate(input);
+    const state = new RosterState();
+    const required = computeRequiredStaff(input.demand, input.parameters);
+    const requirements = computeShiftRequirements(required, input.shifts);
+    const diagnostics = buildDiagnostics(input, required, requirements, { gate, state });
+    expect(diagnostics.roleShortfalls).toEqual([]);
+  });
+});
+
 describe('buildDiagnostics — structural verdict', () => {
   it('reports floor staff-hours vs contracted staff-hours', () => {
     const demand: DemandGrid = new Map([[1, new Map([[9, 10]])]]); // required=2, floor over 1 hour of an 8h shift: mean over 8 hours (only 1 open) = ceil(2/8)=1
