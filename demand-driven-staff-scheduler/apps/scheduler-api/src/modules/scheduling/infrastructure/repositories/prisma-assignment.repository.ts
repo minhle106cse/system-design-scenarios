@@ -74,4 +74,14 @@ export class PrismaAssignmentRepository implements IAssignmentRepository {
   async delete(id: string): Promise<void> {
     await this.tx.assignment.delete({ where: { id } })
   }
+
+  async deleteByStaffId(staffId: string): Promise<number> {
+    const { count } = await this.tx.assignment.deleteMany({ where: { staffId } })
+    return count
+  }
+
+  async deleteByShiftId(shiftId: string): Promise<number> {
+    const { count } = await this.tx.assignment.deleteMany({ where: { shiftId } })
+    return count
+  }
 }

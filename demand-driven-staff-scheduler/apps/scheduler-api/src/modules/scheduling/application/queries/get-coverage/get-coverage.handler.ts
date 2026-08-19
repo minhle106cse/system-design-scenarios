@@ -62,10 +62,16 @@ export class GetCoverageHandler implements IQueryHandler<GetCoverageQuery, Diagn
     const gate = new FeasibilityGate(input)
     const state = new RosterState()
     const shiftById = new Map(input.shifts.map((s) => [s.id, s]))
+    const knownStaffIds = new Set(input.staff.map((s) => s.id))
 
     for (const a of detail.assignments) {
       const shift = shiftById.get(a.shiftId)
-      if (!shift) continue // orphan reference — shouldn't happen given the FK, defensive only
+      if (!shift) continue // shift removed after the roster was built — skip, don't count it
+      // Staff removed after the roster was built. `RemoveStaffHandler` now cascades these away,
+      // but a schedule edited before that fix still holds them, and `gate.eligible` THROWS on an
+      // unknown staffId by design (scheduling-core trusts its input) — which made this read a 500.
+      // A read endpoint must survive data a write path should never have left behind.
+      if (!knownStaffIds.has(a.staffId)) continue
       const verdict = gate.eligible(a.staffId, a.dayOfWeek as DayOfWeek, shift, state)
       if (verdict.ok) state.commit(verdict.eligibility)
     }

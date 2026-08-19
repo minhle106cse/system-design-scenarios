@@ -17,6 +17,11 @@ export class RemoveStaffHandler implements ITransactionalCommandHandler<
   async execute(command: RemoveStaffCommand, tx: SchedulerApiRepos): Promise<void> {
     const existing = await tx.staff.findById(command.staffId)
     if (!existing) throw new StaffMemberNotFoundError(command.staffId)
+    // Cascade first: staff is SOFT-deleted, so its row survives, but an assignment
+    // pointing at a removed one is meaningless -- and `FeasibilityGate.eligible` THROWS on a
+    // staffId that is no longer in `SchedulingInput.staff`, which turned every later coverage
+    // read into a 500 (see the repository interface's note).
+    await tx.assignments.deleteByStaffId(command.staffId)
     await tx.staff.softDelete(command.staffId)
   }
 }
