@@ -1,3 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+* {
+  scrollbar-color: theme('colors.slate.300') transparent;
+}
+
+::selection {
+  background-color: theme('colors.accent.100');
+}

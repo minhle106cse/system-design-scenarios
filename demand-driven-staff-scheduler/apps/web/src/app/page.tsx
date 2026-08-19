@@ -11,14 +11,18 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
-      <h1 className="text-2xl font-semibold">Demand-Driven Staff Scheduler</h1>
-      <p className="mt-2 text-slate-600">
-        Plan weekly staff schedules from historical transaction demand.
-      </p>
+      <div className="mb-10">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+          Demand-Driven Staff Scheduler
+        </h1>
+        <p className="mt-2 text-slate-600">
+          Plan weekly staff schedules from historical transaction demand.
+        </p>
+      </div>
 
-      <section className="mt-8">
-        <h2 className="text-sm font-medium text-slate-700">Schedules</h2>
-        <div className="mt-2">
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-card">
+        <h2 className="text-sm font-semibold text-slate-700">Schedules</h2>
+        <div className="mt-3">
           <DataTable
             columns={[
               {
@@ -26,7 +30,7 @@ export default async function HomePage() {
                 render: (s) => (
                   <Link
                     href={`/s/${s.id}/staff`}
-                    className="font-medium text-slate-900 hover:underline"
+                    className="font-medium text-slate-900 hover:text-accent-700 hover:underline"
                   >
                     {s.name}
                   </Link>
@@ -34,12 +38,19 @@ export default async function HomePage() {
               },
               {
                 header: 'Created',
-                render: (s) => new Date(s.createdAt).toLocaleDateString(),
+                render: (s) => (
+                  <span className="text-slate-500">
+                    {new Date(s.createdAt).toLocaleDateString()}
+                  </span>
+                ),
               },
               {
                 header: '',
                 render: (s) => (
-                  <Link href={`/s/${s.id}/staff`} className="text-slate-500 hover:text-slate-900">
+                  <Link
+                    href={`/s/${s.id}/staff`}
+                    className="font-medium text-accent-600 hover:text-accent-800"
+                  >
                     Open →
                   </Link>
                 ),
@@ -52,8 +63,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mt-8">
-        <h2 className="text-sm font-medium text-slate-700">New schedule</h2>
+      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-card">
+        <h2 className="text-sm font-semibold text-slate-700">New schedule</h2>
         <CreateScheduleForm />
       </section>
     </main>

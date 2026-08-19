@@ -17,19 +17,22 @@ interface Props<T> {
 export function DataTable<T>({ columns, rows, rowKey, emptyMessage }: Props<T>) {
   if (rows.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
         {emptyMessage ?? 'Nothing here yet.'}
       </div>
     )
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-card">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-slate-200 bg-slate-50">
+        <thead className="border-b border-slate-200 bg-slate-50/80">
           <tr>
             {columns.map((col) => (
-              <th key={col.header} className="px-3 py-2 font-medium text-slate-600">
+              <th
+                key={col.header}
+                className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
+              >
                 {col.header}
               </th>
             ))}
@@ -37,9 +40,12 @@ export function DataTable<T>({ columns, rows, rowKey, emptyMessage }: Props<T>) 
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)} className="border-b border-slate-100 last:border-0">
+            <tr
+              key={rowKey(row)}
+              className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50"
+            >
               {columns.map((col) => (
-                <td key={col.header} className={`px-3 py-2 ${col.className ?? ''}`}>
+                <td key={col.header} className={`px-3 py-2.5 ${col.className ?? ''}`}>
                   {col.render(row)}
                 </td>
               ))}
