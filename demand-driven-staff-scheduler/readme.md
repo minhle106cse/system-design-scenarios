@@ -158,11 +158,11 @@ way — so the guarantee moves into the algorithm, and the method of proof has t
 ## Quick start
 
 ```bash
-docker compose up -d   # Postgres only
+npm run infra:up        # docker-compose up -d — Postgres only
 npm install
 npm run db:deploy
 npm run db:seed
-npm run dev             # apps/scheduler-api :4102 · apps/web :3000
+npm run dev              # apps/scheduler-api :4102 · apps/web :3000
 ```
 
 Five commands, one container, no `.env` to create — `.env` and `apps/web/.env` both ship committed

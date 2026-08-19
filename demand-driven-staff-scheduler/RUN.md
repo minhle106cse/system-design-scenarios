@@ -3,11 +3,11 @@
 Full detail: [`docs/09_running_it.md`](docs/09_running_it.md). Short version:
 
 ```bash
-docker compose up -d   # Postgres only
-npm install             # apps/scheduler-api's postinstall: prisma generate
-npm run db:deploy       # apply the committed migrations
-npm run db:seed         # 12 staff, 2 shifts, the real 112-cell demand CSV
-npm run dev             # apps/scheduler-api :4102, apps/web :3000
+npm run infra:up        # docker-compose up -d — Postgres only
+npm install              # apps/scheduler-api's postinstall: prisma generate
+npm run db:deploy        # apply the committed migrations
+npm run db:seed          # 12 staff, 2 shifts, the real 112-cell demand CSV
+npm run dev              # apps/scheduler-api :4102, apps/web :3000
 ```
 
 Then open http://localhost:3000 (the UI) or http://localhost:4102/docs (Swagger — every route is

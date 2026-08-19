@@ -157,11 +157,11 @@ nên đảm bảo phải chuyển vào thuật toán, và cách chứng minh cũ
 ## Bắt đầu nhanh
 
 ```bash
-docker compose up -d   # chỉ Postgres
+npm run infra:up        # docker-compose up -d — chỉ Postgres
 npm install
 npm run db:deploy
 npm run db:seed
-npm run dev             # apps/scheduler-api :4102 · apps/web :3000
+npm run dev              # apps/scheduler-api :4102 · apps/web :3000
 ```
 
 Năm lệnh, một container, không cần tạo `.env` — `.env` và `apps/web/.env` đều được commit sẵn với
