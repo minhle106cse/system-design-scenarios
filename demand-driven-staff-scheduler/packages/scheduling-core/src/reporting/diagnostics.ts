@@ -10,6 +10,8 @@ import type {
   HourDiagnostic,
   ReasonCode,
   RequiredGrid,
+  RoleCapacity,
+  RoleId,
   RoleShortfall,
   SchedulingInput,
   ShiftRequirements,
@@ -119,6 +121,51 @@ function roleShortfalls(input: SchedulingInput, requirements: ShiftRequirements,
   return result;
 }
 
+/**
+ * Per-role `structuralVerdict` — see `RoleCapacity`'s docstring in model/types.ts for the question
+ * this answers and its limits. `requiredRoleHours` reuses the exact closed-day skip
+ * `roleShortfalls` uses (`floor === 0 && target === 0` ⇒ the shift wasn't genuinely needed that day,
+ * contributes nothing), so the two stay consistent with each other by construction rather than by
+ * two independently-maintained skip conditions drifting apart.
+ */
+function roleCapacityVerdict(input: SchedulingInput, requirements: ShiftRequirements): RoleCapacity[] {
+  const orderedShifts = [...input.shifts].sort((a, b) => a.startMinute - b.startMinute || (a.id < b.id ? -1 : 1));
+
+  const roleIds = new Set<RoleId>();
+  for (const shift of orderedShifts) {
+    for (const req of shift.roleRequirements ?? []) {
+      if (req.minCount > 0) roleIds.add(req.roleId);
+    }
+  }
+
+  const requiredByRole = new Map<RoleId, number>();
+  for (const byShift of requirements.values()) {
+    for (const shift of orderedShifts) {
+      const headcount = byShift.get(shift.id);
+      if (!headcount || (headcount.floor === 0 && headcount.target === 0)) continue;
+      for (const req of shift.roleRequirements ?? []) {
+        if (req.minCount <= 0) continue;
+        const hours = req.minCount * shiftHours(shift);
+        requiredByRole.set(req.roleId, (requiredByRole.get(req.roleId) ?? 0) + hours);
+      }
+    }
+  }
+
+  const contractedByRole = new Map<RoleId, number>();
+  for (const staff of input.staff) {
+    for (const roleId of staff.roles ?? []) {
+      if (!roleIds.has(roleId)) continue;
+      contractedByRole.set(roleId, (contractedByRole.get(roleId) ?? 0) + staff.maxWeeklyHours);
+    }
+  }
+
+  return [...roleIds].sort().map((roleId) => ({
+    roleId,
+    requiredRoleHours: requiredByRole.get(roleId) ?? 0,
+    contractedRoleHours: contractedByRole.get(roleId) ?? 0,
+  }));
+}
+
 function structuralVerdict(requirements: ShiftRequirements, input: SchedulingInput): StructuralVerdict {
   const shiftById = new Map(input.shifts.map((s) => [s.id, s]));
   let floorStaffHours = 0;
@@ -145,5 +192,6 @@ export function buildDiagnostics(
     unfilledSeats: unfilledSeats(input, requirements, gate, state),
     structural: structuralVerdict(requirements, input),
     roleShortfalls: roleShortfalls(input, requirements, state),
+    roleCapacity: roleCapacityVerdict(input, requirements),
   };
 }

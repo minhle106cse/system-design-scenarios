@@ -5,6 +5,7 @@ import type {
   UpdateStaffMemberData,
 } from '../../domain/repositories/staff-member.repository'
 import type { StaffMember } from '../../domain/entities/staff-member.entity'
+import { touchSchedule } from './touch-schedule.util'
 
 type StaffMemberRow = { id: string; scheduleId: string; name: string; maxWeeklyHours: number }
 
@@ -24,6 +25,7 @@ export class PrismaStaffMemberRepository implements IStaffMemberRepository {
     const row = await this.tx.staffMember.create({
       data: { scheduleId: data.scheduleId, name: data.name, maxWeeklyHours: data.maxWeeklyHours },
     })
+    await touchSchedule(this.tx, row.scheduleId, 'staff')
     return toDomain(row)
   }
 
@@ -48,10 +50,12 @@ export class PrismaStaffMemberRepository implements IStaffMemberRepository {
         ...(data.maxWeeklyHours !== undefined && { maxWeeklyHours: data.maxWeeklyHours }),
       },
     })
+    await touchSchedule(this.tx, row.scheduleId, 'staff')
     return toDomain(row)
   }
 
   async softDelete(id: string): Promise<void> {
-    await this.tx.staffMember.update({ where: { id }, data: { deletedAt: new Date() } })
+    const row = await this.tx.staffMember.update({ where: { id }, data: { deletedAt: new Date() } })
+    await touchSchedule(this.tx, row.scheduleId, 'staff')
   }
 }

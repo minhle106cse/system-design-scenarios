@@ -163,3 +163,101 @@ describe('buildDiagnostics — structural verdict', () => {
     expect(diagnostics.structural.floorStaffHours).toBeGreaterThan(0);
   });
 });
+
+describe('buildDiagnostics — role capacity (the structural verdict, scoped to one role)', () => {
+  const SHIFT_WITH_SUPERVISOR: Shift = {
+    id: 'morning',
+    label: 'Morning',
+    startMinute: 7 * 60,
+    endMinute: 15 * 60, // 8h
+    roleRequirements: [{ roleId: 'supervisor', minCount: 1 }],
+  };
+
+  function build(staff: Staff[], demand: DemandGrid, shifts: Shift[] = [SHIFT_WITH_SUPERVISOR]) {
+    const input: SchedulingInput = {
+      staff,
+      shifts,
+      demand,
+      parameters: { transactionsPerStaffHour: 5, minStaffWhenOpen: 1, minUtilisationTarget: 0.6 },
+    };
+    const gate = new FeasibilityGate(input);
+    const state = new RosterState();
+    const required = computeRequiredStaff(input.demand, input.parameters);
+    const requirements = computeShiftRequirements(required, input.shifts);
+    return buildDiagnostics(input, required, requirements, { gate, state });
+  }
+
+  it('a role nobody requires (no shift references it) reports nothing', () => {
+    const plain: Shift = { id: 'evening', label: 'Evening', startMinute: 15 * 60, endMinute: 23 * 60 };
+    const diagnostics = build([{ id: 'a', name: 'A', maxWeeklyHours: 40 }], new Map(), [plain]);
+    expect(diagnostics.roleCapacity).toEqual([]);
+  });
+
+  it('always reported, even when the seat is fully covered — not only-when-short', () => {
+    const staff: Staff[] = [{ id: 'a', name: 'A', maxWeeklyHours: 40, roles: ['supervisor'] }];
+    const demand: DemandGrid = new Map([[1, new Map([[9, 10]])]]); // needs the shift on 1 day only
+    const diagnostics = build(staff, demand);
+    expect(diagnostics.roleCapacity).toEqual([
+      { roleId: 'supervisor', requiredRoleHours: 8, contractedRoleHours: 40 },
+    ]);
+  });
+
+  it('a genuine capacity gap: 7 days need the role, one holder cannot cover them all', () => {
+    // Reproduces the real gap found reviewing this schedule's algorithm: a lone role-holder gets
+    // pinned to their weekly max while roleShortfalls appears on the days they run out of hours —
+    // this diagnostic is what makes that a STAFFING fact instead of a mystery.
+    const staff: Staff[] = [{ id: 'x', name: 'X', maxWeeklyHours: 40, roles: ['supervisor'] }];
+    const demand: DemandGrid = new Map(
+      ([1, 2, 3, 4, 5, 6, 7] as const).map((day) => [day, new Map([[9, 10]])]),
+    );
+    const diagnostics = build(staff, demand);
+    expect(diagnostics.roleCapacity).toEqual([
+      { roleId: 'supervisor', requiredRoleHours: 56, contractedRoleHours: 40 }, // 7 days x 8h > 40h max
+    ]);
+    expect(diagnostics.roleCapacity[0]!.requiredRoleHours).toBeGreaterThan(
+      diagnostics.roleCapacity[0]!.contractedRoleHours,
+    );
+  });
+
+  it('a closed day (no demand) contributes nothing — same skip roleShortfalls uses', () => {
+    const staff: Staff[] = [{ id: 'a', name: 'A', maxWeeklyHours: 40, roles: ['supervisor'] }];
+    // Only day 1 has demand; days 2-7 are fully closed and must not inflate requiredRoleHours.
+    const demand: DemandGrid = new Map([[1, new Map([[9, 10]])]]);
+    const diagnostics = build(staff, demand);
+    expect(diagnostics.roleCapacity).toEqual([
+      { roleId: 'supervisor', requiredRoleHours: 8, contractedRoleHours: 40 },
+    ]);
+  });
+
+  it('a staff member holding the role but not referenced by any requirement is excluded from contractedRoleHours', () => {
+    const staff: Staff[] = [
+      { id: 'a', name: 'A', maxWeeklyHours: 40, roles: ['supervisor'] },
+      { id: 'b', name: 'B', maxWeeklyHours: 20, roles: ['cashier'] }, // holds a DIFFERENT, unreferenced role
+    ];
+    const demand: DemandGrid = new Map([[1, new Map([[9, 10]])]]);
+    const diagnostics = build(staff, demand);
+    expect(diagnostics.roleCapacity).toEqual([
+      { roleId: 'supervisor', requiredRoleHours: 8, contractedRoleHours: 40 }, // B's 20h never counted
+    ]);
+  });
+
+  it('multiple roles report independently, sorted by roleId', () => {
+    const withTwoRoles: Shift = {
+      ...SHIFT_WITH_SUPERVISOR,
+      roleRequirements: [
+        { roleId: 'supervisor', minCount: 1 },
+        { roleId: 'cashier', minCount: 2 },
+      ],
+    };
+    const staff: Staff[] = [
+      { id: 'a', name: 'A', maxWeeklyHours: 40, roles: ['supervisor'] },
+      { id: 'b', name: 'B', maxWeeklyHours: 20, roles: ['cashier'] },
+    ];
+    const demand: DemandGrid = new Map([[1, new Map([[9, 10]])]]);
+    const diagnostics = build(staff, demand, [withTwoRoles]);
+    expect(diagnostics.roleCapacity).toEqual([
+      { roleId: 'cashier', requiredRoleHours: 16, contractedRoleHours: 20 }, // minCount 2 x 8h
+      { roleId: 'supervisor', requiredRoleHours: 8, contractedRoleHours: 40 },
+    ]);
+  });
+});

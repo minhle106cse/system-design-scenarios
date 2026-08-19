@@ -17,6 +17,12 @@ export interface Schedule {
   readonly minUtilisationTarget: number
   readonly createdAt: Date
   readonly updatedAt: Date
+  /** Roster-freshness stamps (`touchSchedule`, infrastructure/repositories) — null until the
+   *  corresponding input category has ever been written. Read by the web side's `staleness.ts`. */
+  readonly staffUpdatedAt: Date | null
+  readonly shiftsUpdatedAt: Date | null
+  readonly demandUpdatedAt: Date | null
+  readonly rolesUpdatedAt: Date | null
 }
 
 /** Defaults applied on creation — brief §2.1, init plan §7.2/§7.8 (N=18, U_min=0.6). */

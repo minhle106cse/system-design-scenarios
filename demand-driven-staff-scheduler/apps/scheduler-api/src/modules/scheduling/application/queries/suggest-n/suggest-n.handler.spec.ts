@@ -26,6 +26,10 @@ describe('SuggestNHandler', () => {
     minUtilisationTarget: 0.6,
     createdAt: new Date('2026-08-01'),
     updatedAt: new Date('2026-08-01'),
+    staffUpdatedAt: null,
+    shiftsUpdatedAt: null,
+    demandUpdatedAt: null,
+    rolesUpdatedAt: null,
   }
 
   const staff = [
