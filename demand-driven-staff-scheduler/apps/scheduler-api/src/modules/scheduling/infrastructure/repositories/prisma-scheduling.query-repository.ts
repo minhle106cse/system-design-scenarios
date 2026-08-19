@@ -22,6 +22,10 @@ export class PrismaSchedulingQueryRepository implements ISchedulingQueryReposito
       minUtilisationTarget: schedule.minUtilisationTarget,
       createdAt: schedule.createdAt,
       updatedAt: schedule.updatedAt,
+      staffUpdatedAt: schedule.staffUpdatedAt,
+      shiftsUpdatedAt: schedule.shiftsUpdatedAt,
+      demandUpdatedAt: schedule.demandUpdatedAt,
+      rolesUpdatedAt: schedule.rolesUpdatedAt,
     }))
   }
 
@@ -64,6 +68,10 @@ export class PrismaSchedulingQueryRepository implements ISchedulingQueryReposito
         minUtilisationTarget: schedule.minUtilisationTarget,
         createdAt: schedule.createdAt,
         updatedAt: schedule.updatedAt,
+        staffUpdatedAt: schedule.staffUpdatedAt,
+        shiftsUpdatedAt: schedule.shiftsUpdatedAt,
+        demandUpdatedAt: schedule.demandUpdatedAt,
+        rolesUpdatedAt: schedule.rolesUpdatedAt,
       },
       staff: staff.map((s) => ({
         id: s.id,

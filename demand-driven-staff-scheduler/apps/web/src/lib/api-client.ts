@@ -92,6 +92,12 @@ export interface Schedule {
   readonly minUtilisationTarget: number
   readonly createdAt: string
   readonly updatedAt: string
+  /** Roster-freshness stamps (see `apps/scheduler-api`'s `touchSchedule`) — `null` until the
+   *  corresponding input category has ever been written. Read by `lib/staleness.ts`. */
+  readonly staffUpdatedAt: string | null
+  readonly shiftsUpdatedAt: string | null
+  readonly demandUpdatedAt: string | null
+  readonly rolesUpdatedAt: string | null
 }
 
 export interface StaffMember {
@@ -234,6 +240,16 @@ export interface RoleShortfall {
   readonly assigned: number
 }
 
+/** `structural`, scoped to one role — is a `roleShortfalls` entry a genuine staffing gap (not
+ *  enough people holding the role to ever cover the hours) or something fill-order could still fix?
+ *  Always reported, one entry per role any shift actually requires (`minCount > 0` somewhere) —
+ *  not only when short, same as `structural` itself. */
+export interface RoleCapacity {
+  readonly roleId: string
+  readonly requiredRoleHours: number
+  readonly contractedRoleHours: number
+}
+
 export interface Diagnostics {
   readonly hours: readonly HourDiagnostic[]
   readonly staff: readonly StaffDiagnostic[]
@@ -243,6 +259,7 @@ export interface Diagnostics {
     readonly contractedStaffHours: number
   }
   readonly roleShortfalls: readonly RoleShortfall[]
+  readonly roleCapacity: readonly RoleCapacity[]
 }
 
 export interface SummaryCell {

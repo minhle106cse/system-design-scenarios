@@ -5,6 +5,7 @@ import type {
   UpdateShiftData,
 } from '../../domain/repositories/shift.repository'
 import type { Shift } from '../../domain/entities/shift.entity'
+import { touchSchedule } from './touch-schedule.util'
 
 type ShiftRow = {
   id: string
@@ -36,6 +37,7 @@ export class PrismaShiftRepository implements IShiftRepository {
         endMinute: data.endMinute,
       },
     })
+    await touchSchedule(this.tx, row.scheduleId, 'shifts')
     return toDomain(row)
   }
 
@@ -61,10 +63,12 @@ export class PrismaShiftRepository implements IShiftRepository {
         ...(data.endMinute !== undefined && { endMinute: data.endMinute }),
       },
     })
+    await touchSchedule(this.tx, row.scheduleId, 'shifts')
     return toDomain(row)
   }
 
   async softDelete(id: string): Promise<void> {
-    await this.tx.shift.update({ where: { id }, data: { deletedAt: new Date() } })
+    const row = await this.tx.shift.update({ where: { id }, data: { deletedAt: new Date() } })
+    await touchSchedule(this.tx, row.scheduleId, 'shifts')
   }
 }

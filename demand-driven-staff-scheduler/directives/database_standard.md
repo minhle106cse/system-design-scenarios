@@ -75,6 +75,25 @@ id String @id @default(uuid())
   field needs "unique only among live rows," use `@@unique([field], where: { deletedAt: null })`,
   which requires `previewFeatures = ["partialIndexes"]` in the generator block.
 
+### 3.1 Cross-model "touch" writes inside the same transaction
+
+- A repository is allowed to write a column on a model it does not otherwise own, as long as it's
+  in the SAME transaction (`this.tx`) as the write that triggered it — the layer rule is "no
+  `prisma.*` outside a repository," not "one repository per model."
+- **Real example**: roster-freshness. `Schedule` carries four nullable
+  `{staff,shifts,demand,roles}UpdatedAt` columns (`docs/04_data_model.md`) so the web side can tell
+  a manager their persisted roster predates an edit to staff/shifts/demand/roles — none of which
+  live on the `Schedule` row itself. Every repository that writes one of those tables
+  (`PrismaStaffMemberRepository`, `PrismaShiftRepository`, `PrismaDemandCellRepository`,
+  `PrismaRoleRepository`, `PrismaStaffRoleRepository`, `PrismaShiftRoleRequirementRepository`,
+  `PrismaStaffUnavailabilityRepository`) calls the shared `touchSchedule(tx, scheduleId, category)`
+  helper (`infrastructure/repositories/touch-schedule.util.ts`) after its own write, inside the same
+  `tx`, so the stamp can never land without the write it's describing (or vice versa).
+- Don't reach for this for two-way relationships or anything a domain event/handler could express
+  instead — it earns its place here because the "toucher" and the "touched" are asymmetric (many
+  writers, one narrow read-side signal) and a handler-level fan-out would mean six handlers each
+  reaching into `Schedule` update logic instead of one small shared function.
+
 ### 4. Prisma Client Generation
 
 - Prisma emits generated types into `node_modules/@prisma/client` (the default here — this repo

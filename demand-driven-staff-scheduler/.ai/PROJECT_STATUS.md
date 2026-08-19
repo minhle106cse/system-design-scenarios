@@ -555,6 +555,132 @@ explicit `as unknown as jest.Mock` at the access site; and `StaffUnavailability`
 `scheduleId` field (unlike its siblings), which a fixture assumed it did — caught by typecheck, not
 by the passing test run.
 
+## Roster-freshness extended to staff/shift/demand/role inputs (this session)
+
+The prior session's `rosterStatus` (staleness banner + Recalculate action on Coverage/Summary)
+only covered the four `Schedule`-row parameters (N, min/max staff, fairness target) — editing
+staff, shifts, demand, or roles never touched the `Schedule` row, so those edits stayed invisible
+to the banner even though the user had explicitly named staff/role/demand/shift as inputs whose
+change should be flagged. Closed by adding four nullable `{staff,shifts,demand,roles}UpdatedAt`
+columns to `Schedule` (migration `add_schedule_input_freshness_timestamps`) and a shared
+`touchSchedule(tx, scheduleId, category)` helper (`infrastructure/repositories/touch-schedule.util.ts`)
+called from every repository that writes the corresponding table, in the same transaction as the
+write. `rosterStatus` now names up to 8 possible changed things (4 parameters + 4 input
+categories) instead of 4. Full design reasoning in `.ai/memory/architecture.jsonl` (last entry) and
+`docs/04_data_model.md`'s roster-freshness note.
+
+**Verified end-to-end against a live Postgres, in a real browser**: created a fresh schedule,
+added one staff member, ran auto-schedule (CURRENT, no banner — the staff edit predates the run).
+Added a second staff member with no re-run → Coverage AND Summary both read *"based on a roster
+generated before you changed Staff"*; clicked Recalculate → banner cleared on the next load. Added
+a shift and a role after another run, without re-running → Summary named *"Shifts, Roles"*
+together, confirming multiple simultaneous categories render correctly. 271 tests pass across the
+workspace (97 scheduling-core, 53 shared-kernel, 68 scheduler-api, 53 web — the web/api-facing
+counts included the pre-existing `staleness.spec.ts` suite plus 6 new cases for the four
+categories), `npm run check`-equivalent (typecheck + lint + test, run separately) all clean.
+
+**One real friction point hit and resolved, not silently worked around**: `prisma generate` after
+the migration EPERM'd on Windows — a stale `npm run start` (the built production stack, running
+from before this session) still had the Prisma query-engine DLL open. Asked the user for explicit
+permission before killing those processes (this harness blocks `taskkill`/`Stop-Process` without
+it), then regenerated cleanly. The production stack was left stopped; restart with `npm run start`
+if needed.
+
+**Follow-up in the same session**: the user noticed the new banner rendered on Coverage/Summary but
+not Roster. `RosterFreshness` was wired onto the two derived read screens only — Roster's own grid
+is exactly as capable of predating a staff/shift/demand/role/parameter edit as Coverage's numbers,
+just easy to overlook because Roster already has its own "Auto-schedule" button and "Last run"
+timestamp. Added `<RosterFreshness>` to `roster/page.tsx` and generalized the banner's copy (it had
+said "...see real coverage" unconditionally, wrong on the other two screens). Verified live against
+a seeded schedule with real demand data: banner named "Staff, Roles", Recalculate cleared it and
+updated the Last-run timestamp.
+
+**Second follow-up, same session: the Roster tab split into Schedule + Roster.** The user pointed
+out the single Roster tab conflated editing parameters, triggering Auto-schedule, and hand-tuning
+the resulting grid, and asked for two tabs. Confirmed via `AskUserQuestion` where Auto-schedule
+should live (ambiguous either way) — user chose the new **Schedule** tab, grouped with the
+parameters it consumes, over **Roster**, which now only shows/edits the persisted grid. New
+`schedule-manager.tsx` carries the parameter panel, "Suggest from data," Auto-schedule, diagnostics
+banners, and the Last-run timestamp; `roster-manager.tsx` was trimmed to the day×shift grid +
+manual add/remove/drag-drop + CSV export. Both screens render `RosterFreshness`. New nav slug
+`schedule` added between Shifts and Roster.
+
+**A real pre-existing bug was found and fixed in the same pass**: `roster/page.tsx` had always
+called `getSuggestedN` unconditionally on page load — that route 422s
+(`INSUFFICIENT_CALIBRATION_DATA`) the instant a schedule has no demand imported yet, and an
+unhandled throw in a Server Component takes down the WHOLE page ("Application error"), not just the
+one caption that needed the number. Reproduced live before fixing (a schedule with staff but zero
+demand cells 500'd on the old Roster tab). Fixed with a page-level try/catch that treats only that
+error code as "no suggestion yet" and rethrows everything else — verified the same schedule now
+loads cleanly on both Schedule and Roster. `docs/05_ui_guidelines.md` reconciled to the 8-screen
+list and the new correction logged in its "later corrections" section.
+
+**Third follow-up, same session: "Suggest from data" appeared broken but wasn't.** The user typed a
+different N, clicked the button, saw no change, and asked if it was broken — while stating the
+correct mental model themselves ("one input set → one N"). Confirmed via `read_network_requests`
+the button DOES fire and 200s every click; the suggested figure is a pure function of
+staff/shifts/demand only (independent of the N field), so re-clicking with unchanged underlying
+data deterministically returns the same number — working as designed (ADR-0003). The real, narrower
+gap: zero visual feedback distinguishing "did nothing" from "refetched, same answer" — `pending` was
+one shared boolean across Save/Suggest/Auto-schedule. Fixed with a discriminated `pendingAction`
+('save'|'suggest'|'auto'|null) giving each button its own busy label, plus a 2-second "✓
+Recalculated from current staff/shifts/demand" confirmation on every click, and caption copy that
+now states explicitly the suggestion ignores the N field above. Verified live with a
+`MutationObserver` (poll-based snapshots were too slow to catch the ~150ms local round-trip and the
+2s flash reliably).
+
+**Fourth follow-up, same turn: the button was removed entirely.** Once the user saw the confirmation
+land, they reframed the actual ask — since the number is a pure function of staff/shifts/demand and
+never depends on the click itself, the button was pointless; just show what page-load already
+fetched. Removed the button, the client-side refetch, and all its pending/confirmation state; the
+Schedule page renders the server-fetched `suggestedN` prop directly. Same turn: the explanatory
+caption was called out as "long and pale, nobody reads it" — cut from a `text-xs text-slate-500`
+paragraph to one `text-sm` line ("Suggested N: 45 · using 18"), auto-apply caveat prose dropped
+(lives in ADR-0003, not repeated on-screen). Verified live: both the has-demand and no-demand paths
+render the short line correctly, no button, no stray network call on load beyond the one
+`suggested-n` GET the page already made.
+
+## Algorithm code review — one new diagnostic, one algorithm change deliberately rejected (this session)
+
+The user asked for a critical review of `generateRoster` for real gaps, specifically with roles and
+unavailability added. Three findings, three different outcomes:
+
+1. **No rest-period / max-consecutive-days constraint.** Confirmed live (`FeasibilityGate` allows a
+   1-hour gap between a Monday-evening and Tuesday-morning shift). Out of scope per the user's own
+   call — `docs/01_business_requirements.md` assumption 3 and ADR-0002's own alternatives table
+   already name "statutory rest rules" as a future LP/CP-SAT trigger, not silently missing.
+2. **Removing a role-holder's assignment gave zero on-screen feedback at the moment of the click**
+   — fixed. Roster tab now fetches live coverage diagnostics too and renders the same
+   `RoleDiagnosticsBanners` the other two screens use; `router.refresh()` already re-ran the page,
+   so no new client wiring was needed. Verified live: unassigning a schedule's only Supervisor on
+   Roster showed the resulting `roleShortfall` on that same tab, immediately.
+3. **A lone role-holder gets pinned to their weekly max while a non-holder sits idle, and
+   `rebalance` cannot fix it** — investigated, NOT changed as originally framed. Built a real
+   repro (`dist/index.js`, not theory): 1 Supervisor, 1 holder, a daily Supervisor-required shift →
+   the holder hits 40h/100%, a second staff member stalls at 16h/40%, `roleShortfalls` appears on
+   the two days the holder ran out of hours. `rebalance`'s `roleCoverageDidNotFall` guard correctly
+   refuses every move that would fix this, because every such move would remove the only qualified
+   person from a seat that needs them — re-examined whether loosening that guard was the right fix
+   and concluded it was NOT: it would let a fairness pass silently regress a role constraint
+   ADR-0006 says must only ever surface as a reported `roleShortfall`, never as a side-effect of an
+   unrelated optimization. Also verified multi-holder cases are already close to optimally balanced
+   by the existing lowest-utilisation-first tie-break — no code change needed there either. This
+   IS a genuine staffing shortage (not enough Supervisor-hours contracted), correctly surfaced, not
+   an algorithm bug.
+   **What was actually fixable and is now built**: `Diagnostics.roleCapacity` — the existing
+   team-wide `structural` verdict (floor-hours vs contracted hours), scoped to one role, always
+   reported. Makes the causal link between "this person is maxed" and "this role has a shortfall"
+   explicit instead of two disconnected facts. New `RoleDiagnosticsBanners` component renders it
+   (banner only when `requiredRoleHours > contractedRoleHours`) on Schedule, Roster, and Coverage —
+   factored out of what were about to become three near-identical inline blocks. 6 new
+   `scheduling-core` unit tests (103 total, was 97); `apps/web`'s workspace total unaffected by
+   count since role-copy tests were added there too. Verified against the live API on a real test
+   schedule (not just unit tests): added a genuine role-requirement mismatch, ran auto-schedule for
+   real, confirmed the API returned `{requiredRoleHours: 56, contractedRoleHours: 40}` matching the
+   synthetic repro exactly, and the banner rendered correctly on both Coverage and Schedule.
+   `docs/06_api_contracts.md` reconciled (`roleShortfalls`/`roleCapacity` were both missing from the
+   `coverage` route's documented shape — the former predates this session).
+
 ## Current focus
 
 **`backend-architecture-reversal.plan.md` (all six phases A–F), Phase 3 (the UI), and the stretch

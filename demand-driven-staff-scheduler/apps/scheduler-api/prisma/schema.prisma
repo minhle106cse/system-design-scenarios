@@ -25,6 +25,20 @@ model Schedule {
   updatedAt                DateTime  @updatedAt @map("updated_at")
   deletedAt                DateTime? @map("deleted_at")
 
+  // Roster-freshness tracking (staleness.ts on the web side). NOT auto-managed by `@updatedAt` —
+  // that field already tracks writes to the Schedule row itself (the four parameters), so it
+  // covers "N changed" for free. These four track writes to the *related* input tables instead —
+  // staff/shift/demand/role CRUD never touches the Schedule row, so without an explicit touch here
+  // a manager could add staff, re-import demand, or edit a shift and the roster would still read
+  // CURRENT. Each repository that mutates the corresponding table stamps `now()` here in the same
+  // transaction (see `touchSchedule` in infrastructure/repositories). Null until first touched —
+  // compared against `ScheduleRun.generatedAt` with `null` treated as "never changed," never as an
+  // epoch date, so a schedule with no staff edits yet doesn't read as permanently stale.
+  staffUpdatedAt           DateTime? @map("staff_updated_at")
+  shiftsUpdatedAt          DateTime? @map("shifts_updated_at")
+  demandUpdatedAt          DateTime? @map("demand_updated_at")
+  rolesUpdatedAt           DateTime? @map("roles_updated_at")
+
   staff       StaffMember[]
   demandCells DemandCell[]
   shifts      Shift[]
