@@ -83,7 +83,8 @@ Verify a new custom color token actually compiled — a typo'd class name (`bg-a
 
 ## ⚠️ How to apply this file
 
-Applies to every screen under `src/app/s/[id]/*` — all seven of plan §3.1's routes are built
+Applies to every screen under `src/app/s/[id]/*` — all of plan §3.1's routes are built (seven,
+plus the Roles tab split out of Staff later)
 (Phase 3: `staff`, `demand`, `shifts`, `roster`, `summary`, `coverage`, plus `/`'s list+create).
 When a genuinely new UI pattern is needed that doesn't fit the 6 primitives, add it here in the
 same task that introduces it — don't let a seventh one-off component go undocumented.

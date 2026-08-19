@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const TABS: readonly { readonly href: string; readonly label: string }[] = [
+  { href: 'roles', label: 'Roles' },
   { href: 'staff', label: 'Staff' },
   { href: 'demand', label: 'Demand' },
   { href: 'shifts', label: 'Shifts' },

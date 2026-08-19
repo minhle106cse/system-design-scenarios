@@ -12,7 +12,7 @@ rest are living specs, reconciled with the code in the same task that changes it
 | `02_use_cases.md` | The user-facing flows, brief §2.1–2.6 |
 | `03_architecture.md` | System shape, the pipeline, **§ Deferred scope** (plan §1) |
 | `04_data_model.md` | The Prisma schema, explained |
-| `05_ui_guidelines.md` | The seven screens, the three UI rules |
+| `05_ui_guidelines.md` | The screens, the three UI rules |
 | `06_api_contracts.md` | Route handlers, request/response shapes |
 | `08_testing_strategy.md` | The three test layers |
 | `09_running_it.md` | Install/run, verification |

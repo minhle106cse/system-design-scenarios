@@ -3,12 +3,13 @@
 Screens, and the rules that govern how they're built. Component-level conventions:
 `../directives/frontend_standard.md`.
 
-## Screens (plan §3.1) — all seven built (Phase 3)
+## Screens (plan §3.1) — all built (Phase 3; Roles later split into its own tab, § below)
 
 | Route | Brief § | Notes |
 |---|---|---|
 | `/` | 2.1 | Schedules list (`GET /schedules`, Phase 3's new route) + create |
-| `/s/[id]` → **Staff** | 2.2 | Table CRUD: name + max weekly hours, total contracted hours shown, an Availability column + editor (stretch 3, H4), a Roles column of toggleable chips + a per-schedule Roles CRUD section (stretch 4, D2) |
+| `/s/[id]` → **Roles** | stretch 4 | Per-schedule role CRUD (D2) + a "held by" count. Placed FIRST because a role has to exist before it can be ticked on anyone — see the note below |
+| → **Staff** | 2.2 | Table + total contracted hours. One modal covers a person entirely — name, max weekly hours, unavailable times (stretch 3, H4) and role chips (stretch 4) — and it is the same modal with the same fields for create and edit |
 | → **Demand** | 2.3 | CSV drop zone → import result (accepted / warnings / errors, row/column-precise) → day×hour heatmap |
 | → **Shifts** | 2.4 | CRUD via `<input type="time">`, seeded with 07:00–15:00 and 15:00–23:00, a Requires column + editor for per-role `minCount` (stretch 4) |
 | → **Roster** | 2.5 | Parameter panel (`PATCH /schedules/:id` + "Suggest from data") + auto-schedule button + day×shift grid with manual add/remove/drag-drop + diagnostics banners (including role shortfalls, stretch 4) + CSV export |
@@ -20,7 +21,8 @@ Every screen's page.tsx is an async Server Component (`getSchedule`/`getSummary`
 called directly, deduped by Next's per-request fetch memoization against the layout's own call);
 the interactive parts are separate Client Components under `src/components/` (`staff-manager.tsx`,
 `demand-manager.tsx`, `shift-manager.tsx`, `roster-manager.tsx`, `summary-view.tsx`,
-`coverage-view.tsx`), each following the pending/success/error mutation pattern
+`coverage-view.tsx`, `roles-manager.tsx`, `roster-freshness.tsx`), each following the
+pending/success/error mutation pattern
 `create-schedule-form.tsx` established. The ~6 primitives `frontend_standard.md` §2 named are built
 under `src/components/ui/` (`button`, `field`, `data-table`, `badge`, `banner`, `modal`).
 Copy-generation helpers for the stretch-goal banners follow the same pattern as `error-copy.ts`:
@@ -49,3 +51,18 @@ current phase.
 error-message copy) into `src/lib/*.ts`, unit-tested there. Components themselves (the six
 `*-manager.tsx`/`*-view.tsx` files) are verified by actually running the app in a browser, not by
 a rendering-library test suite — a deliberate scope decision (user-directed), not an oversight.
+
+## Two later corrections, from using the screens
+
+**Roles moved out of Staff and ahead of it.** They were originally a section at the bottom of the
+Staff tab, on the argument that they belong where they are assigned. Using it showed the opposite:
+a role must EXIST before it can be ticked on anybody, so defining one meant scrolling past the whole
+staff table and back. The nav order now matches the order of the work.
+
+**One modal per person, identical for create and edit.** Availability used to hide behind a per-row
+"Manage" button and roles were chips toggled inline in the table, so *creating* someone offered two
+of the four fields and the rest only became reachable afterwards. They are now one form. The cost is
+that create is no longer a single request — the availability and role endpoints are keyed by
+`staffId`, which does not exist until the staff member does — so create writes the person, then
+their windows, then their roles. If a later step fails the person still exists, and the banner says
+exactly that rather than implying nothing was saved.

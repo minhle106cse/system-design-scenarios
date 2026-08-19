@@ -27,9 +27,9 @@ overruled by the user for exactly this scenario). Still **zero `.env` files to c
 non-secret values (a throwaway Docker Postgres password, a `localhost` URL) — `.env.example` and
 `apps/web/.env.example` document the variables for anyone who wants to override them.
 
-Then open http://localhost:3000 (`apps/web` — all seven screens, `docs/05_ui_guidelines.md`:
-schedules list/create, staff, demand import, shifts, roster, summary, coverage, every one of them
-calling `apps/scheduler-api` for real) or http://localhost:4102/docs (`apps/scheduler-api`'s
+Then open http://localhost:3000 (`apps/web` — every screen in `docs/05_ui_guidelines.md`:
+schedules list/create, roles, staff, demand import, shifts, roster, summary, coverage, every one of
+them calling `apps/scheduler-api` for real) or http://localhost:4102/docs (`apps/scheduler-api`'s
 Swagger UI — every route exercisable directly).
 
 ## Verification (plan §10 — init is done when all of these pass; extended for the reversal)
@@ -53,8 +53,8 @@ node .claude/hooks/turn-context.cjs
 - `curl http://localhost:4102/health` → `{"status":"ok", "checks": {"database":"ok"}}`
 - `.ai/memory/*.jsonl` — real entries, not empty; each logs an error → fix, a convention, or an
   architecture decision found while building, not a summary written after the fact
-- **Fresh clone → the five commands above → a working API and a working UI**, all seven screens
-  (`docs/05_ui_guidelines.md`), with no `.env` to write by hand
+- **Fresh clone → the five commands above → a working API and a working UI**, every screen in
+  `docs/05_ui_guidelines.md`, with no `.env` to write by hand
 
 ## Other commands
 
