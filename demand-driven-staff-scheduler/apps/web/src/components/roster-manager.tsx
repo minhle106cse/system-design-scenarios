@@ -322,17 +322,23 @@ export function RosterManager({
       )}
 
       <div>
-        <h2 className="text-sm font-medium text-slate-700">Roster</h2>
+        <h2 className="text-sm font-semibold text-slate-700">Roster</h2>
         <p className="text-xs text-slate-500">
-          Drag a name to move it, or use +/x to add or remove an assignment.
+          Drag a name to move it to another day or shift. Use <strong>Add</strong> to assign
+          someone, or the <strong>x</strong> on a name to unassign them.
         </p>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
+        <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-card">
+          <table className="w-full border-collapse text-sm">
             <thead>
-              <tr>
-                <th className="p-2 text-left text-slate-500">Shift</th>
+              <tr className="border-b border-slate-200 bg-slate-50/80">
+                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Shift
+                </th>
                 {DAYS_OF_WEEK.map((d) => (
-                  <th key={d} className="p-2 text-center text-slate-500">
+                  <th
+                    key={d}
+                    className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500"
+                  >
                     {dayLabel(d)}
                   </th>
                 ))}
@@ -341,10 +347,10 @@ export function RosterManager({
             <tbody>
               {shifts.map((shift) => (
                 <tr key={shift.id}>
-                  <td className="whitespace-nowrap border p-2 align-top text-slate-600">
-                    {shift.label}
-                    <div className="text-[10px] text-slate-400">
-                      {formatMinutes(shift.startMinute)}-{formatMinutes(shift.endMinute)}
+                  <td className="whitespace-nowrap border-t border-slate-100 px-3 py-2 align-top">
+                    <div className="font-medium text-slate-900">{shift.label}</div>
+                    <div className="text-xs tabular-nums text-slate-400">
+                      {formatMinutes(shift.startMinute)}–{formatMinutes(shift.endMinute)}
                     </div>
                   </td>
                   {DAYS_OF_WEEK.map((d) => {
@@ -352,7 +358,7 @@ export function RosterManager({
                     return (
                       <td
                         key={d}
-                        className="min-w-[120px] border p-1 align-top"
+                        className="min-w-[140px] border-l border-t border-slate-100 p-1.5 align-top"
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => {
                           e.preventDefault()
@@ -375,19 +381,20 @@ export function RosterManager({
                                 }
                                 e.dataTransfer.setData('application/json', JSON.stringify(payload))
                               }}
-                              className="flex cursor-move items-center justify-between gap-1 rounded bg-slate-100 px-1.5 py-0.5"
+                              className="group flex cursor-grab items-center justify-between gap-1 rounded-md bg-slate-100 px-2 py-1 text-sm text-slate-800 transition-colors hover:bg-slate-200 active:cursor-grabbing"
                             >
                               <span className="truncate">
                                 {staffById.get(a.staffId)?.name ?? a.staffId}
                               </span>
                               <button
                                 type="button"
-                                aria-label="Remove"
+                                aria-label={`Unassign ${staffById.get(a.staffId)?.name ?? a.staffId}`}
+                                title="Unassign"
                                 disabled={pending}
                                 onClick={() => handleRemove(a.id)}
-                                className="text-slate-400 hover:text-red-600"
+                                className="shrink-0 rounded px-1 text-slate-400 transition-colors hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
                               >
-                                x
+                                ×
                               </button>
                             </div>
                           ))}
@@ -395,9 +402,10 @@ export function RosterManager({
                             type="button"
                             disabled={pending}
                             onClick={() => setAddTarget({ day: d, shiftId: shift.id })}
-                            className="w-full rounded border border-dashed border-slate-300 py-0.5 text-slate-400 hover:border-slate-400 hover:text-slate-600"
+                            aria-label={`Assign someone to ${shift.label} on ${dayLabel(d)}`}
+                            className="w-full rounded-md border border-dashed border-slate-300 py-1 text-xs font-medium text-slate-400 transition-colors hover:border-accent-400 hover:bg-accent-50 hover:text-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
                           >
-                            +
+                            + Add
                           </button>
                         </div>
                       </td>

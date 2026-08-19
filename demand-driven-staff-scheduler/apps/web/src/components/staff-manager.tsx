@@ -295,7 +295,7 @@ export function StaffManager({
                       </Badge>
                     ))
                   )}
-                  <Button variant="secondary" onClick={() => openAvailability(s)}>
+                  <Button variant="secondary" size="sm" onClick={() => openAvailability(s)}>
                     Manage
                   </Button>
                 </div>
@@ -330,19 +330,24 @@ export function StaffManager({
             render: (s) =>
               editingId === s.id ? (
                 <div className="flex gap-2">
-                  <Button variant="primary" disabled={pending} onClick={() => saveEdit(s)}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => saveEdit(s)}
+                  >
                     Save
                   </Button>
-                  <Button variant="secondary" onClick={() => setEditingId(null)}>
+                  <Button variant="secondary" size="sm" onClick={() => setEditingId(null)}>
                     Cancel
                   </Button>
                 </div>
               ) : (
                 <div className="flex gap-2">
-                  <Button variant="secondary" onClick={() => startEdit(s)}>
+                  <Button variant="secondary" size="sm" onClick={() => startEdit(s)}>
                     Edit
                   </Button>
-                  <Button variant="danger" onClick={() => setConfirmRemove(s)}>
+                  <Button variant="danger" size="sm" onClick={() => setConfirmRemove(s)}>
                     Remove
                   </Button>
                 </div>
