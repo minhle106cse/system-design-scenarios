@@ -63,11 +63,11 @@ export function DemandManager({
           const file = e.dataTransfer.files[0]
           if (file) void handleFile(file)
         }}
-        className={`rounded-md border-2 border-dashed p-8 text-center text-sm ${
-          dragOver ? 'border-slate-500 bg-slate-50' : 'border-slate-300'
+        className={`flex items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-2.5 text-sm transition-colors ${
+          dragOver ? 'border-accent-400 bg-accent-50' : 'border-slate-300 bg-white'
         }`}
       >
-        <p className="text-slate-600">Drop the weekly transaction CSV here, or</p>
+        <p className="text-slate-600">Drop the weekly transaction CSV here, or choose a file →</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -78,16 +78,14 @@ export function DemandManager({
             if (file) void handleFile(file)
           }}
         />
-        <div className="mt-2">
-          <Button
-            variant="secondary"
-            type="button"
-            disabled={pending}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {pending ? 'Importing…' : 'Choose a CSV file'}
-          </Button>
-        </div>
+        <Button
+          variant="secondary"
+          type="button"
+          disabled={pending}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          {pending ? 'Importing…' : 'Choose a CSV file'}
+        </Button>
       </div>
 
       {networkError && <Banner tone="error">{networkError}</Banner>}
@@ -129,17 +127,31 @@ export function DemandManager({
       )}
 
       <div>
-        <h2 className="text-sm font-medium text-slate-700">Demand heatmap</h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold text-slate-700">Demand heatmap</h2>
+          {hours.length > 0 && (
+            <p className="text-xs text-slate-500">
+              Transactions per hour · darkest = busiest ({max} at peak)
+            </p>
+          )}
+        </div>
         {hours.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">No demand data imported yet.</p>
+          <p className="mt-2 rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+            No demand data imported yet — drop the CSV above.
+          </p>
         ) : (
-          <div className="mt-2 overflow-x-auto">
-            <table className="border-collapse text-xs">
+          <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-card">
+            <table className="w-full border-collapse text-sm">
               <thead>
-                <tr>
-                  <th className="p-1 text-left text-slate-500">Hour</th>
+                <tr className="border-b border-slate-200 bg-slate-50/80">
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Hour
+                  </th>
                   {DAYS_OF_WEEK.map((d) => (
-                    <th key={d} className="p-1 text-center text-slate-500">
+                    <th
+                      key={d}
+                      className="px-3 py-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500"
+                    >
                       {dayLabel(d)}
                     </th>
                   ))}
@@ -148,11 +160,16 @@ export function DemandManager({
               <tbody>
                 {hours.map((hour) => (
                   <tr key={hour}>
-                    <td className="p-1 text-slate-500">{hour}:00</td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-xs font-medium text-slate-500">
+                      {hour}:00
+                    </td>
                     {DAYS_OF_WEEK.map((d) => {
                       const value = grid.get(demandGridKey(d, hour)) ?? 0
                       return (
-                        <td key={d} className={`p-1 text-center ${demandHeatTone(value, max)}`}>
+                        <td
+                          key={d}
+                          className={`px-3 py-1.5 text-center font-medium tabular-nums ${demandHeatTone(value, max)}`}
+                        >
                           {value || ''}
                         </td>
                       )

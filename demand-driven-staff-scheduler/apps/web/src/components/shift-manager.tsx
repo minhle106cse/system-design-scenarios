@@ -157,6 +157,44 @@ export function ShiftManager({
     <div className="space-y-4">
       {error && <Banner tone="error">{error}</Banner>}
 
+      <form
+        onSubmit={handleAdd}
+        className="flex items-end gap-3 rounded-md border border-slate-200 bg-white p-4"
+      >
+        <div className="flex-1">
+          <Field
+            id="shift-label"
+            label="Label"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Field
+            id="shift-start"
+            label="Start"
+            type="time"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <Field
+            id="shift-end"
+            label="End"
+            type="time"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            required
+          />
+        </div>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Saving…' : 'Add shift'}
+        </Button>
+      </form>
+
       <DataTable
         columns={[
           {
@@ -216,7 +254,7 @@ export function ShiftManager({
                       </Badge>
                     ))
                   )}
-                  <Button variant="secondary" onClick={() => openRequires(s)}>
+                  <Button variant="secondary" size="sm" onClick={() => openRequires(s)}>
                     Edit
                   </Button>
                 </div>
@@ -231,16 +269,16 @@ export function ShiftManager({
                   <Button disabled={pending} onClick={() => saveEdit(s)}>
                     Save
                   </Button>
-                  <Button variant="secondary" onClick={() => setEditingId(null)}>
+                  <Button variant="secondary" size="sm" onClick={() => setEditingId(null)}>
                     Cancel
                   </Button>
                 </div>
               ) : (
                 <div className="flex gap-2">
-                  <Button variant="secondary" onClick={() => startEdit(s)}>
+                  <Button variant="secondary" size="sm" onClick={() => startEdit(s)}>
                     Edit
                   </Button>
-                  <Button variant="danger" onClick={() => setConfirmRemove(s)}>
+                  <Button variant="danger" size="sm" onClick={() => setConfirmRemove(s)}>
                     Remove
                   </Button>
                 </div>
@@ -249,46 +287,8 @@ export function ShiftManager({
         ]}
         rows={shifts}
         rowKey={(s) => s.id}
-        emptyMessage="No shifts yet — add one below."
+        emptyMessage="No shifts yet — add one using the form above."
       />
-
-      <form
-        onSubmit={handleAdd}
-        className="flex items-end gap-3 rounded-md border border-slate-200 bg-white p-4"
-      >
-        <div className="flex-1">
-          <Field
-            id="shift-label"
-            label="Label"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Field
-            id="shift-start"
-            label="Start"
-            type="time"
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <Field
-            id="shift-end"
-            label="End"
-            type="time"
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-            required
-          />
-        </div>
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Saving…' : 'Add shift'}
-        </Button>
-      </form>
 
       <Modal
         open={confirmRemove !== null}
