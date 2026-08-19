@@ -122,15 +122,17 @@ export function rebalance(
     outer: for (let mi = 0; mi < ranked.length && !improved; mi++) {
       const most = ranked[mi]!;
       const mostUtilisation = utilisationOf(most, state);
+      // Depends only on `most` (mi), never on `least` (li) — hoisted out of the `li` loop below.
+      // It was being recomputed (an O(A) `assignmentsFor` scan + sort) up to `ranked.length` times
+      // per `mi`, purely because of where the line sat, not because the value could differ.
+      const candidates = [...state.assignmentsFor(most.id)].sort((a, b) => {
+        if (a.day !== b.day) return a.day - b.day;
+        return a.shift.id < b.shift.id ? -1 : a.shift.id > b.shift.id ? 1 : 0;
+      });
 
       for (let li = ranked.length - 1; li > mi; li--) {
         const least = ranked[li]!;
         if (utilisationOf(least, state) >= mostUtilisation) break; // ranked descending — no gap left to close
-
-        const candidates = [...state.assignmentsFor(most.id)].sort((a, b) => {
-          if (a.day !== b.day) return a.day - b.day;
-          return a.shift.id < b.shift.id ? -1 : a.shift.id > b.shift.id ? 1 : 0;
-        });
 
         for (const assignment of candidates) {
           const withoutIt = withoutAssignment(state, assignment, gate);
