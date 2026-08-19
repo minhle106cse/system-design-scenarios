@@ -60,7 +60,10 @@ export function CoverageView({
 
       <div>
         <h2 className="text-sm font-medium text-slate-700">Coverage by hour</h2>
-        <p className="text-xs text-slate-500">Required staff vs. scheduled staff, per hour.</p>
+        <p className="text-xs text-slate-500">
+          Each cell reads <strong>scheduled / required</strong> — the staff booked for that hour
+          over the number the demand calls for.
+        </p>
         {hours.length === 0 ? (
           <p className="mt-2 text-sm text-slate-500">
             No coverage data yet — run auto-schedule on the Roster tab first.
