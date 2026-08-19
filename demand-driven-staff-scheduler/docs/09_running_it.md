@@ -27,9 +27,10 @@ overruled by the user for exactly this scenario). Still **zero `.env` files to c
 non-secret values (a throwaway Docker Postgres password, a `localhost` URL) — `.env.example` and
 `apps/web/.env.example` document the variables for anyone who wants to override them.
 
-Then open http://localhost:3000 (`apps/web` — the one real screen: create a schedule, which calls
-`apps/scheduler-api` for real) or http://localhost:4102/docs (`apps/scheduler-api`'s Swagger UI —
-every route Phase D built, exercisable directly).
+Then open http://localhost:3000 (`apps/web` — all seven screens, `docs/05_ui_guidelines.md`:
+schedules list/create, staff, demand import, shifts, roster, summary, coverage, every one of them
+calling `apps/scheduler-api` for real) or http://localhost:4102/docs (`apps/scheduler-api`'s
+Swagger UI — every route exercisable directly).
 
 ## Verification (plan §10 — init is done when all of these pass; extended for the reversal)
 

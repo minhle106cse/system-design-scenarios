@@ -33,8 +33,8 @@ turbo.json             build/test/lint/dev orchestration across the workspace
 ```
 
 Two processes, one Postgres, no message broker, no cache. `npm run dev` (root, via Turborepo)
-starts both apps; `docker compose up -d` starts Postgres. `docs/09_running_it.md` has the full
-sequence.
+starts both apps; `npm run infra:up` (`docker-compose up -d`) starts Postgres.
+`docs/09_running_it.md` has the full sequence.
 
 **Why `scheduling` has no domain-service layer the way `../service-appointment-scheduler`'s
 `booking` module does:** this domain's business logic already lives in the framework-free
