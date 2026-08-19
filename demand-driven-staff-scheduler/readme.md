@@ -49,7 +49,7 @@ which of those two things the extra work actually is.
 | 2.4 | Shifts defined by start/end only, two seeded defaults, add/edit/remove | ✅ 07:00–15:00 and 15:00–23:00 |
 | 2.5 | Auto-schedule: demand-aware, respects every max-hours cap, fair, adjustable afterwards | ✅ |
 | 2.6 | Summary per day/hour + four week-level aggregates, **both** ratios shown | ✅ |
-| 5 | A usable UI — explicitly not a command-line or API-only exercise | ✅ seven screens |
+| 5 | A usable UI — explicitly not a command-line or API-only exercise | ✅ eight screens |
 
 Verified by running the application against a live database and clicking through it, not only by
 the test suite — the exact sequence is in [`docs/09_running_it.md`](docs/09_running_it.md).
@@ -182,7 +182,7 @@ with local, non-secret values. Full detail: [`RUN.md`](RUN.md),
 | [`packages/scheduling-core/`](packages/scheduling-core/) | ✅ The algorithm, complete — 97/97 specs (unit + property + golden-file), zero runtime dependencies |
 | [`packages/shared-kernel/`](packages/shared-kernel/) | CQRS bus, Unit-of-Work, errors, logger, resilience — generic infra ported once, used by `apps/scheduler-api` |
 | [`apps/scheduler-api/`](apps/scheduler-api/) | ✅ NestJS + Fastify + Postgres — schedules, staff, shifts, CSV import, auto-schedule, manual roster editing, coverage view, availability, roles. Every route verified against a live database, not just unit-tested |
-| [`apps/web/`](apps/web/) | ✅ Next.js — all seven screens (plan §3.1) built against the real `apps/scheduler-api`: schedules list/create, staff (+ availability and roles), demand import, shifts, roster (auto-schedule + manual/drag-and-drop editing + CSV export), summary, coverage |
+| [`apps/web/`](apps/web/) | ✅ Next.js — every screen built against the real `apps/scheduler-api`: schedules list/create, roles, staff (name, cap, availability and roles in one modal), demand import, shifts, roster (auto-schedule + manual/drag-and-drop editing + CSV export), summary, coverage |
 | [`directives/`](directives/README.md) | The coding rulebook this repo (and any agent working on it) follows |
 
 ## Why the stack changed mid-build

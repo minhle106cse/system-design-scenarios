@@ -58,7 +58,8 @@ Shift (assumption 3, no overnight blocks) — no merge-with-existing-row case he
 Brief §8 stretch — roles/skills, e.g. *"a shift must include at least one supervisor"* (D2,
 stretch-goals plan §2b). Assigning a role to staff (`PUT /staff/:staffId/roles`, above) or requiring
 it on a shift (`PUT /shifts/:shiftId/role-requirements`, below) live on those controllers instead —
-managed where they're assigned, `docs/05`'s seven-screen nav stays stable, not an 8th tab.
+originally managed inside the Staff tab; later split into their own tab, placed FIRST, because a
+role has to exist before it can be ticked on anyone (`docs/05`).
 
 | Route | Method | Body | `data` |
 |---|---|---|---|
