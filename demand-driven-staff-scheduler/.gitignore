@@ -7,6 +7,11 @@ out/
 .env.local
 .env*.local
 coverage/
+# ...but NOT the Coverage UI route — `coverage/` above is meant for Jest/Vitest report
+# output, and it silently swallowed apps/web/src/app/s/[id]/coverage/ (a real screen, and
+# a brief §8 stretch goal) until a fresh-clone check caught the route 404ing in a
+# production build. Never let a build-output pattern match anything under src/.
+!**/src/**/coverage/
 .turbo/
 apps/*/src/generated/
 .DS_Store
