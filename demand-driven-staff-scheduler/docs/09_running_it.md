@@ -58,8 +58,14 @@ node .claude/hooks/turn-context.cjs
 ## Other commands
 
 ```bash
-npm run db:studio          # Prisma Studio against the real Postgres (Turbo runs it for every
-                            # workspace that has the script — only apps/scheduler-api does)
-npm run infra:down         # stop Postgres (docker compose down)
-npm run sync               # run scripts/sync.cjs by hand
+npm run build && npm run start   # run the BUILT artifacts — apps/scheduler-api via `node
+                                  # dist/main`, apps/web via `next start` — rather than npm run
+                                  # dev's source-watching servers. Root `start` runs the workspace
+                                  # `start` script (not `start:dev`/`start:debug`) via Turbo,
+                                  # `dependsOn: ["build"]` in turbo.json builds first if needed.
+npm run db:studio                # Prisma Studio against the real Postgres (Turbo runs it for
+                                  # every workspace that has the script — only apps/scheduler-api
+                                  # does)
+npm run infra:down               # stop Postgres (docker compose down)
+npm run sync                     # run scripts/sync.cjs by hand
 ```
