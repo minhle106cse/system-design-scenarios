@@ -8,12 +8,14 @@ const TABS: readonly { readonly href: string; readonly label: string }[] = [
   { href: 'staff', label: 'Staff' },
   { href: 'demand', label: 'Demand' },
   { href: 'shifts', label: 'Shifts' },
+  { href: 'schedule', label: 'Schedule' },
   { href: 'roster', label: 'Roster' },
   { href: 'summary', label: 'Summary' },
   { href: 'coverage', label: 'Coverage' },
 ]
 
-/** Tab nav shared by every `/s/[id]/*` screen — `docs/05_ui_guidelines.md`'s seven-screen list. */
+/** Tab nav shared by every `/s/[id]/*` screen — `docs/05_ui_guidelines.md`'s screen list (Roster
+ *  split into Schedule + Roster, user-directed, so it's now eight rather than the original seven). */
 export function ScheduleTabs({ scheduleId }: { readonly scheduleId: string }) {
   const pathname = usePathname()
 

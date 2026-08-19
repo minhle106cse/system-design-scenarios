@@ -127,12 +127,38 @@ export interface RoleShortfall {
   readonly assigned: number;
 }
 
+/**
+ * The `StructuralVerdict` pattern (team-wide floor-hours vs contracted capacity), scoped to ONE
+ * role. Answers a question `roleShortfalls` alone cannot: is this week's `roleShortfalls` list a
+ * genuine STAFFING gap (not enough people holding the role to ever cover the hours that need it,
+ * no matter how the pass is ordered) or something else (the role-holders exist and have the hours,
+ * but `rolePass`'s greedy day-by-day fill happened to leave a gap)? One entry per role that has at
+ * least one `RoleRequirement` with `minCount > 0` somewhere in `input.shifts` — always reported,
+ * mirroring `structural`, not only when short (a manager comparing weeks needs the "how much
+ * headroom" number even when there is no shortfall today).
+ *
+ * Advisory, not a prediction: `requiredRoleHours <= contractedRoleHours` does NOT guarantee zero
+ * `roleShortfalls` (the hours could still be needed on days a single holder can't reach — a
+ * clustering problem this number doesn't see, the same caveat `structural` already carries for the
+ * team-wide number, ~20% shift-quantisation gap and all).
+ */
+export interface RoleCapacity {
+  readonly roleId: RoleId;
+  /** Sum of `minCount(role, shift) × shiftHours(shift)` over every (day, shift) that genuinely
+   *  needs the role this week — closed days (no demand) excluded, same rule `roleShortfalls` uses. */
+  readonly requiredRoleHours: number;
+  /** Sum of `maxWeeklyHours` over every staff member holding this role — their weekly capacity
+   *  ceiling, not what they're actually assigned (that's `staff[].assignedHours`, per-person). */
+  readonly contractedRoleHours: number;
+}
+
 export interface Diagnostics {
   readonly hours: readonly HourDiagnostic[];
   readonly staff: readonly StaffDiagnostic[];
   readonly unfilledSeats: readonly UnfilledSeat[];
   readonly structural: StructuralVerdict;
   readonly roleShortfalls: readonly RoleShortfall[];
+  readonly roleCapacity: readonly RoleCapacity[];
 }
 
 export interface SchedulingResult {

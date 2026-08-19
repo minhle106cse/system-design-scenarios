@@ -4,6 +4,7 @@ import type {
   DemandCellInput,
 } from '../../domain/repositories/demand-cell.repository'
 import type { DemandCell } from '../../domain/entities/demand-cell.entity'
+import { touchSchedule } from './touch-schedule.util'
 
 type DemandCellRow = {
   id: string
@@ -49,5 +50,9 @@ export class PrismaDemandCellRepository implements IDemandCellRepository {
         update: { transactions: cell.transactions },
       })
     }
+    // Even an empty `cells` (e.g. a CSV re-import that parsed zero rows) is a completed import
+    // action, not a no-op — the manager did something to demand and expects it reflected, so this
+    // runs unconditionally rather than inside the `for` loop's `if` guard.
+    await touchSchedule(this.tx, scheduleId, 'demand')
   }
 }

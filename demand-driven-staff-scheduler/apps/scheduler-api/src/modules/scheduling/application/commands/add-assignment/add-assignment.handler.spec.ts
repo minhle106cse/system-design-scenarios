@@ -29,6 +29,10 @@ describe('AddAssignmentHandler', () => {
     minUtilisationTarget: 0.6,
     createdAt: new Date('2026-08-01'),
     updatedAt: new Date('2026-08-01'),
+    staffUpdatedAt: null,
+    shiftsUpdatedAt: null,
+    demandUpdatedAt: null,
+    rolesUpdatedAt: null,
   }
 
   // The brief's two seeded shifts (8h each), plus one that deliberately overlaps Morning.

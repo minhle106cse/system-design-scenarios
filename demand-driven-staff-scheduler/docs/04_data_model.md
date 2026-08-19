@@ -10,7 +10,7 @@ and `Role`/`StaffRole`/`ShiftRoleRequirement` (§2b, roles/skills).
 
 | Model | Fields | Notes |
 |---|---|---|
-| `Schedule` | `id · name · transactionsPerStaffHour · minStaffWhenOpen · maxStaffPerHour? · minUtilisationTarget · timestamps` | The tunables (plan §7.6) live here, editable in the UI |
+| `Schedule` | `id · name · transactionsPerStaffHour · minStaffWhenOpen · maxStaffPerHour? · minUtilisationTarget · timestamps · staffUpdatedAt? · shiftsUpdatedAt? · demandUpdatedAt? · rolesUpdatedAt?` | The tunables (plan §7.6) live here, editable in the UI. The four `{category}UpdatedAt` columns are roster-freshness stamps, not tunables — see the note below |
 | `StaffMember` | `id · scheduleId · name · maxWeeklyHours` | |
 | `StaffUnavailability` | `id · staffId · dayOfWeek(1-7) · startMinute · endMinute` | Brief §8 stretch (H4) — a time window, not a day flag; "day off" is `{0, 1440}` from the UI's preset. **No `deletedAt`**: a config row added/removed wholesale, same class as `DemandCell`/`Assignment` below — not one of the three "add/edit/remove" CRUD entities that get soft-deleted. `PrismaService`'s `SOFT_DELETE_MODELS` array is left alone. |
 | `DemandCell` | `id · scheduleId · dayOfWeek(1-7) · hour(0-23) · transactions` | **unique `(scheduleId, dayOfWeek, hour)`** — a re-import upserts (assumption 10) |
@@ -33,6 +33,22 @@ auto-schedule run and what it couldn't cover at the time.
 > `GetSummaryHandler` already made for the summary report, for the identical reason. `ScheduleRun`
 > is kept for provenance (`GET /schedules/:id` still returns `latestRun`), it is just not what the
 > coverage view reads.
+
+> **Roster-freshness stamps, added this session.** The user pointed out that editing any input
+> (staff, roles, demand, shifts — not just the four schedule parameters above) silently moved
+> Coverage/Summary's numbers with no indication the persisted roster no longer matched. A prior
+> session had already solved this for the four `Schedule`-row parameters (`rosterStatus` in
+> `apps/web/src/lib/staleness.ts`, diffed against `ScheduleRun.parameters`), but staff/shift/demand/
+> role writes never touch the `Schedule` row, so they were invisible to that comparison. Fixed by
+> adding four nullable `{category}UpdatedAt` columns to `Schedule` and having every repository that
+> writes the corresponding table (`PrismaStaffMemberRepository`, `PrismaStaffUnavailabilityRepository`,
+> `PrismaShiftRepository`, `PrismaDemandCellRepository`, `PrismaRoleRepository`,
+> `PrismaStaffRoleRepository`, `PrismaShiftRoleRequirementRepository`) stamp `now()` via the shared
+> `touchSchedule` helper (`infrastructure/repositories/touch-schedule.util.ts`), in the same
+> transaction as the write. `rosterStatus` compares each stamp against `ScheduleRun.generatedAt` —
+> `null` (never touched) reads as unchanged, never as an epoch date. Availability windows are
+> grouped under "Staff" and role/seat-requirement edits under "Roles" rather than becoming a fifth
+> and sixth category.
 
 ## Why minutes-from-midnight, not `TIME`
 

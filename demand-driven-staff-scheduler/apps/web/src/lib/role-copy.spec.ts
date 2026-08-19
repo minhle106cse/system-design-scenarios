@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { describeRoleShortfall } from './role-copy'
-import type { Role, RoleShortfall, Shift } from './api-client'
+import { describeRoleCapacityGap, describeRoleShortfall } from './role-copy'
+import type { Role, RoleCapacity, RoleShortfall, Shift } from './api-client'
 
 const roleById = new Map<string, Role>([
   ['r1', { id: 'r1', scheduleId: 'sched', name: 'Supervisor' }],
@@ -48,5 +48,22 @@ describe('describeRoleShortfall', () => {
     const msg = describeRoleShortfall(shortfall, roleById, shiftById)
     expect(msg).toContain('a required role')
     expect(msg).toContain('Mon')
+  })
+})
+
+describe('describeRoleCapacityGap', () => {
+  it('names the role, both hour totals, and tells the manager the gap cannot be rescheduled away', () => {
+    const gap: RoleCapacity = { roleId: 'r1', requiredRoleHours: 56, contractedRoleHours: 40 }
+    const msg = describeRoleCapacityGap(gap, roleById)
+    expect(msg).toContain('Supervisor')
+    expect(msg).toContain('56.0h')
+    expect(msg).toContain('40.0h')
+    expect(msg).toMatch(/no amount of rescheduling/)
+  })
+
+  it('falls back to a generic role name when the id is unknown', () => {
+    const gap: RoleCapacity = { roleId: 'ghost', requiredRoleHours: 10, contractedRoleHours: 5 }
+    const msg = describeRoleCapacityGap(gap, roleById)
+    expect(msg).toContain('a required role')
   })
 })

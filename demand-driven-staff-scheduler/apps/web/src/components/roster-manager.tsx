@@ -4,28 +4,17 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   addAssignment,
-  autoSchedule,
-  getSuggestedN,
   removeAssignment,
-  updateSchedule,
   type Assignment,
-  type Diagnostics,
-  type Role,
-  type Schedule,
-  type ScheduleRun,
   type Shift,
   type StaffMember,
-  type SuggestedN,
 } from '@/lib/api-client'
 import { describeApiError } from '@/lib/error-copy'
-import { describeRoleShortfall } from '@/lib/role-copy'
 import { buildRosterGrid, rosterGridKey } from '@/lib/grid'
 import { toRosterCsv } from '@/lib/csv-export'
 import { DAYS_OF_WEEK, dayLabel, formatMinutes } from '@/lib/week'
-import { formatHours } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Banner } from '@/components/ui/banner'
-import { Field } from '@/components/ui/field'
 import { Modal } from '@/components/ui/modal'
 
 function downloadCsv(filename: string, content: string) {
@@ -46,45 +35,26 @@ interface DragPayload {
 }
 
 /**
- * §2.5 star — parameter panel + auto-schedule + the day x shift grid + manual add/remove/drag-drop
- * + diagnostics banners + CSV export. Mutations refresh via `router.refresh()`
+ * §2.5's day x shift grid + manual add/remove/drag-drop + CSV export. Parameters and the
+ * auto-schedule trigger live on the separate Schedule tab (`schedule-manager.tsx`) — this
+ * component only shows and hand-tunes whatever roster is currently persisted, whether it came from
+ * an auto-schedule run or from edits made here. Mutations refresh via `router.refresh()`
  * (`frontend_standard.md` §2/§4) rather than local optimistic state, matching every other screen.
  */
 export function RosterManager({
   scheduleId,
-  schedule,
   staff,
   shifts,
   assignments,
-  latestRun,
-  suggestedN,
-  roles,
 }: {
   readonly scheduleId: string
-  readonly schedule: Schedule
   readonly staff: readonly StaffMember[]
   readonly shifts: readonly Shift[]
   readonly assignments: readonly Assignment[]
-  readonly latestRun: ScheduleRun | null
-  readonly suggestedN: SuggestedN
-  readonly roles: readonly Role[]
 }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
-  const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null)
-  // `suggested` only changes on an explicit "Suggest from data" click (never auto-applied), so it's
-  // fine as local state seeded from the prop. `current` must NOT be — it's `schedule`'s own field,
-  // which DOES get a fresh value on every `router.refresh()`; capturing it into `useState` once
-  // would go stale the moment "Save parameters" succeeds (the initial value from `useState(x)` is
-  // never re-read from a later prop change, only from React unmounting/remounting the component).
-  const [suggested, setSuggested] = useState(suggestedN.suggested)
-
-  // Parameter panel
-  const [n, setN] = useState(String(schedule.transactionsPerStaffHour))
-  const [minStaff, setMinStaff] = useState(String(schedule.minStaffWhenOpen))
-  const [maxStaff, setMaxStaff] = useState(schedule.maxStaffPerHour?.toString() ?? '')
-  const [utilTarget, setUtilTarget] = useState(String(schedule.minUtilisationTarget))
 
   // Manual add
   const [addTarget, setAddTarget] = useState<{
@@ -95,53 +65,7 @@ export function RosterManager({
 
   const staffById = new Map(staff.map((s) => [s.id, s]))
   const shiftById = new Map(shifts.map((s) => [s.id, s]))
-  const roleById = new Map(roles.map((r) => [r.id, r]))
   const grid = buildRosterGrid(assignments)
-
-  async function saveParameters(e: React.FormEvent) {
-    e.preventDefault()
-    setPending(true)
-    setError(null)
-    try {
-      await updateSchedule(scheduleId, {
-        transactionsPerStaffHour: Number(n),
-        minStaffWhenOpen: Number(minStaff),
-        maxStaffPerHour: maxStaff === '' ? null : Number(maxStaff),
-        minUtilisationTarget: Number(utilTarget),
-      })
-      router.refresh()
-    } catch (err) {
-      setError(describeApiError(err))
-    } finally {
-      setPending(false)
-    }
-  }
-
-  async function refreshSuggestion() {
-    setPending(true)
-    setError(null)
-    try {
-      setSuggested((await getSuggestedN(scheduleId)).suggested)
-    } catch (err) {
-      setError(describeApiError(err))
-    } finally {
-      setPending(false)
-    }
-  }
-
-  async function runAutoSchedule() {
-    setPending(true)
-    setError(null)
-    try {
-      const result = await autoSchedule(scheduleId)
-      setDiagnostics(result.diagnostics)
-      router.refresh()
-    } catch (err) {
-      setError(describeApiError(err))
-    } finally {
-      setPending(false)
-    }
-  }
 
   async function handleAddAssignment() {
     if (!addTarget || !selectedStaffId) return
@@ -203,123 +127,14 @@ export function RosterManager({
     <div className="space-y-6">
       {error && <Banner tone="error">{error}</Banner>}
 
-      <div className="rounded-md border border-slate-200 bg-white p-4">
-        <h2 className="text-sm font-medium text-slate-700">Parameters</h2>
-        <form onSubmit={saveParameters} className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Field
-            id="param-n"
-            label="Transactions per staff hour (N)"
-            type="number"
-            min={1}
-            value={n}
-            onChange={(e) => setN(e.target.value)}
-          />
-          <Field
-            id="param-min-staff"
-            label="Min staff when open"
-            type="number"
-            min={0}
-            value={minStaff}
-            onChange={(e) => setMinStaff(e.target.value)}
-          />
-          <Field
-            id="param-max-staff"
-            label="Max staff per hour (optional)"
-            type="number"
-            min={1}
-            value={maxStaff}
-            onChange={(e) => setMaxStaff(e.target.value)}
-            placeholder="No cap"
-          />
-          <Field
-            id="param-util"
-            label="Fair-share target (0-1)"
-            type="number"
-            min={0}
-            max={1}
-            step={0.05}
-            value={utilTarget}
-            onChange={(e) => setUtilTarget(e.target.value)}
-          />
-          <div className="col-span-2 flex items-end gap-2 sm:col-span-4">
-            <Button type="submit" disabled={pending}>
-              Save parameters
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={pending}
-              onClick={refreshSuggestion}
-            >
-              Suggest from data
-            </Button>
-          </div>
-        </form>
-        <p className="mt-2 text-xs text-slate-500">
-          Your imported data suggests N = {suggested}; this schedule currently uses N ={' '}
-          {schedule.transactionsPerStaffHour}. They can legitimately differ - the suggestion is a
-          data-driven estimate, not a rule to auto-apply; review before changing N above.
-        </p>
-      </div>
-
       <div className="flex items-center gap-3">
-        <Button disabled={pending} onClick={runAutoSchedule}>
-          {pending ? 'Working...' : 'Auto-schedule'}
-        </Button>
         <Button
           variant="secondary"
           onClick={() => downloadCsv('roster.csv', toRosterCsv(assignments, staff, shifts))}
         >
           Export CSV
         </Button>
-        {latestRun && (
-          <span className="text-xs text-slate-500">
-            Last run {new Date(latestRun.generatedAt).toLocaleString()}
-          </span>
-        )}
       </div>
-
-      {diagnostics && (
-        <div className="space-y-2">
-          {diagnostics.structural.floorStaffHours > diagnostics.structural.contractedStaffHours && (
-            <Banner tone="warning">
-              Demand needs about {formatHours(diagnostics.structural.floorStaffHours)} of work this
-              week, but the team is only contracted for{' '}
-              {formatHours(diagnostics.structural.contractedStaffHours)}. Not every hour could be
-              fully covered - see Coverage for detail, and consider adding staff or hours.
-            </Banner>
-          )}
-          {diagnostics.unfilledSeats.length > 0 && (
-            <Banner tone="warning">
-              {diagnostics.unfilledSeats.length} seat(s) could not be filled:{' '}
-              {diagnostics.unfilledSeats.slice(0, 5).map((seat, i) => (
-                <span key={i}>
-                  {i > 0 ? ', ' : ''}
-                  {dayLabel(seat.day)} ({seat.blockedReasons.join(', ')})
-                </span>
-              ))}
-              {diagnostics.unfilledSeats.length > 5 &&
-                ` and ${diagnostics.unfilledSeats.length - 5} more`}
-              .
-            </Banner>
-          )}
-          {diagnostics.staff.some((s) => s.belowTarget) && (
-            <Banner tone="info">
-              {diagnostics.staff.filter((s) => s.belowTarget).length} staff member(s) are below the
-              fair-share target this week - see Coverage for who.
-            </Banner>
-          )}
-          {diagnostics.roleShortfalls.length > 0 && (
-            <Banner tone="warning">
-              <ul className="list-disc space-y-1 pl-4">
-                {diagnostics.roleShortfalls.map((s, i) => (
-                  <li key={i}>{describeRoleShortfall(s, roleById, shiftById)}</li>
-                ))}
-              </ul>
-            </Banner>
-          )}
-        </div>
-      )}
 
       <div>
         <h2 className="text-sm font-semibold text-slate-700">Roster</h2>
@@ -451,7 +266,7 @@ export function RosterManager({
       </Modal>
 
       {staff.length === 0 && (
-        <Banner tone="info">Add staff on the Staff tab before running auto-schedule.</Banner>
+        <Banner tone="info">Add staff on the Staff tab before assigning them to shifts.</Banner>
       )}
     </div>
   )
