@@ -32,13 +32,16 @@ export default async function ScheduleLayout({
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <Link href="/" className="text-xs text-slate-500 hover:underline">
-            ← All schedules
-          </Link>
-          <h1 className="text-xl font-semibold text-slate-900">{scheduleName}</h1>
-        </div>
+      <div className="mb-6">
+        <Link
+          href="/"
+          className="text-xs font-medium text-slate-500 transition-colors hover:text-accent-700"
+        >
+          ← All schedules
+        </Link>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
+          {scheduleName}
+        </h1>
       </div>
       <ScheduleTabs scheduleId={id} />
       <div className="mt-6">{children}</div>

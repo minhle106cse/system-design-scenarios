@@ -17,7 +17,7 @@ export function ScheduleTabs({ scheduleId }: { readonly scheduleId: string }) {
   const pathname = usePathname()
 
   return (
-    <nav className="flex gap-1 border-b border-slate-200">
+    <nav className="flex gap-1 rounded-lg bg-slate-100/80 p-1">
       {TABS.map((tab) => {
         const href = `/s/${scheduleId}/${tab.href}`
         const active = pathname === href
@@ -25,10 +25,10 @@ export function ScheduleTabs({ scheduleId }: { readonly scheduleId: string }) {
           <Link
             key={tab.href}
             href={href}
-            className={`rounded-t-md px-3 py-2 text-sm font-medium ${
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
               active
-                ? 'border-b-2 border-slate-900 text-slate-900'
-                : 'text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             {tab.label}

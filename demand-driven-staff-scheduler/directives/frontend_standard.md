@@ -56,6 +56,16 @@ Tailwind utility classes directly in JSX. No CSS-in-JS, no separate `.module.css
 one styling mechanism, consistently. `tailwind.config.ts` stays close to defaults; extend it only
 when a repeated pattern (a status color scale, e.g.) earns a named token.
 
+**Real example (this session's visual pass):** `accent` (an indigo scale, used by every primary
+button, active tab, and focus ring) and `shadow-card` earned tokens because each was hand-typed as
+a raw Tailwind class in 6+ places before being named — the repeated-pattern bar the rule above sets.
+`next/font/google`'s `Inter`, wired through a CSS variable (`--font-sans`) rather than a global
+class, is the one approved way to add a font: zero new dependency, and the variable indirection
+means swapping fonts later is a one-line change in `app/layout.tsx`, not a grep-and-replace.
+Verify a new custom color token actually compiled — a typo'd class name (`bg-accnet-600`) fails
+**silently**, rendering as no background rather than an error, so check `getComputedStyle(...)
+.backgroundColor` against the token's real hex value once, not just that the page didn't crash.
+
 ## 4. Talking to the API
 
 `apps/web` has no route handlers and no database of its own — every call crosses HTTP to
