@@ -4,6 +4,7 @@ import type {
   ShiftRoleRequirementInput,
 } from '../../domain/repositories/shift-role-requirement.repository'
 import type { ShiftRoleRequirement } from '../../domain/entities/role.entity'
+import { touchSchedule } from './touch-schedule.util'
 
 type ShiftRoleRequirementRow = { id: string; shiftId: string; roleId: string; minCount: number }
 
@@ -30,6 +31,13 @@ export class PrismaShiftRoleRequirementRepository implements IShiftRoleRequireme
       })
     }
     const rows = await this.tx.shiftRoleRequirement.findMany({ where: { shiftId } })
+    // No `scheduleId` column on this join table (schema.prisma) — one extra lookup through the
+    // shift relation, same shape `listByScheduleId` already needs.
+    const shift = await this.tx.shift.findUnique({
+      where: { id: shiftId },
+      select: { scheduleId: true },
+    })
+    if (shift) await touchSchedule(this.tx, shift.scheduleId, 'roles')
     return rows.map(toDomain)
   }
 }

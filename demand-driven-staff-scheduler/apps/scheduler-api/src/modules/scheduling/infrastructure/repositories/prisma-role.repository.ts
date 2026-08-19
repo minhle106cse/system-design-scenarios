@@ -6,6 +6,7 @@ import type {
 } from '../../domain/repositories/role.repository'
 import type { Role } from '../../domain/entities/role.entity'
 import { DuplicateRoleNameError } from '@/common/errors/scheduling.error'
+import { touchSchedule } from './touch-schedule.util'
 
 type RoleRow = { id: string; scheduleId: string; name: string }
 
@@ -21,6 +22,7 @@ export class PrismaRoleRepository implements IRoleRepository {
       const row = await this.tx.role.create({
         data: { scheduleId: data.scheduleId, name: data.name },
       })
+      await touchSchedule(this.tx, row.scheduleId, 'roles')
       return toDomain(row)
     } catch (err) {
       // `@@unique([scheduleId, name])` (schema.prisma) — turn the raw P2002 into the same domain-
@@ -48,6 +50,7 @@ export class PrismaRoleRepository implements IRoleRepository {
         where: { id },
         data: { ...(data.name !== undefined && { name: data.name }) },
       })
+      await touchSchedule(this.tx, row.scheduleId, 'roles')
       return toDomain(row)
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -58,6 +61,7 @@ export class PrismaRoleRepository implements IRoleRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await this.tx.role.delete({ where: { id } })
+    const row = await this.tx.role.delete({ where: { id } })
+    await touchSchedule(this.tx, row.scheduleId, 'roles')
   }
 }

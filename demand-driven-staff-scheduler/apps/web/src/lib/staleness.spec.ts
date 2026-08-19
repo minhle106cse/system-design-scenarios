@@ -11,6 +11,10 @@ const schedule: Schedule = {
   minUtilisationTarget: 0.6,
   createdAt: '2026-08-01T00:00:00.000Z',
   updatedAt: '2026-08-01T00:00:00.000Z',
+  staffUpdatedAt: null,
+  shiftsUpdatedAt: null,
+  demandUpdatedAt: null,
+  rolesUpdatedAt: null,
 }
 
 function run(parameters: unknown): ScheduleRun {
@@ -72,5 +76,55 @@ describe('rosterStatus', () => {
 
   it('treats a run with no stored parameters as stale rather than crashing', () => {
     expect(rosterStatus(schedule, run(null)).kind).toBe('STALE')
+  })
+
+  it('reports CURRENT when every input category is untouched (null) since the schedule was created', () => {
+    // Mirrors a freshly-created schedule that has never had staff/shifts/demand/roles written —
+    // `null` must read as "unchanged," never as an epoch date that is always older than the run.
+    expect(rosterStatus(schedule, run(matching)).kind).toBe('CURRENT')
+  })
+
+  it('names Staff when staff/availability was edited after the run', () => {
+    const status = rosterStatus(
+      { ...schedule, staffUpdatedAt: '2026-08-02T00:00:00.000Z' },
+      run(matching),
+    )
+
+    expect(status.kind === 'STALE' && status.changed).toEqual(['Staff'])
+  })
+
+  it('names Shifts, Demand data and Roles independently, and together', () => {
+    const status = rosterStatus(
+      {
+        ...schedule,
+        shiftsUpdatedAt: '2026-08-02T00:00:00.000Z',
+        demandUpdatedAt: '2026-08-03T00:00:00.000Z',
+        rolesUpdatedAt: '2026-08-04T00:00:00.000Z',
+      },
+      run(matching),
+    )
+
+    expect(status.kind === 'STALE' && status.changed).toEqual(['Shifts', 'Demand data', 'Roles'])
+  })
+
+  it('does NOT report a category touched BEFORE the run — e.g. the CSV import that fed it', () => {
+    const status = rosterStatus(
+      { ...schedule, demandUpdatedAt: '2026-07-31T00:00:00.000Z' },
+      run(matching),
+    )
+
+    expect(status.kind).toBe('CURRENT')
+  })
+
+  it('combines a named parameter change with a named input-category change', () => {
+    const status = rosterStatus(
+      { ...schedule, staffUpdatedAt: '2026-08-02T00:00:00.000Z' },
+      run({ ...matching, transactionsPerStaffHour: 15 }),
+    )
+
+    expect(status.kind === 'STALE' && status.changed).toEqual([
+      'Transactions per staff hour (N)',
+      'Staff',
+    ])
   })
 })

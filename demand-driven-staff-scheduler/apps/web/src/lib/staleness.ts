@@ -20,6 +20,14 @@ const LABELS: Record<keyof RunParameters, string> = {
   minUtilisationTarget: 'Fair-share target',
 }
 
+/** The four input categories `apps/scheduler-api`'s `touchSchedule` stamps a timestamp for. */
+const INPUT_CATEGORIES = [
+  { field: 'staffUpdatedAt', label: 'Staff' },
+  { field: 'shiftsUpdatedAt', label: 'Shifts' },
+  { field: 'demandUpdatedAt', label: 'Demand data' },
+  { field: 'rolesUpdatedAt', label: 'Roles' },
+] as const satisfies readonly { field: keyof Schedule; label: string }[]
+
 /**
  * Is the persisted roster still the answer to the parameters currently on the schedule?
  *
@@ -35,6 +43,14 @@ const LABELS: Record<keyof RunParameters, string> = {
  *
  * `maxStaffPerHour` is compared through `?? null` because "no cap" is absent in the stored run but
  * `null` on the schedule row — a raw `!==` would report a change on every single read.
+ *
+ * The four parameters above are only half the input surface: staff, shifts, demand and roles feed
+ * `generateRoster` too (`AutoScheduleHandler`), but none of them live on the `Schedule` row, so a
+ * value-diff like the one above has nothing to diff against. Those four are instead tracked by
+ * timestamp — `apps/scheduler-api`'s `touchSchedule` stamps `{category}UpdatedAt` on the schedule
+ * in the same transaction as every staff/shift/demand/role write — and reported stale here whenever
+ * that stamp is newer than the run that's on screen. `null` (never touched since the schedule was
+ * created) is treated as "unchanged," never as an epoch date that would always compare as older.
  */
 export function rosterStatus(schedule: Schedule, latestRun: ScheduleRun | null): RosterStatus {
   if (!latestRun) return { kind: 'NEVER_RUN' }
@@ -51,6 +67,12 @@ export function rosterStatus(schedule: Schedule, latestRun: ScheduleRun | null):
   compare('minStaffWhenOpen', schedule.minStaffWhenOpen)
   compare('maxStaffPerHour', schedule.maxStaffPerHour ?? null)
   compare('minUtilisationTarget', schedule.minUtilisationTarget)
+
+  const ranAt = new Date(latestRun.generatedAt).getTime()
+  for (const { field, label } of INPUT_CATEGORIES) {
+    const stamp = schedule[field]
+    if (stamp && new Date(stamp).getTime() > ranAt) changed.push(label)
+  }
 
   return changed.length > 0 ? { kind: 'STALE', changed } : { kind: 'CURRENT' }
 }

@@ -24,7 +24,7 @@ The tables below show the `data`/`error.details` shape, not the envelope.
 | `/schedules/:id/suggested-n` | `GET` | — | `{ suggested, current }` or `422 INSUFFICIENT_CALIBRATION_DATA` — "Suggest from data" (assumption 1's `suggestTransactionsPerStaff`, Phase 3) |
 | `/schedules/:id/auto-schedule` | `POST` | — | `{ roster, diagnostics }` — full replace (assumption 11), brief §2.5 |
 | `/schedules/:id/summary` | `GET` | — | `SummaryReport` (plan §7.7), brief §2.6 |
-| `/schedules/:id/coverage` | `GET` | — | `Diagnostics` (`{ hours, staff, unfilledSeats, structural }`), brief §8 stretch |
+| `/schedules/:id/coverage` | `GET` | — | `Diagnostics` (`{ hours, staff, unfilledSeats, structural, roleShortfalls, roleCapacity }`), brief §8 stretch + stretch-goals §2a |
 
 `suggested-n` 422s (`InsufficientCalibrationDataError`) when the schedule has no staff, no shifts,
 or no imported demand cells — `suggestTransactionsPerStaff` never throws on any of those inputs
@@ -34,6 +34,19 @@ exists to fail loudly instead of returning a misleadingly "legitimate" `suggeste
 NOT apply to `auto-schedule`, which must keep generating (an empty/thin roster plus honest
 `diagnostics`) rather than ever throwing on a feasible-but-bad input. `error.details` is
 `{ staff, shifts, demand }`, `true` on whichever inputs are missing.
+
+`Diagnostics.roleCapacity` (this session, found reviewing the algorithm for real gaps) — the
+`structural` verdict (team-wide floor-hours vs contracted hours), scoped to one role: `{ roleId,
+requiredRoleHours, contractedRoleHours }`, one entry per role any shift actually requires,
+**always** reported, not only when short. Answers what `roleShortfalls` alone cannot: is a
+shortfall a genuine STAFFING gap (not enough role-holder hours exist this week, no fill order can
+close it) or something fill-order could still fix? Real case found and fixed: a schedule with one
+Supervisor and a daily Supervisor-required shift pinned that person to their weekly max while
+`roleShortfalls` appeared on the days they ran out of hours — two disconnected-looking facts with
+no stated cause. `roleCapacity` makes the cause explicit; `.ai/memory/architecture.jsonl` has the
+full investigation (including why the algorithm itself was NOT changed — `rebalance`'s
+role-coverage-preserving guard is correct as-is, loosening it would risk silently regressing a role
+constraint for a fairness gain).
 
 ## Staff (`/api/v1/schedules/:scheduleId/staff`)
 

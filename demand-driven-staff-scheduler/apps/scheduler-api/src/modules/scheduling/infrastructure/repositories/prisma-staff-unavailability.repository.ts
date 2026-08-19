@@ -4,6 +4,7 @@ import type {
   CreateStaffUnavailabilityData,
 } from '../../domain/repositories/staff-unavailability.repository'
 import type { StaffUnavailability } from '../../domain/entities/staff-unavailability.entity'
+import { touchSchedule } from './touch-schedule.util'
 
 type StaffUnavailabilityRow = {
   id: string
@@ -35,6 +36,13 @@ export class PrismaStaffUnavailabilityRepository implements IStaffUnavailability
         endMinute: data.endMinute,
       },
     })
+    // Availability is a per-staff input (H4, `FeasibilityGate.eligible`) — grouped under the
+    // "staff" category rather than a fifth category, same as `StaffMember` itself.
+    const staff = await this.tx.staffMember.findUnique({
+      where: { id: data.staffId },
+      select: { scheduleId: true },
+    })
+    if (staff) await touchSchedule(this.tx, staff.scheduleId, 'staff')
     return toDomain(row)
   }
 
@@ -52,6 +60,10 @@ export class PrismaStaffUnavailabilityRepository implements IStaffUnavailability
   }
 
   async delete(id: string): Promise<void> {
-    await this.tx.staffUnavailability.delete({ where: { id } })
+    const row = await this.tx.staffUnavailability.delete({
+      where: { id },
+      select: { staff: { select: { scheduleId: true } } },
+    })
+    await touchSchedule(this.tx, row.staff.scheduleId, 'staff')
   }
 }

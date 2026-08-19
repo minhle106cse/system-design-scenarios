@@ -17,6 +17,10 @@ type ScheduleRow = {
   minUtilisationTarget: number
   createdAt: Date
   updatedAt: Date
+  staffUpdatedAt: Date | null
+  shiftsUpdatedAt: Date | null
+  demandUpdatedAt: Date | null
+  rolesUpdatedAt: Date | null
 }
 
 function toDomain(row: ScheduleRow): Schedule {
@@ -29,6 +33,10 @@ function toDomain(row: ScheduleRow): Schedule {
     minUtilisationTarget: row.minUtilisationTarget,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    staffUpdatedAt: row.staffUpdatedAt,
+    shiftsUpdatedAt: row.shiftsUpdatedAt,
+    demandUpdatedAt: row.demandUpdatedAt,
+    rolesUpdatedAt: row.rolesUpdatedAt,
   }
 }
 
