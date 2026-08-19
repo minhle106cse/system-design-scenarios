@@ -681,6 +681,19 @@ unavailability added. Three findings, three different outcomes:
    `docs/06_api_contracts.md` reconciled (`roleShortfalls`/`roleCapacity` were both missing from the
    `coverage` route's documented shape — the former predates this session).
 
+## `rebalance` complexity walkthrough surfaces one real micro-inefficiency, fixed (this session)
+
+User asked for `rebalancer.ts`'s complexity class step by step. The walkthrough itself surfaced a
+real, minor inefficiency: `RosterState.hours`/`assignmentsFor`/`utilisationOf` are all O(A) (linear
+scans over `committed`, no per-staff index), so `withoutAssignment` (replays A-1 items through a
+fresh `gate.eligible` each) is O(A²) per call — worst-case single-iteration cost is roughly
+O(n²·A³ + n³·A²), usually saved in practice by `break outer`'s first-improving-move early exit. In
+that walkthrough, `candidates = [...state.assignmentsFor(most.id)].sort(...)` was found sitting
+inside the `li` loop despite depending only on `most`/`mi` — recomputed up to `ranked.length` times
+per `mi` for a value that never changes. Hoisted above the `li` loop; pure relocation, zero logic
+change, verified by the full 103-test suite (including `golden.spec.ts`'s exact-value snapshots and
+`index.prop-spec.ts`'s determinism assertion — either would catch an accidental behavior drift).
+
 ## Current focus
 
 **`backend-architecture-reversal.plan.md` (all six phases A–F), Phase 3 (the UI), and the stretch
