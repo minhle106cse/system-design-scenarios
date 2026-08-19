@@ -20,6 +20,8 @@ local, non-secret values.
 npm run typecheck                        # zero errors across every workspace
 npm run lint
 npm test                                 # scheduling-core + shared-kernel + scheduler-api + web
+npm run build && npm run start           # run the BUILT artifacts (node dist/main, next start) —
+                                          # not npm run dev's source-watching servers
 npm run db:studio                        # Prisma Studio against the real Postgres
 npm run infra:down                       # stop Postgres
 npm run sync                             # run scripts/sync.cjs by hand
