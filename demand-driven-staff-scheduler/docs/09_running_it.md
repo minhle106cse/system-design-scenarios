@@ -12,7 +12,7 @@ setup."* — brief §5.
 > reasoning this file always gave for the SQLite path.
 
 ```bash
-docker compose up -d              # Postgres only — one container
+npm run infra:up                  # docker-compose up -d — Postgres only, one container
 npm install                       # workspaces + apps/scheduler-api's postinstall: prisma generate
 npm run db:deploy                 # apply the committed migrations (Turbo runs it for every
                                    # workspace that has the script — only apps/scheduler-api does)
@@ -52,8 +52,8 @@ node .claude/hooks/turn-context.cjs
 - `curl http://localhost:4102/health` → `{"status":"ok", "checks": {"database":"ok"}}`
 - `.ai/memory/*.jsonl` — real entries, not empty; each logs an error → fix, a convention, or an
   architecture decision found while building, not a summary written after the fact
-- **Fresh clone → the five commands above → a working API and a working (partial) UI**, with no
-  `.env` to write by hand
+- **Fresh clone → the five commands above → a working API and a working UI**, all seven screens
+  (`docs/05_ui_guidelines.md`), with no `.env` to write by hand
 
 ## Other commands
 
