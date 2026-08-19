@@ -474,6 +474,23 @@ export function addAssignment(
   return request<Assignment>(`/schedules/${scheduleId}/roster/assignments`, json(data))
 }
 
+/**
+ * Relocate an existing assignment — the write behind dragging a name to another cell. NOT
+ * `addAssignment` + `removeAssignment`: that pair validated the destination while the source seat
+ * was still on the roster, so H1 saw a person's weekly hours rise by a whole shift and refused
+ * every move for anyone without a spare shift's worth of slack (`MoveAssignmentHandler`).
+ */
+export function moveAssignment(
+  scheduleId: string,
+  assignmentId: string,
+  data: { shiftId: string; dayOfWeek: number },
+): Promise<Assignment> {
+  return request<Assignment>(`/schedules/${scheduleId}/roster/assignments/${assignmentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
 export function removeAssignment(scheduleId: string, assignmentId: string): Promise<void> {
   return request<void>(`/schedules/${scheduleId}/roster/assignments/${assignmentId}`, {
     method: 'DELETE',

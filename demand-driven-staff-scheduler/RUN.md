@@ -3,12 +3,16 @@
 Full detail: [`docs/09_running_it.md`](docs/09_running_it.md). Short version:
 
 ```bash
-npm run infra:up        # docker-compose up -d — Postgres only
-npm install              # apps/scheduler-api's postinstall: prisma generate
-npm run db:deploy        # apply the committed migrations
-npm run db:seed          # 12 staff, 2 shifts, the real 112-cell demand CSV
-npm run dev              # apps/scheduler-api :4102, apps/web :3000
+npm install && npm run setup
 ```
+
+```bash
+npm run dev
+```
+
+`setup` starts Postgres (`docker compose up -d`, one container), **waits for it to report
+healthy**, applies the committed migrations, and seeds 12 staff, 2 shifts and the real 112-cell
+demand CSV. `dev` runs `apps/scheduler-api` on :4102 and `apps/web` on :3000.
 
 Then open http://localhost:3000 (the UI) or http://localhost:4102/docs (Swagger — every route is
 exercisable directly). No `.env` to create — `.env` and `apps/web/.env` both ship committed with
@@ -26,3 +30,6 @@ npm run db:studio                        # Prisma Studio against the real Postgr
 npm run infra:down                       # stop Postgres
 npm run sync                             # run scripts/sync.cjs by hand
 ```
+
+The four steps `setup` wraps are still individually available if you want to run one of them on its
+own: `npm run infra:up`, `npm run db:deploy`, `npm run db:seed`.

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError } from './api-client'
-import { describeApiError, describeViolation } from './error-copy'
+import {
+  describeApiError,
+  describeBlockedReasons,
+  describeUnfilledSeat,
+  describeViolation,
+} from './error-copy'
 
 const staffById = new Map([
   ['s1', { id: 's1', scheduleId: 'sched', name: 'Anna', maxWeeklyHours: 20 }],
@@ -90,5 +95,25 @@ describe('error-copy', () => {
 
   it('falls back to a network-failure sentence for a non-ApiError', () => {
     expect(describeApiError(new Error('boom'))).toBe('Could not reach the scheduling service.')
+  })
+  it('turns an unfilled seat into a sentence naming the day, the shift, and why nobody could take it', () => {
+    // The regression guard: this used to render `WOULD_EXCEED_MAX_HOURS` verbatim at the manager.
+    const msg = describeUnfilledSeat(
+      { day: 1, shiftId: 'sh1', blockedReasons: ['WOULD_EXCEED_MAX_HOURS'] },
+      shiftById,
+    )
+    expect(msg).toContain('Mon')
+    expect(msg).toContain('Morning')
+    expect(msg).not.toMatch(/[A-Z]{2,}_[A-Z]/) // no SCREAMING_SNAKE_CASE reaches the screen
+  })
+
+  it('joins several blocked reasons into one readable clause', () => {
+    const msg = describeBlockedReasons(['WOULD_EXCEED_MAX_HOURS', 'UNAVAILABLE'])
+    expect(msg).toContain(' and ')
+    expect(msg).not.toMatch(/[A-Z]{2,}_[A-Z]/)
+  })
+
+  it('still says something useful when the diagnostics report no reason at all', () => {
+    expect(describeBlockedReasons([])).toBe('no eligible staff remain')
   })
 })

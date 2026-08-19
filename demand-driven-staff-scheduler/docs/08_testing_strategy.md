@@ -9,7 +9,17 @@ the HOW.
 |---|---|---|---|
 | 1 ⭐ Property-based | fast-check over `scheduling-core` | For **arbitrary** staff/demand/shifts: H1–H3 always hold, the function is total, same input → same roster | The app is wired up; the roster is *good* |
 | 2 Golden file | Vitest snapshot on the real CSV | The exact roster/summary/diagnostics for the committed dataset, incl. the brief's own illustrative arithmetic | Anything about other inputs |
-| 3 Integration | Jest + a real Postgres (`apps/scheduler-api`) | Controllers/handlers, the importer against the whole malformed corpus, `validateRoster` rejecting an illegal manual edit | Generality, algorithm quality |
+| 3 Handler / orchestration | Jest with mocked repositories (`apps/scheduler-api`) | The CQRS handlers' own branching — the importer against the whole malformed corpus, `validateRoster` rejecting an illegal manual edit or an illegal move, full-replace vs append | Generality, algorithm quality, **and the HTTP layer itself** — see below |
+
+**Layer 3 is NOT an integration layer, and this table used to claim it was** (corrected
+2026-08-20). It read *"Jest + a real Postgres"* and *"Controllers"*; neither is true and neither
+ever was. Every spec under `apps/scheduler-api` drives mocked repositories in-process — which is
+why CI needs no `services:` block — and no controller, route, or serialized response is asserted
+anywhere. The HTTP contract is exercised by hand against a live server (`docs/09_running_it.md`)
+and by `apps/web` calling it for real, not by an automated suite. That is a defensible scope
+decision at this size; stating it as an integration layer was not, because it made a gap look
+like coverage. Closing it properly means supertest against a real Postgres, the way scenario 01
+does it — the honest "what I'd do next" entry, not a claim to have done it.
 
 Layer 1 is the flagship — the direct analogue of scenario 01's concurrency test, and the reason
 `scheduling-core` is zero-dependency and runs in milliseconds (plan §2.2): a suite too slow to run
@@ -75,10 +85,14 @@ and that is the line drawn.
 
 ## Status
 
-All layers green — **255 specs** across the workspace: **97** in `packages/scheduling-core`
+All layers green — **289 specs** across the workspace: **103** in `packages/scheduling-core`
 (unit + property + golden-file, up from 80 with the stretch goals' H4/roles additions), **53** in
-`packages/shared-kernel`, **64** in `apps/scheduler-api` (up from 27, the handler specs above), and
-**41** in `apps/web`'s `src/lib/*.spec.ts` per the component-test note. Live verification against a
+`packages/shared-kernel`, **74** in `apps/scheduler-api` (up from 27 via the handler specs above,
+then +6 for `MoveAssignmentHandler`), and **59** in `apps/web`'s `src/lib/*.spec.ts` per the
+component-test note. These numbers are counted from a forced `npm test` run, not carried forward —
+the previous version of this paragraph read 255/97/64/41 and had drifted from the suite by 34
+specs, which is exactly the "documentation drift" failure `docs/12_ai_collaboration.md` names as
+this project's most common defect class. Live verification against a
 real Postgres remains on top of this, not replaced by it — every claim in
 `../.ai/PROJECT_STATUS.md`'s phase log is backed by a real `curl`/`psql`/browser check.
 `../.ai/PROJECT_STATUS.md` tracks current phase.

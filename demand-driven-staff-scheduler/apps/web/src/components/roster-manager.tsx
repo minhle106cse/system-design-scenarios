@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   addAssignment,
+  moveAssignment,
   removeAssignment,
   type Assignment,
   type Shift,
@@ -105,14 +106,13 @@ export function RosterManager({
     setPending(true)
     setError(null)
     try {
-      await addAssignment(scheduleId, {
-        staffId: payload.staffId,
-        shiftId,
-        dayOfWeek: day,
-      })
-      // Only drop the source assignment once the destination is confirmed feasible - a rejected
-      // add must leave the original assignment in place, never silently lose it.
-      await removeAssignment(scheduleId, payload.assignmentId)
+      // ONE request, not add-then-remove. The old pair asked the API "may this person also work
+      // here?" when the question is "may they work here instead?" - so anyone with less than a
+      // full shift of slack (on the seeded roster, most of the team) had every drag rejected for
+      // exceeding a cap the move would not actually have moved them past. `moveAssignment`
+      // validates the roster with the source seat already removed, and relocates the same row, so
+      // there is no window where the assignment is duplicated or lost.
+      await moveAssignment(scheduleId, payload.assignmentId, { shiftId, dayOfWeek: day })
       router.refresh()
     } catch (err) {
       setError(describeApiError(err, { staffById, shiftById }))

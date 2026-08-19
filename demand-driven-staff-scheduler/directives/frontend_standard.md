@@ -4,10 +4,12 @@
 > graded here — plan §5). Read before writing or changing anything under `apps/web/src/app` or
 > `apps/web/src/components`.
 
-## 1. The three UI rules, taken directly from the grading criteria (plan §3.2)
+## 1. The five UI rules — 1–3 taken directly from the grading criteria (plan §3.2)
 
-These are not style preferences — they map to specific lines in the brief and are checked as part
-of `qa_standard.md`'s Principle 3 before any screen is called done.
+These are not style preferences — the first three map to specific lines in the brief, and rules 4
+and 5 were added 2026-08-20 after a pre-submission review found both being broken at once (a raw
+`ReasonCode` on one screen, a stale cross-reference on another, describing the same diagnostic).
+All five are checked as part of `qa_standard.md`'s Principle 3 before any screen is called done.
 
 1. **"Clear enough for a non-technical manager."** Label things by what a manager would call them —
    "Hours booked vs. contracted", never "utilisation ratio" in user-facing copy (the number itself
@@ -21,6 +23,27 @@ of `qa_standard.md`'s Principle 3 before any screen is called done.
    capacity are UI states (a banner, a badge, a row highlight), never only a `console.error`. If a
    fetch fails, the screen shows that it failed and what the user can do next — it does not render
    an empty table indistinguishable from "there is no data".
+   **This covers the initial server-side load, not just mutations.** Every page fetches in its
+   server component, so a failure there is a render error, not a caught promise — it needs
+   `app/error.tsx`, and that file is part of rule 3 rather than an extra. Two things must be
+   verified separately when touching it: the **message**, and the **recovery**. Next's `reset()`
+   does not re-run a server component that threw, and neither does `router.refresh()` before it —
+   both were tried against a real stopped-then-restarted API and both left the error screen up.
+   `window.location.reload()` is the retry that works.
+
+4. **An enum never reaches the screen.** Every `ReasonCode`, status, or error code that can surface
+   in the UI is translated by an exhaustive `switch` in a `src/lib/*-copy.ts` module — exhaustive
+   so that adding a code breaks `typecheck` instead of leaking `WOULD_EXCEED_MAX_HOURS` into a
+   banner (which is exactly how it leaked once: `error-copy.ts` already had the sentences, and one
+   screen simply `.join(', ')`-ed the raw array instead of calling it).
+
+5. **A diagnostic that more than one screen can be the first to show lives in one component.**
+   `role-diagnostics-banners.tsx` and `unfilled-seats-banner.tsx` are both this: three screens each,
+   one piece of copy. Duplicating the JSX is how two screens end up describing the same state
+   differently. Related: **copy that points at another tab is a cross-reference no refactor can
+   update** — Coverage told readers to "check the Roster tab for details" long after the details
+   had moved and the Roster tab had never had them. When the data is already on the screen, state
+   the fact in place instead of sending the reader elsewhere.
 
 ## 2. Component conventions
 
@@ -49,6 +72,17 @@ of `qa_standard.md`'s Principle 3 before any screen is called done.
   of it.** `roster-manager.tsx`'s day×shift grid supports dragging a name to move it, but every
   cell also keeps its `+`/`×` buttons — HTML5 drag-and-drop has no keyboard path, so removing the
   buttons "now that drag-and-drop exists" would silently lock out anyone who can't use a mouse.
+- ⛔ **Never compose one user-visible action out of two mutating requests.** A drag that "moves" a
+  seat is ONE operation and needs ONE endpoint. `roster-manager.tsx` originally issued
+  `addAssignment(destination)` then `removeAssignment(source)`, which made the server validate the
+  destination while the source still existed — so a move was checked as though it were an addition,
+  and every staff member with less than a shift of slack (four of twelve on the seeded roster) had
+  every drag rejected for exceeding a cap the move would not have moved them past. Reordering the
+  pair does not fix it; either order asks the wrong question, and either order has a window in
+  which the roster is briefly wrong. The rule: if the domain has an **aggregate** constraint (a
+  weekly-hours cap is an aggregate over rows, unlike an overlap check), the intermediate state
+  between two calls is a state the domain forbids — so give the composed action its own endpoint
+  and validate the END state. `MoveAssignmentHandler` / `PATCH .../roster/assignments/:id`.
 
 ## 3. Styling
 

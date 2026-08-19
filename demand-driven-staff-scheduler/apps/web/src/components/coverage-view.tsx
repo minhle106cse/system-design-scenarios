@@ -6,6 +6,7 @@ import { formatHours, formatPercent } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Banner } from '@/components/ui/banner'
 import { RoleDiagnosticsBanners } from '@/components/role-diagnostics-banners'
+import { UnfilledSeatsBanner } from '@/components/unfilled-seats-banner'
 
 /**
  * §8 stretch — required vs scheduled per hour, recomputed live from the current roster on every
@@ -43,12 +44,7 @@ export function CoverageView({
         </Banner>
       )}
 
-      {diagnostics.unfilledSeats.length > 0 && (
-        <Banner tone="warning">
-          {diagnostics.unfilledSeats.length} shift-day seat(s) couldn&apos;t be filled by
-          auto-schedule. Check the Roster tab for details.
-        </Banner>
-      )}
+      <UnfilledSeatsBanner seats={diagnostics.unfilledSeats} shifts={shifts} />
 
       <RoleDiagnosticsBanners diagnostics={diagnostics} roles={roles} shifts={shifts} />
 
@@ -68,7 +64,7 @@ export function CoverageView({
           </p>
           {hours.length === 0 ? (
             <p className="mt-2 rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-              No coverage data yet — run auto-schedule on the Roster tab first.
+              No coverage data yet — run auto-schedule on the Schedule tab first.
             </p>
           ) : (
             <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-card">

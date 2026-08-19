@@ -358,7 +358,7 @@ nào được định nghĩa (§C.1).
 
 ## E.2 Ba lớp test, mỗi lớp chứng minh điều các lớp khác về cấu trúc không thể
 
-97 test chỉ riêng trong `packages/scheduling-core` — 255 test toàn workspace — trải trên các lớp đi vào ở độ sâu khác nhau —
+103 test chỉ riêng trong `packages/scheduling-core` — 289 test toàn workspace — trải trên các lớp đi vào ở độ sâu khác nhau —
 có chủ đích, cùng kỷ luật scenario 01 dùng:
 
 | Lớp | Đi vào ở | Chứng minh | Về cấu trúc **không thể** chứng minh |

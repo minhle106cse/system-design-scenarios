@@ -12,17 +12,23 @@ setup."* — brief §5.
 > reasoning this file always gave for the SQLite path.
 
 ```bash
-npm run infra:up                  # docker-compose up -d — Postgres only, one container
-npm install                       # workspaces + apps/scheduler-api's postinstall: prisma generate
-npm run db:deploy                 # apply the committed migrations (Turbo runs it for every
-                                   # workspace that has the script — only apps/scheduler-api does)
-npm run db:seed                   # 12 staff, 2 default shifts, the real 112-cell demand CSV
+npm install && npm run setup      # workspaces + prisma generate, then: start Postgres, WAIT for
+                                   # it to report healthy, migrate, seed (12 staff, 2 shifts, the
+                                   # real 112-cell demand CSV) — scripts/setup.cjs
 npm run dev                       # apps/scheduler-api :4102, apps/web :3000 — Turbo runs both
 ```
 
-Five commands, not two — the honest count once a real backend exists (`.ai/PROJECT_STATUS.md`'s
-own audit trail: an earlier draft argued this away as CRUD-and-therefore-unnecessary and was
-overruled by the user for exactly this scenario). Still **zero `.env` files to create by hand**:
+Two commands, which is what §5 asks for. **This file used to say five, and defended the number**
+(*"the honest count once a real backend exists"*) — the honesty was right and the conclusion was
+wrong: four of those five were mechanical, always ran in the same order, and only existed because
+a database must be up and migrated before it can be seeded. That is a script's job, not a reader's.
+`scripts/setup.cjs` also does the one thing chaining them with `&&` cannot: `docker compose up -d`
+returns as soon as the *container* exists, several seconds before Postgres accepts connections, so
+a naive chain fails `db:deploy` on a cold machine almost every time — the script polls the
+healthcheck `docker-compose.yml` already declares. The four steps remain individually runnable
+(`npm run infra:up`, `db:deploy`, `db:seed`).
+
+Still **zero `.env` files to create by hand**:
 `.env` (root, read by `apps/scheduler-api`) and `apps/web/.env` both ship committed with local,
 non-secret values (a throwaway Docker Postgres password, a `localhost` URL) — `.env.example` and
 `apps/web/.env.example` document the variables for anyone who wants to override them.
@@ -53,7 +59,7 @@ node .claude/hooks/turn-context.cjs
 - `curl http://localhost:4102/health` → `{"status":"ok", "checks": {"database":"ok"}}`
 - `.ai/memory/*.jsonl` — real entries, not empty; each logs an error → fix, a convention, or an
   architecture decision found while building, not a summary written after the fact
-- **Fresh clone → the five commands above → a working API and a working UI**, every screen in
+- **Fresh clone → the two commands above → a working API and a working UI**, every screen in
   `docs/05_ui_guidelines.md`, with no `.env` to write by hand
 
 ## Other commands

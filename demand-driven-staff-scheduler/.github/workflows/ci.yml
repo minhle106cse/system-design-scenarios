@@ -1,21 +1,30 @@
 name: CI
 
+# ⚠️ Paths and working directories are deliberately ABSENT.
+#
+# This scenario is developed inside a larger collection repository, where it sits one directory
+# down — and GitHub only ever reads `.github/workflows/` at a repository ROOT, so this file does
+# nothing there and never could. The repository it actually runs in is the standalone one produced
+# by `git subtree split`, where this scenario IS the root.
+#
+# An earlier version was written for neither: it filtered on `paths: ['demand-driven-staff-scheduler/**']`
+# and set `working-directory: demand-driven-staff-scheduler`. In the collection repo it was inert
+# (wrong location); in the split repo the filter matched nothing, so the workflow never triggered,
+# and had it triggered, the working directory would not have existed. A CI file that has never run
+# is worse than none: it reads as a passing suite to anyone who doesn't open it.
 on:
   push:
-    paths:
-      - 'demand-driven-staff-scheduler/**'
   pull_request:
-    paths:
-      - 'demand-driven-staff-scheduler/**'
-
-defaults:
-  run:
-    working-directory: demand-driven-staff-scheduler
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # No services: block — nothing here needs one (plan §0: SQLite, no Docker).
+    # No `services:` block — every test in this workspace is a unit/property/golden-file test that
+    # runs in-process. `apps/scheduler-api`'s handler specs drive mocked repositories, not Prisma,
+    # so nothing here needs the Postgres that `docker-compose.yml` starts for local development.
+    # (An earlier comment justified this with "SQLite, no Docker", left over from the app shape
+    # that `.ai/plans/backend-architecture-reversal.plan.md` replaced — the conclusion survived the
+    # reversal, the reason did not.)
     steps:
       - uses: actions/checkout@v4
 
@@ -23,12 +32,15 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: demand-driven-staff-scheduler/package-lock.json
 
+      # `prisma generate` runs as apps/scheduler-api's postinstall — it needs no database, only
+      # the committed schema, and typecheck fails without the generated client.
       - run: npm ci
 
       - run: npm run typecheck
 
       - run: npm run lint
+
+      - run: npm run format:check
 
       - run: npm test

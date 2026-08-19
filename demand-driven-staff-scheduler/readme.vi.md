@@ -6,8 +6,8 @@ tới *scenario 01* bên dưới là một repo anh em trong bộ sưu tập đ�
 [🇬🇧 English](readme.md) · 🇻🇳 Tiếng Việt
 
 > ✅ **Trạng thái: thuật toán, dịch vụ backend, và toàn bộ UI đều đã xây xong.** Trái tim của bài
-> tập — `packages/scheduling-core` (Phase 1) — đã hoàn chỉnh: 97/97 test (unit + property +
-> golden-file), nằm trong tổng số 255 test toàn workspace. Backend phục vụ nó cũng vậy,
+> tập — `packages/scheduling-core` (Phase 1) — đã hoàn chỉnh: 103/103 test (unit + property +
+> golden-file), nằm trong tổng số 289 test toàn workspace. Backend phục vụ nó cũng vậy,
 > `apps/scheduler-api` (NestJS + Fastify + CQRS + Postgres + Docker) — mọi thao tác ghi và đọc đề
 > bài yêu cầu, cộng thêm **cả năm** stretch goal tùy chọn (§8): sửa lịch thủ công/kéo-thả, coverage
 > view, lịch rảnh từng nhân viên, vai trò/kỹ năng, và xuất roster.
@@ -157,15 +157,13 @@ nên đảm bảo phải chuyển vào thuật toán, và cách chứng minh cũ
 ## Bắt đầu nhanh
 
 ```bash
-npm run infra:up        # docker-compose up -d — chỉ Postgres
-npm install
-npm run db:deploy
-npm run db:seed
-npm run dev              # apps/scheduler-api :4102 · apps/web :3000
+npm install && npm run setup   # cài deps, rồi: bật Postgres, chờ healthy, migrate, seed
+npm run dev                    # apps/scheduler-api :4102 · apps/web :3000
 ```
 
-Năm lệnh, một container, không cần tạo `.env` — `.env` và `apps/web/.env` đều được commit sẵn với
-giá trị local, không phải bí mật. Chi tiết đầy đủ: [`RUN.md`](RUN.md),
+Hai lệnh, một container, không cần tạo `.env` — `.env` và `apps/web/.env` đều được commit sẵn với
+giá trị local, không phải bí mật. `setup` chờ healthcheck của container thay vì sleep, vì
+`docker compose up -d` trả về trước khi Postgres nhận kết nối. Chi tiết đầy đủ: [`RUN.md`](RUN.md),
 [`docs/09_running_it.md`](docs/09_running_it.md).
 
 ## Hiện có gì ở đây
@@ -178,7 +176,7 @@ giá trị local, không phải bí mật. Chi tiết đầy đủ: [`RUN.md`](R
 | [`sample-data/`](sample-data/README.md) | File CSV thật của đề bài, các con số đã đo được, và bốn điểm khác biệt so với mô tả của chính đề bài |
 | [`docs/`](docs/README.md) | Overview, use case, kiến trúc (+ phạm vi hoãn lại), mô hình dữ liệu, hướng dẫn UI, hợp đồng API, chiến lược test, cách chạy, ghi chú hợp tác AI |
 | [`docs/adr/`](docs/adr/README.md) | Sáu ADR — enforce ràng buộc, thuật toán, mô hình nhu cầu→số người, luật không-dependency của `scheduling-core`, ranh giới transaction/retry, vai trò như yêu cầu chỗ ngồi |
-| [`packages/scheduling-core/`](packages/scheduling-core/) | ✅ Thuật toán, hoàn chỉnh — 97/97 test (unit + property + golden-file), không dependency runtime |
+| [`packages/scheduling-core/`](packages/scheduling-core/) | ✅ Thuật toán, hoàn chỉnh — 103/103 test (unit + property + golden-file), không dependency runtime |
 | [`packages/shared-kernel/`](packages/shared-kernel/) | CQRS bus, Unit-of-Work, lỗi, logger, resilience — hạ tầng chung được port một lần, dùng bởi `apps/scheduler-api` |
 | [`apps/scheduler-api/`](apps/scheduler-api/) | ✅ NestJS + Fastify + Postgres — schedule, nhân viên, ca làm, import CSV, auto-schedule, sửa lịch thủ công, coverage view, lịch rảnh, vai trò. Mọi route đã kiểm chứng trên database thật, không chỉ unit test |
 | [`apps/web/`](apps/web/) | ✅ Next.js — đủ bảy màn hình (plan §3.1), gọi thật tới `apps/scheduler-api`: liệt kê/tạo schedule, staff (+ lịch rảnh và vai trò), import demand, ca làm, roster (auto-schedule + sửa tay/kéo-thả + xuất CSV), summary, coverage |
@@ -229,6 +227,11 @@ ghi lại:
   `src/lib/`, nhưng bản thân các component React thì được kiểm chứng bằng cách chạy app thật trên
   trình duyệt. Thêm một lớp `jsdom` sẽ bắt được các hồi quy hiện đang phải bắt bằng tay
   (`docs/08_testing_strategy.md` nói rõ lựa chọn này).
+- **Một lớp test ở mức HTTP.** Mọi spec của `apps/scheduler-api` đều chạy trên repository giả lập;
+  không test nào assert một controller, một route hay một response đã serialize, và không test nào
+  chạy với Postgres thật. Contract hiện được kiểm chứng bằng tay và bằng việc `apps/web` gọi thật.
+  Bước tiếp theo trung thực là supertest với database thật — như scenario 01 làm;
+  `docs/08_testing_strategy.md` từng mô tả lớp này như thể nó đã tồn tại, nay đã nói rõ là chưa.
 - **Prometheus/Grafana**, đã có sẵn quy chuẩn ở `directives/observability_monitoring.md` và cố ý
   chưa đấu nối — API có expose `/metrics`, nhưng ở quy mô này chưa có gì scrape nó.
 

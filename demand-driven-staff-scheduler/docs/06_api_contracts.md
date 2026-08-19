@@ -120,17 +120,32 @@ real quoted-field CSV parser, not `line.split(',')` — the day labels contain a
 ## Roster (`/api/v1/schedules/:scheduleId/roster`)
 
 Manual roster editing — the brief's stretch goal. `POST` (above, under Schedules,
-`/schedules/:id/auto-schedule`) replaces the WHOLE roster; these two routes edit ONE assignment.
+`/schedules/:id/auto-schedule`) replaces the WHOLE roster; these three routes edit ONE assignment.
 
 | Route | Method | Body | `data` |
 |---|---|---|---|
 | `/roster/assignments` | `POST` | `{ staffId, shiftId, dayOfWeek }` (1=Mon..7=Sun) | `201 Assignment` or `422 ROSTER_VIOLATION` |
+| `/roster/assignments/:assignmentId` | `PATCH` | `{ shiftId, dayOfWeek }` | `200 Assignment` (same `id`, `source` now `MANUAL`) or `422 ROSTER_VIOLATION` |
 | `/roster/assignments/:assignmentId` | `DELETE` | — | `204` — hard delete, `Assignment` has no `deletedAt` |
+
+**`PATCH` is a MOVE, and it is not `POST` + `DELETE`** (2026-08-20). The roster grid's
+drag-and-drop originally issued exactly that pair, ordered add-first so a rejected add would leave
+the original seat in place. The consequence was a bug neither endpoint could see on its own:
+`POST` validates the candidate against a roster that **still contains the source assignment**, so
+H1 reads the move as a person's weekly hours rising by a whole shift rather than staying flat, and
+refuses it for anyone whose remaining slack is smaller than one shift. On the seeded team that is
+four of twelve staff at exactly 100% utilisation — and on a fully-loaded roster, everyone.
+`MoveAssignmentHandler` replays the roster **with the source seat removed and the relocated one
+appended**, through the same `validateRoster`, and updates the existing row rather than
+delete-and-recreate: the seat keeps its `id`, and there is no window in which it exists twice or
+not at all. `staffId` is deliberately not accepted — moving a seat to a different *person* is a
+remove plus an add, and accepting it here would let one request quietly do both.
 
 `AddAssignmentHandler` replays the existing roster **plus the candidate** through
 `validateRoster` — the SAME `FeasibilityGate` `generateRoster` uses (assumption 12,
 `.ai/memory/conventions.jsonl`), so a manual add can never reach a state auto-schedule itself
-would refuse. On `422`, `error.details.violations` is `scheduling-core`'s own `Violation[]`
+would refuse; `MoveAssignmentHandler` does the same for the relocated seat. On `422`,
+`error.details.violations` is `scheduling-core`'s own `Violation[]`
 verbatim (`{ staffId, shiftId, day, reason }`), `reason` one of `docs/adr/0001-*.md`'s codes —
 `WOULD_EXCEED_MAX_HOURS`, `OVERLAPS_EXISTING_SHIFT`, `ALREADY_ASSIGNED`, or `UNAVAILABLE` (a real
 H4 block, since stretch-goals plan §1a — 2026-08-18; previously this code doubled as "unknown

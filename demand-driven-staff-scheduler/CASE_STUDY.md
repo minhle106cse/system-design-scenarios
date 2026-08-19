@@ -352,7 +352,7 @@ coverage quality, fairness — is measured, not proven, because no optimum is de
 
 ## E.2 Three test layers, each proving what the others structurally cannot
 
-97 tests in `packages/scheduling-core` alone — 255 across the workspace — across layers that enter
+103 tests in `packages/scheduling-core` alone — 289 across the workspace — across layers that enter
 at different depths, deliberately, the same discipline scenario 01 uses:
 
 | Layer | Enters at | Proves | Structurally **cannot** prove |

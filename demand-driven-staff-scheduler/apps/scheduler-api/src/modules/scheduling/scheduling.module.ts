@@ -17,6 +17,7 @@ import { UpdateShiftHandler } from './application/commands/update-shift/update-s
 import { RemoveShiftHandler } from './application/commands/remove-shift/remove-shift.handler'
 import { ImportDemandHandler } from './application/commands/import-demand/import-demand.handler'
 import { AddAssignmentHandler } from './application/commands/add-assignment/add-assignment.handler'
+import { MoveAssignmentHandler } from './application/commands/move-assignment/move-assignment.handler'
 import { RemoveAssignmentHandler } from './application/commands/remove-assignment/remove-assignment.handler'
 import { AutoScheduleHandler } from './application/commands/auto-schedule/auto-schedule.handler'
 import { ListSchedulesHandler } from './application/queries/list-schedules/list-schedules.handler'
@@ -69,6 +70,7 @@ import { SCHEDULING_QUERY_REPOSITORY } from './application/queries/scheduling.qu
     RemoveShiftHandler,
     ImportDemandHandler,
     AddAssignmentHandler,
+    MoveAssignmentHandler,
     RemoveAssignmentHandler,
     AutoScheduleHandler,
     ListSchedulesHandler,

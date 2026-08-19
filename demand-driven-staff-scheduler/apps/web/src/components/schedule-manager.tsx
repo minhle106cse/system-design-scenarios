@@ -13,12 +13,12 @@ import {
   type SuggestedN,
 } from '@/lib/api-client'
 import { describeApiError } from '@/lib/error-copy'
-import { dayLabel } from '@/lib/week'
 import { formatHours } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Banner } from '@/components/ui/banner'
 import { Field } from '@/components/ui/field'
 import { RoleDiagnosticsBanners } from '@/components/role-diagnostics-banners'
+import { UnfilledSeatsBanner } from '@/components/unfilled-seats-banner'
 
 /**
  * §2.5's parameter panel + auto-schedule trigger — split out of what used to be `RosterManager` so
@@ -176,20 +176,7 @@ export function ScheduleManager({
               fully covered - see Coverage for detail, and consider adding staff or hours.
             </Banner>
           )}
-          {diagnostics.unfilledSeats.length > 0 && (
-            <Banner tone="warning">
-              {diagnostics.unfilledSeats.length} seat(s) could not be filled:{' '}
-              {diagnostics.unfilledSeats.slice(0, 5).map((seat, i) => (
-                <span key={i}>
-                  {i > 0 ? ', ' : ''}
-                  {dayLabel(seat.day)} ({seat.blockedReasons.join(', ')})
-                </span>
-              ))}
-              {diagnostics.unfilledSeats.length > 5 &&
-                ` and ${diagnostics.unfilledSeats.length - 5} more`}
-              .
-            </Banner>
-          )}
+          <UnfilledSeatsBanner seats={diagnostics.unfilledSeats} shifts={shifts} />
           {diagnostics.staff.some((s) => s.belowTarget) && (
             <Banner tone="info">
               {diagnostics.staff.filter((s) => s.belowTarget).length} staff member(s) are below the

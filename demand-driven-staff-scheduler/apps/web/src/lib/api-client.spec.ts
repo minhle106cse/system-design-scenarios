@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { autoSchedule, createSchedule, importDemand, removeStaff, ApiError } from './api-client'
+import {
+  autoSchedule,
+  createSchedule,
+  importDemand,
+  moveAssignment,
+  removeStaff,
+  ApiError,
+} from './api-client'
 
 function mockFetch(status: number, body: unknown) {
   return vi.fn().mockResolvedValue({
@@ -116,5 +123,20 @@ describe('api-client', () => {
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(init.headers).toEqual({})
     expect(init.body).toBeInstanceOf(FormData)
+  })
+
+  it('PATCHes a single move request to the assignment, never an add followed by a delete', async () => {
+    // The shape matters, not just the URL: two requests (add then remove) is exactly the bug
+    // `MoveAssignmentHandler` exists to fix, so "one PATCH" is what this pins.
+    const fetchMock = mockFetch(200, { success: true, data: { id: 'a1' } })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await moveAssignment('s1', 'a1', { shiftId: 'shift-pm', dayOfWeek: 3 })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain('/schedules/s1/roster/assignments/a1')
+    expect(init.method).toBe('PATCH')
+    expect(init.body).toBe(JSON.stringify({ shiftId: 'shift-pm', dayOfWeek: 3 }))
   })
 })

@@ -1,11 +1,17 @@
-import { Body, Controller, Delete, HttpCode, Param, Post } from '@nestjs/common'
+import { Body, Controller, Delete, HttpCode, Param, Patch, Post } from '@nestjs/common'
 import { ApiOperation } from '@nestjs/swagger'
 import { CommandBus } from '@scheduler/shared-kernel'
 import type { DayOfWeek } from '@scheduler/scheduling-core'
 import { ZodValidationPipe } from '@/infrastructure/http/pipes/zod-validation.pipe'
 import { AddAssignmentCommand } from '../../application/commands/add-assignment/add-assignment.command'
+import { MoveAssignmentCommand } from '../../application/commands/move-assignment/move-assignment.command'
 import { RemoveAssignmentCommand } from '../../application/commands/remove-assignment/remove-assignment.command'
-import { createAssignmentSchema, type CreateAssignmentInput } from '../schemas/assignment.schema'
+import {
+  createAssignmentSchema,
+  moveAssignmentSchema,
+  type CreateAssignmentInput,
+  type MoveAssignmentInput,
+} from '../schemas/assignment.schema'
 
 /** Manual roster editing (brief's stretch goal) — one assignment at a time, through the same `FeasibilityGate` auto-schedule uses. */
 @Controller('schedules/:scheduleId/roster')
@@ -23,6 +29,26 @@ export class RosterController {
   ) {
     return this.commandBus.execute(
       new AddAssignmentCommand(scheduleId, body.staffId, body.shiftId, body.dayOfWeek as DayOfWeek),
+    )
+  }
+
+  @Patch('assignments/:assignmentId')
+  @ApiOperation({
+    summary:
+      'Move one assignment to another day/shift, keeping the same staff member — validated against the roster WITHOUT the source seat, so a move that keeps weekly hours flat is not rejected as an add',
+  })
+  move(
+    @Param('scheduleId') scheduleId: string,
+    @Param('assignmentId') assignmentId: string,
+    @Body(new ZodValidationPipe(moveAssignmentSchema)) body: MoveAssignmentInput,
+  ) {
+    return this.commandBus.execute(
+      new MoveAssignmentCommand(
+        scheduleId,
+        assignmentId,
+        body.shiftId,
+        body.dayOfWeek as DayOfWeek,
+      ),
     )
   }
 

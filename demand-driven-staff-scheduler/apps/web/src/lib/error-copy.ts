@@ -8,6 +8,7 @@ import {
   type ReasonCode,
   type Shift,
   type StaffMember,
+  type UnfilledSeat,
   type Violation,
 } from './api-client'
 import { dayLabel } from './week'
@@ -32,6 +33,48 @@ function reasonCopy(
     case 'UNKNOWN_REFERENCE':
       return `That staff member or shift no longer exists on this schedule.`
   }
+}
+
+/**
+ * The same `ReasonCode` union as `reasonCopy`, but for a seat nobody could fill rather than one
+ * named person — `Diagnostics.unfilledSeats.blockedReasons` reports why EVERY remaining candidate
+ * was refused, so the copy has to be about the team, not an individual. Both screens that render
+ * unfilled seats (Schedule, after a run; Coverage, live) go through here; one of them used to
+ * print the raw enum (`WOULD_EXCEED_MAX_HOURS, UNAVAILABLE`) straight at the manager, which
+ * `frontend_standard.md` §1 rule 1 forbids.
+ */
+function blockedReasonCopy(reason: ReasonCode): string {
+  switch (reason) {
+    case 'WOULD_EXCEED_MAX_HOURS':
+      return 'everyone else is at their weekly limit'
+    case 'OVERLAPS_EXISTING_SHIFT':
+      return 'everyone else already works an overlapping shift that day'
+    case 'ALREADY_ASSIGNED':
+      return 'everyone eligible is already on this shift'
+    case 'UNAVAILABLE':
+      return 'everyone else is unavailable then'
+    case 'UNKNOWN_REFERENCE':
+      return 'a staff member or shift on it no longer exists'
+  }
+}
+
+/** Joins the reasons for one unfilled seat into a single readable clause, in the union's own
+ *  order rather than the order the diagnostics happened to collect them. */
+export function describeBlockedReasons(reasons: readonly ReasonCode[]): string {
+  const copy = reasons.map(blockedReasonCopy)
+  if (copy.length === 0) return 'no eligible staff remain'
+  if (copy.length === 1) return copy[0]!
+  return `${copy.slice(0, -1).join(', ')} and ${copy[copy.length - 1]!}`
+}
+
+/** One unfilled seat as a full sentence: which day, which shift, and why nobody could take it. */
+export function describeUnfilledSeat(
+  seat: UnfilledSeat,
+  shiftById: ReadonlyMap<string, Shift>,
+): string {
+  const shift = shiftById.get(seat.shiftId)
+  const where = shift ? `${dayLabel(seat.day)} ${shift.label}` : dayLabel(seat.day)
+  return `${where} is short a person — ${describeBlockedReasons(seat.blockedReasons)}.`
 }
 
 export function describeViolation(

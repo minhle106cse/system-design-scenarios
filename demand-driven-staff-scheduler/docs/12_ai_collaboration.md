@@ -47,6 +47,28 @@ This is that note — updated as the build proceeds, not written once at the end
   the fix would have double-seeded every schedule. The near-miss is logged in
   `.ai/memory/gotchas.jsonl`; the lesson was to not stop tracing at the file with the
   confident-sounding docstring.
+- **The agent's own finished work, reviewed by a second pass that ran it.** After the repo was
+  called done, an AI review was pointed at the whole submission with instructions to run the
+  application rather than read it. That found six real defects the entire 255-spec suite had not:
+  the headline one being that **drag-and-drop — the brief's first stretch goal — was broken for
+  any staff member near their weekly cap**, because the UI composed a "move" out of an add
+  followed by a remove, so the server validated the destination while the source seat still
+  existed and refused the move for exceeding a cap the move would not have moved anyone past. Four
+  of the twelve seeded staff sit at exactly 100% utilisation, so it failed on the demo data. Every
+  endpoint involved was individually correct and individually tested; the bug lived in the
+  composition, which nothing tested. Also found: a screen printing raw `WOULD_EXCEED_MAX_HOURS`
+  enums at the manager while the human-readable copy for that exact code already existed one file
+  away, a banner pointing at a tab that had never held the information, a CI workflow whose path
+  filter could never match the repository it ships in, no error boundary for the cold start that
+  `npm run dev` makes routine, and spec counts in the docs that had drifted 34 behind the suite.
+  The lesson worth keeping is the first one: **a test suite proves the units, and the defect was in
+  the seam between two of them that only a human gesture crosses.**
+- **Verifying the fix, not just writing it.** The error boundary added for the cold start worked
+  first try; its retry button did not, twice. `reset()` left the error screen up, and so did
+  `router.refresh()` followed by `reset()` — both plausible, both wrong, both only disproved by
+  stopping the API, loading the page, restarting the API and clicking. `window.location.reload()`
+  is what recovers. Had the boundary been checked by reading it, the wrong version would have
+  shipped looking correct.
 - **Stale self-description.** Audits of this repo's own documents found the agent asserting things
   that had stopped being true — `CLAUDE.md` still forbidding the very stack the repo had been
   rebuilt on, an assumptions table still claiming SQLite, and an earlier version of *this file*

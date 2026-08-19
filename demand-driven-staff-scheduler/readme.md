@@ -7,8 +7,8 @@ here.
 🇬🇧 English · [🇻🇳 Tiếng Việt](readme.vi.md)
 
 > ✅ **Status: the algorithm, the backend service, and the full UI are all built.** The heart of the
-> exercise — `packages/scheduling-core` (Phase 1) — is complete: 97/97 specs (unit + property +
-> golden-file), part of 255 across the workspace. So is the backend that serves it,
+> exercise — `packages/scheduling-core` (Phase 1) — is complete: 103/103 specs (unit + property +
+> golden-file), part of 289 across the workspace. So is the backend that serves it,
 > `apps/scheduler-api` (NestJS + Fastify + CQRS + Postgres + Docker) — every write and read the
 > brief asks for, plus **all five** of its optional stretch goals (§8): manual drag-and-drop roster
 > editing, the coverage view, per-staff availability, roles/skills, and roster export. `apps/web`
@@ -158,15 +158,13 @@ way — so the guarantee moves into the algorithm, and the method of proof has t
 ## Quick start
 
 ```bash
-npm run infra:up        # docker-compose up -d — Postgres only
-npm install
-npm run db:deploy
-npm run db:seed
-npm run dev              # apps/scheduler-api :4102 · apps/web :3000
+npm install && npm run setup   # deps, then: Postgres up, wait for healthy, migrate, seed
+npm run dev                    # apps/scheduler-api :4102 · apps/web :3000
 ```
 
-Five commands, one container, no `.env` to create — `.env` and `apps/web/.env` both ship committed
-with local, non-secret values. Full detail: [`RUN.md`](RUN.md),
+Two commands, one container, no `.env` to create — `.env` and `apps/web/.env` both ship committed
+with local, non-secret values. `setup` waits on the container's healthcheck rather than sleeping,
+because `docker compose up -d` returns before Postgres accepts connections. Full detail: [`RUN.md`](RUN.md),
 [`docs/09_running_it.md`](docs/09_running_it.md).
 
 ## What's here now
@@ -179,7 +177,7 @@ with local, non-secret values. Full detail: [`RUN.md`](RUN.md),
 | [`sample-data/`](sample-data/README.md) | The brief's real CSV, its measured figures, and the four ways it differs from the brief's own description of it |
 | [`docs/`](docs/README.md) | Overview, use cases, architecture (+ deferred scope), data model, UI guidelines, API contracts, testing strategy, running-it, AI collaboration note |
 | [`docs/adr/`](docs/adr/README.md) | Six ADRs — constraint enforcement, the algorithm, the demand→headcount model, `scheduling-core`'s zero-dependency rule, the transaction/retry boundary, role requirements as seat requirements |
-| [`packages/scheduling-core/`](packages/scheduling-core/) | ✅ The algorithm, complete — 97/97 specs (unit + property + golden-file), zero runtime dependencies |
+| [`packages/scheduling-core/`](packages/scheduling-core/) | ✅ The algorithm, complete — 103/103 specs (unit + property + golden-file), zero runtime dependencies |
 | [`packages/shared-kernel/`](packages/shared-kernel/) | CQRS bus, Unit-of-Work, errors, logger, resilience — generic infra ported once, used by `apps/scheduler-api` |
 | [`apps/scheduler-api/`](apps/scheduler-api/) | ✅ NestJS + Fastify + Postgres — schedules, staff, shifts, CSV import, auto-schedule, manual roster editing, coverage view, availability, roles. Every route verified against a live database, not just unit-tested |
 | [`apps/web/`](apps/web/) | ✅ Next.js — every screen built against the real `apps/scheduler-api`: schedules list/create, roles, staff (name, cap, availability and roles in one modal), demand import, shifts, roster (auto-schedule + manual/drag-and-drop editing + CSV export), summary, coverage |
@@ -230,6 +228,11 @@ building:
   React components themselves are verified by driving the real app in a browser. A `jsdom` layer
   would catch regressions currently caught by hand (`docs/08_testing_strategy.md` states this
   choice explicitly).
+- **An HTTP-level test layer.** Every `apps/scheduler-api` spec drives mocked repositories; no test
+  asserts a controller, a route, or a serialized response, and none runs against a real Postgres.
+  The contract is verified by hand and by `apps/web` calling it for real. Supertest against a real
+  database — the way scenario 01 does it — is the honest next step; `docs/08_testing_strategy.md`
+  used to describe that layer as if it existed, and now says plainly that it doesn't.
 - **Prometheus/Grafana**, scaffolded for in `directives/observability_monitoring.md` and
   deliberately not wired — the API exposes `/metrics`, but nothing scrapes it at this scope.
 

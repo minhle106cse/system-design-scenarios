@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client'
 import type {
   IAssignmentRepository,
   AssignmentInput,
+  AssignmentMoveInput,
 } from '../../domain/repositories/assignment.repository'
 import type { Assignment, AssignmentSource } from '../../domain/entities/assignment.entity'
 
@@ -67,6 +68,14 @@ export class PrismaAssignmentRepository implements IAssignmentRepository {
         dayOfWeek: data.dayOfWeek,
         source: data.source,
       },
+    })
+    return toDomain(row)
+  }
+
+  async move(id: string, data: AssignmentMoveInput): Promise<Assignment> {
+    const row = await this.tx.assignment.update({
+      where: { id },
+      data: { shiftId: data.shiftId, dayOfWeek: data.dayOfWeek, source: 'MANUAL' },
     })
     return toDomain(row)
   }

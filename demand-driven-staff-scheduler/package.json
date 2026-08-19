@@ -18,6 +18,7 @@
     "db:format": "turbo run db:format",
     "db:generate": "turbo run db:generate",
     "db:studio": "turbo run db:studio",
+    "setup": "node scripts/setup.cjs",
     "infra:up": "docker-compose up -d",
     "infra:down": "docker-compose down",
     "lint": "turbo run lint",
