@@ -44,13 +44,13 @@ export function StaffManager({
   readonly staffRoles: readonly StaffRole[]
 }) {
   const router = useRouter()
-  const [name, setName] = useState('')
-  const [maxWeeklyHours, setMaxWeeklyHours] = useState('40')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editHours, setEditHours] = useState('')
+  /** `null` = closed, `'new'` = creating, a StaffMember = editing that person. One modal, one
+   *  set of fields, one submit path — create and edit ask for exactly the same two values. */
+  const [editorFor, setEditorFor] = useState<StaffMember | 'new' | null>(null)
+  const [name, setName] = useState('')
+  const [maxWeeklyHours, setMaxWeeklyHours] = useState('40')
   const [confirmRemove, setConfirmRemove] = useState<StaffMember | null>(null)
   const [availabilityFor, setAvailabilityFor] = useState<StaffMember | null>(null)
   const [newDay, setNewDay] = useState(1)
@@ -63,40 +63,34 @@ export function StaffManager({
 
   const totalContractedHours = staff.reduce((sum, s) => sum + s.maxWeeklyHours, 0)
 
-  async function handleAdd(e: React.FormEvent) {
+  function openCreate() {
+    setEditorFor('new')
+    setName('')
+    setMaxWeeklyHours('40')
+    setError(null)
+  }
+
+  function openEdit(member: StaffMember) {
+    setEditorFor(member)
+    setName(member.name)
+    setMaxWeeklyHours(String(member.maxWeeklyHours))
+    setError(null)
+  }
+
+  /** One submit for both modes — the only difference is which endpoint it calls. */
+  async function submitEditor(e: React.FormEvent) {
     e.preventDefault()
+    if (!editorFor) return
     setPending(true)
     setError(null)
     try {
-      await addStaff(scheduleId, {
-        name,
-        maxWeeklyHours: Number(maxWeeklyHours),
-      })
-      setName('')
-      setMaxWeeklyHours('40')
-      router.refresh()
-    } catch (err) {
-      setError(describeApiError(err))
-    } finally {
-      setPending(false)
-    }
-  }
-
-  function startEdit(member: StaffMember) {
-    setEditingId(member.id)
-    setEditName(member.name)
-    setEditHours(String(member.maxWeeklyHours))
-  }
-
-  async function saveEdit(member: StaffMember) {
-    setPending(true)
-    setError(null)
-    try {
-      await updateStaff(scheduleId, member.id, {
-        name: editName,
-        maxWeeklyHours: Number(editHours),
-      })
-      setEditingId(null)
+      const payload = { name, maxWeeklyHours: Number(maxWeeklyHours) }
+      if (editorFor === 'new') {
+        await addStaff(scheduleId, payload)
+      } else {
+        await updateStaff(scheduleId, editorFor.id, payload)
+      }
+      setEditorFor(null)
       router.refresh()
     } catch (err) {
       setError(describeApiError(err))
@@ -249,36 +243,20 @@ export function StaffManager({
 
       {error && <Banner tone="error">{error}</Banner>}
 
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-slate-700">Staff</h2>
+        <Button onClick={openCreate}>Add staff</Button>
+      </div>
+
       <DataTable
         columns={[
           {
             header: 'Name',
-            render: (s) =>
-              editingId === s.id ? (
-                <input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full rounded border border-slate-300 px-2 py-1 text-sm"
-                />
-              ) : (
-                s.name
-              ),
+            render: (s) => <span className="font-medium text-slate-900">{s.name}</span>,
           },
           {
             header: 'Max weekly hours',
-            render: (s) =>
-              editingId === s.id ? (
-                <input
-                  type="number"
-                  min={0}
-                  max={168}
-                  value={editHours}
-                  onChange={(e) => setEditHours(e.target.value)}
-                  className="w-24 rounded border border-slate-300 px-2 py-1 text-sm"
-                />
-              ) : (
-                `${s.maxWeeklyHours}h`
-              ),
+            render: (s) => <span className="tabular-nums text-slate-600">{s.maxWeeklyHours}h</span>,
           },
           {
             header: 'Availability',
@@ -327,43 +305,29 @@ export function StaffManager({
           },
           {
             header: '',
-            render: (s) =>
-              editingId === s.id ? (
-                <div className="flex gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => saveEdit(s)}
-                  >
-                    Save
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setEditingId(null)}>
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => startEdit(s)}>
-                    Edit
-                  </Button>
-                  <Button variant="danger" size="sm" onClick={() => setConfirmRemove(s)}>
-                    Remove
-                  </Button>
-                </div>
-              ),
+            render: (s) => (
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" size="sm" onClick={() => openEdit(s)}>
+                  Edit
+                </Button>
+                <Button variant="danger" size="sm" onClick={() => setConfirmRemove(s)}>
+                  Remove
+                </Button>
+              </div>
+            ),
           },
         ]}
         rows={staff}
         rowKey={(s) => s.id}
-        emptyMessage="No staff yet — add the first one below."
+        emptyMessage="No staff yet — use Add staff above."
       />
 
-      <form
-        onSubmit={handleAdd}
-        className="flex items-end gap-3 rounded-md border border-slate-200 bg-white p-4"
+      <Modal
+        open={editorFor !== null}
+        title={editorFor === 'new' ? 'Add staff' : 'Edit staff'}
+        onClose={() => setEditorFor(null)}
       >
-        <div className="flex-1">
+        <form onSubmit={submitEditor} className="space-y-3">
           <Field
             id="staff-name"
             label="Name"
@@ -371,8 +335,6 @@ export function StaffManager({
             onChange={(e) => setName(e.target.value)}
             required
           />
-        </div>
-        <div className="w-40">
           <Field
             id="staff-hours"
             label="Max weekly hours"
@@ -381,13 +343,19 @@ export function StaffManager({
             max={168}
             value={maxWeeklyHours}
             onChange={(e) => setMaxWeeklyHours(e.target.value)}
+            hint="The hard cap auto-schedule will never exceed for this person."
             required
           />
-        </div>
-        <Button type="submit" disabled={pending}>
-          {pending ? 'Saving…' : 'Add staff'}
-        </Button>
-      </form>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" type="button" onClick={() => setEditorFor(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Saving…' : editorFor === 'new' ? 'Add staff' : 'Save changes'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Roles/skills (brief §8 stretch, D2) — managed here, where they're assigned, not as an
        *  8th tab (docs/05's seven-screen nav stays stable). */}
