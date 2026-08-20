@@ -60,7 +60,7 @@ node .claude/hooks/turn-context.cjs
 - `.ai/memory/*.jsonl` — real entries, not empty; each logs an error → fix, a convention, or an
   architecture decision found while building, not a summary written after the fact
 - **Fresh clone → the two commands above → a working API and a working UI**, every screen in
-  `docs/05_ui_guidelines.md`, with no `.env` to write by hand
+  `docs/05_ui_guidelines.md`, with no `.env` to write by hand. **Verified by actually doing it**, 2026-08-20: cloned the published repository into an empty directory on a machine with no container running, ran the two commands, and drove the full flow against the virgin database. That check is the only reason `turbo.json`'s `dev` task is correct — it was missing `dependsOn: ["^build"]`, so `apps/scheduler-api` could not resolve either workspace library and never started. Nothing else catches that: every working tree already has the `dist/` output, and CI's typecheck/lint/test all build their dependencies first
 
 ## Other commands
 

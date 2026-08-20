@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "//": "`dev` declares dependsOn ^build for the same reason `start`, `typecheck` and `test` do: packages/shared-kernel and packages/scheduling-core resolve through main/types to their dist/, which only `build` produces. `dev` was the ONE task missing that line, and the gap was invisible in any working tree that had ever run a build — but on a FRESH CLONE, which is what a reviewer has, `npm run dev` left apps/scheduler-api unable to resolve either package (~30 TS2307 'Cannot find module @scheduler/shared-kernel'), so the API never started and the UI showed only its API-is-down boundary. CI never caught it because CI runs typecheck/lint/test, all of which already build their dependencies first.",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -19,6 +20,7 @@
       "dependsOn": ["build"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },

@@ -742,6 +742,20 @@ Setup also went from five commands to two (`npm install && npm run setup`, then 
 `scripts/setup.cjs` polls the container healthcheck, which is the one thing chaining the four npm
 scripts with `&&` cannot do (`docker compose up -d` returns before Postgres accepts connections).
 
+**A seventh, worse defect surfaced when that two-command path was finally tested from a clone of the
+PUBLISHED repo rather than from the working tree.** `npm install && npm run setup` was fine;
+`npm run dev` brought up `apps/web` and never `apps/scheduler-api`, which failed with ~30 TS2307
+`Cannot find module '@scheduler/shared-kernel'`. `turbo.json`'s `dev` was the one task with no
+`dependsOn`, while `start`, `typecheck` and `test` all had one — and both workspace libraries
+resolve through `main`/`types` to a `dist/` only `build` produces. Every working tree had built at
+some point, so `dist/` was always there; CI runs typecheck/lint/test, all of which build their
+dependencies first. So a reviewer following the README would have got a UI showing nothing but its
+own "the scheduling service didn't answer" boundary — the newly-added error boundary would have
+been the only thing they ever saw. Fixed (`dependsOn: ["^build"]`) and verified by deleting every
+`dist/`, `.next/` and `.turbo/` from the clone, re-running `npm run dev`, and driving the full flow
+against that clone's own virgin database: seed → auto-schedule → 38 assignments, 0 unfilled seats,
+0 staff below the fair-share target.
+
 ## Live debts
 
 - **No HTTP-level test.** Every `apps/scheduler-api` spec mocks its repositories; no test drives a
