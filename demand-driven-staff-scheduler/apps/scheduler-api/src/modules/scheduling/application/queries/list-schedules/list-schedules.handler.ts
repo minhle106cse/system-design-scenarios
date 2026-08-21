@@ -5,7 +5,7 @@ import type { Schedule } from '../../../domain/entities/schedule.entity'
 import {
   SCHEDULING_QUERY_REPOSITORY,
   type ISchedulingQueryRepository,
-} from '../scheduling.query-repository'
+} from '../../repositories/scheduling.query-repository'
 import { ListSchedulesQuery } from './list-schedules.query'
 
 /** Brief §2.1 — the "list" half of `/`, the only route above a schedule. */

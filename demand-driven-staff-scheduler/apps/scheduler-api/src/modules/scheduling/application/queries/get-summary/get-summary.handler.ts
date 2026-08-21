@@ -13,7 +13,7 @@ import { ScheduleNotFoundError } from '@/common/errors/scheduling.error'
 import {
   SCHEDULING_QUERY_REPOSITORY,
   type ISchedulingQueryRepository,
-} from '../scheduling.query-repository'
+} from '../../repositories/scheduling.query-repository'
 import { GetSummaryQuery } from './get-summary.query'
 
 /** Brief §2.6 — the aggregated summary. `summarise` is deliberately separate from

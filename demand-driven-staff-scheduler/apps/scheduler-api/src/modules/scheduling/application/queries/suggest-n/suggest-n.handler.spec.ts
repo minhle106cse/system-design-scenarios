@@ -2,7 +2,7 @@ import {
   InsufficientCalibrationDataError,
   ScheduleNotFoundError,
 } from '@/common/errors/scheduling.error'
-import type { ISchedulingQueryRepository } from '../scheduling.query-repository'
+import type { ISchedulingQueryRepository } from '../../repositories/scheduling.query-repository'
 import { SuggestNQuery } from './suggest-n.query'
 import { SuggestNHandler } from './suggest-n.handler'
 

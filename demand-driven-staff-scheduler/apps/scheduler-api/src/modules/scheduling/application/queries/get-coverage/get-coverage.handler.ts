@@ -13,7 +13,7 @@ import { ScheduleNotFoundError } from '@/common/errors/scheduling.error'
 import {
   SCHEDULING_QUERY_REPOSITORY,
   type ISchedulingQueryRepository,
-} from '../scheduling.query-repository'
+} from '../../repositories/scheduling.query-repository'
 import { buildSchedulingInput } from '../../shared/build-scheduling-input'
 import { GetCoverageQuery } from './get-coverage.query'
 

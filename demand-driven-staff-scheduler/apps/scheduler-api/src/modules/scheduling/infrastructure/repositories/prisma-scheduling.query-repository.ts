@@ -3,7 +3,7 @@ import { PrismaService } from '@/infrastructure/database/prisma/prisma.service'
 import type {
   ISchedulingQueryRepository,
   ScheduleDetail,
-} from '../../application/queries/scheduling.query-repository'
+} from '../../application/repositories/scheduling.query-repository'
 import type { AssignmentSource } from '../../domain/entities/assignment.entity'
 
 @Injectable()

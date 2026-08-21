@@ -121,6 +121,12 @@ out across all four workspaces.
   (`apps/scheduler-api/src/modules/*/infrastructure/repositories/`) —
   `directives/domain_modeling.md` §2, `directives/cqrs_pattern.md`. Eslint enforces the layer
   boundaries (`apps/scheduler-api/eslint.config.mjs`).
+- **Never** place a repository interface by eye. Write port (has a mutating method) ->
+  `domain/repositories/`. Read-only port -> `domain/repositories/` **only if** a `domain/` file
+  imports it, else `application/repositories/` as `<module>.query-repository.ts`. Full 2-step
+  procedure: `directives/cqrs_pattern.md`; **machine-checked by `npm run check:arch`**, which also
+  blocks the Stop hook (the eslint layer boundary only matches the `@/` alias form, not a relative
+  `../../application/...` import).
 - **Never** use `autoincrement()` primary keys in `schema.prisma` — `@default(uuid())`.
 - **Never** let `generateRoster` / `validateRoster` throw on a *feasible-but-bad* input (a real
   scheduling shortfall) — that is a diagnostics case, not an error (plan §7.6, assumption 7). A

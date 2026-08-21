@@ -52,6 +52,10 @@ Source of truth: `.ai/KNOWLEDGE_INDEX.md` → `docs/00..12` → `readme.md`.
   controller boundary (`ZodValidationPipe`) only.
 - **Never** call `prisma.*` outside a repository
   (`apps/scheduler-api/src/modules/*/infrastructure/repositories/`) — eslint enforces the layers.
+- Repo interface placement is NOT by eye: write port -> `domain/repositories/`; read port ->
+  `domain/repositories/` only if a `domain/` file imports it, else `application/repositories/`
+  (`<module>.query-repository.ts`). 2-step rule in `directives/cqrs_pattern.md`, enforced by
+  `npm run check:arch`.
 - **Never** use `autoincrement()` primary keys — `@default(uuid())`.
 - **Never** let `generateRoster`/`validateRoster` throw on a feasible-but-bad input — that's a
   diagnostics case (plan §7.6), not an error. Thrown in a property test = a real bug.

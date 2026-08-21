@@ -10,7 +10,7 @@ import { buildSchedulingInput } from '../../shared/build-scheduling-input'
 import {
   SCHEDULING_QUERY_REPOSITORY,
   type ISchedulingQueryRepository,
-} from '../scheduling.query-repository'
+} from '../../repositories/scheduling.query-repository'
 import { SuggestNQuery } from './suggest-n.query'
 
 export interface SuggestNResult {

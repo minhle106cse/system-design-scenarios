@@ -31,7 +31,7 @@ being written — see the note below the index).
 
 | File | What it governs | Read when |
 |---|---|---|
-| `naming_conventions.md` ✅ reconciled (Phase F) | Naming for `scheduling-core` value objects, repositories, CQRS commands/handlers, domain errors, Zod schemas | Creating a file in one of those families |
+| `naming_conventions.md` ✅ reconciled (Phase F) | Naming for `scheduling-core` value objects, repositories, CQRS commands/handlers, domain errors, Zod schemas, + Application Service and `presentation/controllers/` nesting | Creating a file in one of those families |
 | `domain_modeling.md` ✅ reconciled (Phase F) | Value-object style in `scheduling-core`; why `apps/scheduler-api` has plain-interface domain entities distinct from Prisma rows, and no domain-service layer | Modeling a type in either package |
 | `zod_validation.md` ✅ reconciled (Phase F) | Schema location and validation pattern for NestJS controllers + `ZodValidationPipe` | Writing an API route |
 | `cqrs_pattern.md` ⭐ ported (Phase F) | The transaction-as-a-value Unit-of-Work, `SchedulerApiRepos`, repo/DTO placement rules, why a mid-flight read goes through the write repo not the query repo | Adding a command/query handler, or a repository |

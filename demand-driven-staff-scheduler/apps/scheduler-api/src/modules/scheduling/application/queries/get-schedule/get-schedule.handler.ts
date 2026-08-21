@@ -6,7 +6,7 @@ import {
   SCHEDULING_QUERY_REPOSITORY,
   type ISchedulingQueryRepository,
   type ScheduleDetail,
-} from '../scheduling.query-repository'
+} from '../../repositories/scheduling.query-repository'
 import { GetScheduleQuery } from './get-schedule.query'
 
 /** Brief §2.1–2.5's read-back — the whole schedule (staff, shifts, demand, roster, latest run). */

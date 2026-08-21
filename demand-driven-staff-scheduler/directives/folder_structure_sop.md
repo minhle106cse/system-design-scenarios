@@ -94,6 +94,8 @@ it as the worked example. A second bounded context gets its own sibling folder w
 | Put error base classes in `common/errors/` | Base classes (`AppError`, `ApplicationError`, `InfraError`) live in `packages/shared-kernel/src/errors/` — import from `@scheduler/shared-kernel`. `common/errors/` here holds only *domain-specific* subclasses. |
 | Put scheduling arithmetic in `modules/scheduling/domain/` | The algorithm is `packages/scheduling-core`'s job (ADR-0004) — the domain layer here orchestrates, it does not re-derive business rules |
 | Create a folder outside the layout above without a documented reason | Breaks the layout this SOP exists to keep consistent |
+| Put a repository interface loose in `application/queries/` | Application-layer read/query ports live in `modules/*/application/repositories/`, mirroring `domain/repositories/` for the write side; `application/queries/` holds ONLY use-cases + their response DTOs. ⚠️ **This reverses the earlier "never create `application/repositories/`" rule** — see `cqrs_pattern.md`'s placement section for why (upstream, that ban contradicted this file's own canonical tree for ~6 weeks, and the code followed the ban). Machine-checked by `npm run check:arch`. |
+| Nest a repository interface inside ONE query's own sub-folder (`application/queries/get-x/some.repository.ts`) | A per-query sub-folder holds exactly `{name}.query.ts` + `{name}.handler.ts` (+ spec). A shared query-repo buried in one query's folder forces every other query to reach across for it. |
 
 ---
 
@@ -136,8 +138,16 @@ the same as depending on the ORM.
 module's code, so the lint gate itself blocks a misplaced file at generation time instead of at a
 later audit.
 
-**Quality gate (whole monorepo):** `npm run check` = `turbo run typecheck lint format:check`
-(read-only). `typecheck` = `tsc --noEmit` per workspace — catches compile errors lint/format miss
+**Quality gate (whole monorepo):** `npm run check` = `npm run check:arch` +
+`turbo run typecheck lint format:check` (read-only).
+
+**`npm run check:arch`** (`scripts/check-repo-placement.cjs`) enforces `cqrs_pattern.md`'s
+repository-placement rule mechanically. It exists because upstream that rule lived only as prose in
+two directives that contradicted each other for ~6 weeks with nothing to catch it. It also closes a
+real hole in the eslint boundary below: `no-restricted-imports` matches the literal import string,
+so it blocks `@/modules/*/application/**` from domain but NOT a relative `../../application/...` —
+the script resolves relative specifiers and catches both. Note the ordering in `package.json`: it
+runs **first**, so a pre-existing lint failure cannot short-circuit past it. `typecheck` = `tsc --noEmit` per workspace — catches compile errors lint/format miss
 (lint only catches rule violations, not e.g. `TS2322`). Quick fix: `npm run lint:fix` + `npm run format`.
 
 ---

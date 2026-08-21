@@ -297,6 +297,44 @@ function emit(systemMessage, blockReason) {
   process.stdout.write(JSON.stringify(out))
 }
 
+// (D) Repository placement. The rule this enforces lived ONLY as prose upstream, in two directives
+//     that contradicted each other for ~6 weeks (folder_structure_sop.md's canonical tree said
+//     `application/repositories/`; cqrs_pattern.md declared that folder banned) with nothing to
+//     catch it — and the code followed the wrong one the whole time. Prose the agent may skip is
+//     exactly what failed, so this BLOCKS the turn rather than warning: a misplaced port is cheap
+//     to fix now and expensive once it is a committed rename.
+;(function checkRepoPlacement() {
+  const codeFiles = changedSourceFiles()
+  const touchesRepos = codeFiles.some((f) =>
+    /[/]modules[/][^/]+[/](domain|application)[/]/.test(f.split(path.sep).join('/')),
+  )
+  if (!touchesRepos) return
+  try {
+    require('child_process').execSync('node scripts/check-repo-placement.cjs', {
+      cwd: ROOT,
+      stdio: 'pipe',
+    })
+  } catch (err) {
+    const detail = String(err.stdout || '') + String(err.stderr || '')
+    blockReasons.push(
+      [
+        'Repository placement check failed (npm run check:arch):',
+        '',
+        detail.trim(),
+        '',
+        'Fix the placement before finishing. Decision procedure (ORDERED, stop at the first Yes)',
+        '— directives/cqrs_pattern.md § "Repository-interface & DTO placement":',
+        '  1. Interface has ANY mutating method (save/create/update/replaceAll/delete...)?',
+        '     -> domain/repositories/. A write port is the domain persistence contract no matter',
+        '     who assembles it; this also covers a mixed write+read port.',
+        '  2. Read-only: does any file under domain/ import it?',
+        '     Yes -> domain/repositories/ as I{X}Reader.',
+        '     No  -> application/repositories/ as <module>.query-repository.ts.',
+      ].join(String.fromCharCode(10)),
+    )
+  }
+})()
+
 const combinedBlock = blockReasons.length ? blockReasons.join('\n\n───\n\n') : null
 
 if (tasks.length === 0) {

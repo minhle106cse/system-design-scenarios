@@ -31,7 +31,7 @@ import { RemoveRoleHandler } from './application/commands/remove-role/remove-rol
 import { SetStaffRolesHandler } from './application/commands/set-staff-roles/set-staff-roles.handler'
 import { SetShiftRoleRequirementsHandler } from './application/commands/set-shift-role-requirements/set-shift-role-requirements.handler'
 import { PrismaSchedulingQueryRepository } from './infrastructure/repositories/prisma-scheduling.query-repository'
-import { SCHEDULING_QUERY_REPOSITORY } from './application/queries/scheduling.query-repository'
+import { SCHEDULING_QUERY_REPOSITORY } from './application/repositories/scheduling.query-repository'
 
 /**
  * The scheduling domain module — mapped from `../service-appointment-scheduler`'s `BookingModule`
