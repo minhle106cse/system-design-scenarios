@@ -93,11 +93,28 @@ appears, promote it here at that point.
 5. **Verify the cross-references resolve.** Every `directives/*.md` path named in a comment, ADR or
    another directive must point at a file that exists:
    ```bash
-   grep -rohE "directives/[a-z_]+\.md" apps/*/src docs directives | sort -u | \
-     while read f; do [ -f "$f" ] || echo "MISSING $f"; done
+   # The second grep filters the legitimate case: a directive that exists UPSTREAM (Cortex)
+   # and was deliberately NOT ported, named in prose that says exactly that. Without it this
+   # check reports a permanent false MISSING — and a check that always cries wolf is one
+   # nobody reads, which is the failure mode the whole enforcement layer exists to avoid.
+   grep -rhoE "directives/[a-z_]+\.md" apps/*/src docs directives | sort -u | while read f; do
+     [ -f "$f" ] && continue
+     grep -rqE "(not ported|reference project)" --include="*.md" \
+       $(grep -rl "$f" apps/*/src docs directives) 2>/dev/null && continue
+     echo "MISSING $f"
+   done
    ```
 6. **Fixed a real bug in a scenario's copy? Port it back here in the same task** — otherwise the
    template silently regresses to worse-than-current and the next scenario inherits the stale one.
+
+## Upstream syncs applied here
+
+A dated log of changes pulled DOWN from Cortex after these templates were first derived. Without
+it, "is this template current?" has no answer short of diffing five files by hand.
+
+| Date | Files | What changed upstream, and why it matters here |
+|---|---|---|
+| 2026-08-21 | `cqrs_pattern.md`, `naming_conventions.md`, `folder_structure_sop.md` | **`application/repositories/` is now the home for application-layer read/query ports** — reversing the earlier "never create that folder" rule. Cortex found its own two directives had contradicted each other for ~6 weeks (`folder_structure_sop.md`'s canonical tree listed the folder; `cqrs_pattern.md` banned it) with nothing cross-checking them, and the code had followed the ban — leaving port files loose among the per-query sub-folders, indistinguishable from use-cases. Placement is now decided by an **ordered 2-step rule** (mutating method → domain; else read-only → domain only if a `domain/` file imports it) and **machine-checked by `scripts/check-repo-placement.cjs` / `npm run check:arch`**, wired into the Stop hook as a turn-blocking check. `naming_conventions.md` also gained the Application Service and `presentation/controllers/`-nesting groups. Both scenarios had their one query-repo moved and were re-verified green. |
 
 ## Keeping them honest
 

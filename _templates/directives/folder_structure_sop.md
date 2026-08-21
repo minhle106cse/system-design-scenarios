@@ -55,16 +55,18 @@ src/
 │   └── scheduling/                  # the only module at this scope
 │       ├── application/             # Application Layer (Orchestration & CQRS)
 │       │   ├── commands/            # Command Handlers (Write Model), one folder per command
-│       │   ├── queries/             # Query Handlers + Query Repository Interfaces + flat DTOs
-│       │   │                        # (⚠️ NOT a separate `repositories/` folder — see
-│       │   │                        #  directives/cqrs_pattern.md's CANONICAL placement rule)
+│       │   ├── queries/             # Query Handlers (per-query sub-folders) + flat DTOs
+│       │   │                        #   USE-CASES ONLY — no port files loose in here
+│       │   ├── repositories/        # Query Repository Interfaces (return DTOs, never Entities)
+│       │   │                        #   see directives/cqrs_pattern.md CANONICAL placement rule
 │       │   └── shared/              # orchestration helpers used by >1 handler
 │       │                            #   build-scheduling-input.ts
 │       ├── domain/                  # Domain Layer (Core Business Rules) — PURE TS, no NestJS
 │       │   ├── entities/            # plain readonly interfaces (domain_modeling.md §2)
 │       │   ├── value-objects/       # ⏸ not built — this domain's value objects live in
 │       │   │                        #   the dependency-free core package, not here
-│       │   └── repositories/        # Command Repository Interfaces (returns Entities)
+│       │   └── repositories/        # Command/WRITE repo interfaces (return Entities) + any
+│       │                            #   read port a DOMAIN class consumes (`I{X}Reader`)
 │       ├── infrastructure/          # Infrastructure Layer (Concrete Implementations)
 │       │   ├── mappers/             # ⏸ empty — this module's row→entity conversion is a private
 │       │   │                        #   toDomain() inside each Prisma repository
@@ -99,6 +101,8 @@ it as the worked example. A second bounded context gets its own sibling folder w
 | Put error base classes in `common/errors/` | Base classes (`AppError`, `ApplicationError`, `InfraError`) live in `packages/shared-kernel/src/errors/` — import from `@scheduler/shared-kernel`. `common/errors/` here holds only *domain-specific* subclasses. |
 | Put scheduling arithmetic in `modules/scheduling/domain/` | The algorithm is the core package's job — the domain layer orchestrates, it does not re-derive business rules |
 | Create a folder outside the layout above without a documented reason | Breaks the layout this SOP exists to keep consistent |
+| Put a repository interface loose in `application/queries/` | Application-layer read/query ports live in `modules/*/application/repositories/`, mirroring `domain/repositories/` for the write side; `application/queries/` holds ONLY use-cases + their response DTOs. ⚠️ **This reverses the earlier "never create `application/repositories/`" rule** — see `cqrs_pattern.md`'s placement section for why (upstream, that ban contradicted this file's own canonical tree for ~6 weeks, and the code followed the ban). Machine-checked by `npm run check:arch`. |
+| Nest a repository interface inside ONE query's own sub-folder (`application/queries/get-x/some.repository.ts`) | A per-query sub-folder holds exactly `{name}.query.ts` + `{name}.handler.ts` (+ spec). A shared query-repo buried in one query's folder forces every other query to reach across for it. |
 
 ---
 
@@ -141,8 +145,16 @@ the same as depending on the ORM.
 module's code, so the lint gate itself blocks a misplaced file at generation time instead of at a
 later audit.
 
-**Quality gate (whole monorepo):** `npm run check` = `turbo run typecheck lint format:check`
-(read-only). `typecheck` = `tsc --noEmit` per workspace — catches compile errors lint/format miss
+**Quality gate (whole monorepo):** `npm run check` = `npm run check:arch` +
+`turbo run typecheck lint format:check` (read-only).
+
+**`npm run check:arch`** (`scripts/check-repo-placement.cjs`) enforces `cqrs_pattern.md`'s
+repository-placement rule mechanically. It exists because upstream that rule lived only as prose in
+two directives that contradicted each other for ~6 weeks with nothing to catch it. It also closes a
+real hole in the eslint boundary below: `no-restricted-imports` matches the literal import string,
+so it blocks `@/modules/*/application/**` from domain but NOT a relative `../../application/...` —
+the script resolves relative specifiers and catches both. Note the ordering in `package.json`: it
+runs **first**, so a pre-existing lint failure cannot short-circuit past it. `typecheck` = `tsc --noEmit` per workspace — catches compile errors lint/format miss
 (lint only catches rule violations, not e.g. `TS2322`). Quick fix: `npm run lint:fix` + `npm run format`.
 
 ---
