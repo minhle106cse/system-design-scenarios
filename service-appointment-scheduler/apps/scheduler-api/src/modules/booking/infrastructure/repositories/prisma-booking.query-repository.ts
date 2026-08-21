@@ -8,7 +8,7 @@ import type {
   OverlappingAppointment,
   ServiceTypeSummary,
   TechnicianCandidate,
-} from '@/modules/booking/application/queries/booking.query-repository'
+} from '@/modules/booking/application/repositories/booking.query-repository'
 import type { TimeWindow } from '@/modules/booking/domain/services/business-hours'
 
 /**

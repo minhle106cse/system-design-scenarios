@@ -6,7 +6,7 @@ import { CancelAppointmentHandler } from './application/commands/cancel-appointm
 import { CheckAvailabilityHandler } from './application/queries/check-availability/check-availability.handler'
 import { GetAppointmentHandler } from './application/queries/get-appointment/get-appointment.handler'
 import { BusinessHoursConfig } from './application/business-hours.config'
-import { BOOKING_QUERY_REPOSITORY } from './application/queries/booking.query-repository'
+import { BOOKING_QUERY_REPOSITORY } from './application/repositories/booking.query-repository'
 import { PrismaBookingQueryRepository } from './infrastructure/repositories/prisma-booking.query-repository'
 
 /**

@@ -162,24 +162,74 @@ fail loudly rather than silently pick savepoint semantics.
 
 ## Repository-interface & DTO placement — CANONICAL
 
-**Decision rule — classify a repo by what its result is used for, not by whether it happens to
-read or write:**
+> **Upstream ruling ported from Cortex 2026-08-21.** This section previously ended with
+> "**NEVER** create `application/repositories/`" and routed query-repo interfaces into
+> `application/queries/`. That rule came from Cortex, and **Cortex has since reversed it** — for a
+> reason worth reading before assuming this is churn: Cortex's own two directives had contradicted
+> each other for ~6 weeks (`folder_structure_sop.md`'s canonical tree listed
+> `application/repositories/` as the query-repo home while this file declared that folder banned),
+> nothing cross-checked them, and the code followed the ban. The visible symptom was that
+> `application/queries/` held two different KINDS of thing at once — per-query sub-folders, each a
+> `.query.ts` + `.handler.ts` pair, sitting next to a loose port file (`booking.query-repository.ts`)
+> — so a reader could not tell ports from use-cases without opening files. The original concern was
+> never the folder itself but that it had **no defined meaning** and became an "I'm not sure where
+> this goes" bucket. That is answered by definition, not deletion: it now holds exactly one thing.
+
+A repository interface has exactly two legal homes, split by LAYER, each in its own
+`repositories/` folder:
 
 | Repo kind | Location | File | Types |
 |---|---|---|---|
-| **Command / write-side** (entity-based, serves command handlers) | `domain/repositories/` | `<name>.repository.ts` | write-input types **inline** in the file |
-| **Query-side** (returns a DTO handed **straight back** to a query handler / the client) | `application/queries/` | `<module>.query-repository.ts` | response DTO in its **own** `<module>.dto.ts` next to it |
+| **Command / write-side** (entity-based, serves command handlers; mutation goes through a mapper when an Entity exists) | `domain/repositories/` | `<name>.repository.ts` | write-input types **inline** in the file |
+| **Projection / write-model** (maintained from events; no entity/invariant; any read it exposes is an *internal* pipeline lookup, not an HTTP response) | `domain/repositories/` | `<name>.repository.ts` | input/intermediate types **inline** |
+| **Domain READ port** (a **domain-layer class** — a domain service, not just a query handler — depends on it; domain must not import `application/`, so this is structural, not a style choice) | `domain/repositories/` | `<name>.repository.ts`, interface named `I{X}Reader` | **inline**; impl `Prisma{X}ReaderRepository`, **never** `.query-repository.ts` |
+| **Application READ port** (only an `application/`-layer class consumes it — a query handler, or an application service — nothing in `domain/` imports it) | `application/repositories/` | `<module>.query-repository.ts` | response DTO in its own `<module>.dto.ts` next to it |
 
-- A query-repo interface shared by more than one query lives at the **`application/queries/`
-  level**, not buried inside one query's sub-folder.
-- **Response DTOs are FLAT** — one `<name>.dto.ts` per query-repo at the `application/queries/`
-  level, not nested per-query. Request/input DTOs are a different artifact — Zod-schema types in
-  `presentation/schemas/`.
-- The deciding question for a repo that both reads and writes: **"does its read result go
-  straight out as the query response, or is it an intermediate step inside a handler?"**
-  Straight-out → `application/queries/`. Intermediate → `domain/repositories/`.
-- **NEVER** create `application/repositories/` — a neutral "I'm not sure" folder is how this
-  drifted in Cortex; there are exactly two legal locations.
+### The decision procedure — answer in this ORDER, stop at the first Yes
+
+Two steps, and **the order matters**. Asking only step 2 gets write ports wrong: most write ports
+are referenced only by the service's repos-factory in `infrastructure/`, never by a `domain/` file,
+so step 2 alone would wrongly evict all of them. (Cortex measured this upstream: 15 of its 19
+`domain/repositories/` files have zero domain-internal importers.)
+
+1. **Does the interface have ANY method that mutates state** (`save`, `create`, `update`,
+   `replaceAll`, `upsertMany`, `delete`...)? → **`domain/repositories/`**. A write port is the
+   domain's persistence contract, and that stays true no matter who assembles it. A mixed
+   write+read port (written by one path, read back internally to feed further logic) is a write
+   port by this step.
+2. **Read-only port. Does any file under `domain/` import it?**
+   - **Yes → `domain/repositories/`**, named `I{X}Reader`, regardless of how "query-shaped" it
+     looks. Structural, not stylistic: Clean Architecture's Dependency Rule makes domain the
+     innermost layer, so a domain class depending on an application-layer interface is not fixable
+     by relocating the file — only by not needing the dependency.
+   - **No → `application/repositories/`**, named `I{X}QueryRepository`, file
+     `<module>.query-repository.ts`. `IBookingQueryRepository` is exactly this: consumed only by query handlers,
+     nothing in `domain/` touches it.
+
+**This is machine-checked — `npm run check:arch` (`scripts/check-repo-placement.cjs`), part of
+`npm run check`.** The script does NOT guess at steps 1-2 (that is a design judgement, and a
+heuristic that misfires just teaches people to ignore the gate). It enforces the deterministic
+consequences: a `*.query-repository.ts` anywhere but `application/repositories/` fails; that suffix
+inside `domain/repositories/` fails; a non-port file inside `application/repositories/` fails;
+anything under `domain/**` importing `application/**` fails — **including relative-path imports,
+which the eslint `no-restricted-imports` boundary does not catch** (it only matches the literal
+`@/modules/*/application/**` alias form); and a stray file inside a per-query sub-folder fails.
+
+### Remaining rules
+
+- `application/queries/` now holds **only use-cases and their response DTOs**: per-query
+  sub-folders (`{verb}-{noun}/` with `.query.ts` + `.handler.ts`) and the flat `<module>.dto.ts`
+  files. A port file loose among them is the layout this ruling removed.
+- A query-repo interface shared by more than one query lives in **`application/repositories/`**,
+  not buried inside one query's sub-folder — `IBookingQueryRepository` is exactly this: shared by `CheckAvailabilityHandler` and `GetAppointmentHandler`.
+- **Response DTOs stay in `application/queries/`** (they belong to the use-case, not the port) and
+  are FLAT — one `<name>.dto.ts` per query-repo at the `application/queries/` level, not nested
+  per-query. Request/input DTOs are a different artifact — Zod-schema types in
+  `presentation/schemas/`. *Current state:* the DTO shapes (`AppointmentDetail`, `BayCandidate`, `TechnicianCandidate`, ...) still live inline in the query-repo file. The moment they are split out they go to `application/queries/booking.dto.ts`, and the port then imports them as `from '../queries/booking.dto'`.
+- **Still NEVER** put a repository interface loose in `application/` itself, or nested inside one
+  query's own sub-folder. The two `repositories/` folders (domain + application) are the only legal
+  homes, and the reason the original ban existed — a folder with no defined meaning invites drift
+  — still applies to any third location.
 
 ## A command that needs to read mid-flight reads through the domain/write repo, NEVER through a query-repo
 

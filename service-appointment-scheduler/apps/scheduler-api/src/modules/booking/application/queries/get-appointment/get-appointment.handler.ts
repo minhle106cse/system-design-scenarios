@@ -3,7 +3,10 @@ import type { IQueryHandler } from '@scheduler/shared-kernel'
 import { QueryHandler } from '@/infrastructure/cqrs/decorators/query-handler.decorator'
 import { AppointmentNotFoundError } from '@/common/errors/booking.error'
 import type { AppointmentDto } from '../booking.dto'
-import { BOOKING_QUERY_REPOSITORY, type IBookingQueryRepository } from '../booking.query-repository'
+import {
+  BOOKING_QUERY_REPOSITORY,
+  type IBookingQueryRepository,
+} from '../../repositories/booking.query-repository'
 import { GetAppointmentQuery } from './get-appointment.query'
 
 /**

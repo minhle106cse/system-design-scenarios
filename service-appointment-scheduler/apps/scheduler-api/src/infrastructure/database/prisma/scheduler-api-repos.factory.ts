@@ -28,7 +28,7 @@ import type { Prisma } from '@/generated'
  * transactionally-consistent, mid-flight, per `directives/cqrs_pattern.md`'s
  * "reads through the write repo, never a query-repo" rule. `GET /availability`
  * is a different reader entirely: `PrismaBookingQueryRepository` on the plain
- * client (`application/queries/booking.query-repository.ts`).
+ * client (`application/repositories/booking.query-repository.ts`).
  */
 export interface SchedulerApiRepos {
   readonly appointments: IAppointmentRepository

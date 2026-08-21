@@ -1,5 +1,5 @@
 import { AppointmentNotFoundError } from '@/common/errors/booking.error'
-import type { IBookingQueryRepository } from '../booking.query-repository'
+import type { IBookingQueryRepository } from '../../repositories/booking.query-repository'
 import { GetAppointmentHandler } from './get-appointment.handler'
 import { GetAppointmentQuery } from './get-appointment.query'
 

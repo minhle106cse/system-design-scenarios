@@ -130,6 +130,12 @@ smoke tests — there is no agent sandbox and nothing here needs one.
 - **Never** CORS wildcard `['*']` — origins from env (`CORS_ALLOWED_ORIGINS`).
 - **Never** put infrastructure code in `common/` — `common/` is abstractions only (see
   `directives/folder_structure_sop.md`; layer boundaries are lint-enforced in `apps/scheduler-api`).
+- **Never** place a repository interface by eye. Write port (has a mutating method) ->
+  `domain/repositories/`. Read-only port -> `domain/repositories/` **only if** a `domain/` file
+  imports it, else `application/repositories/` as `<module>.query-repository.ts`. Full 2-step
+  procedure: `directives/cqrs_pattern.md`; **machine-checked by `npm run check:arch`**, which also
+  blocks the Stop hook (the eslint layer boundary only matches the `@/` alias form, not a relative
+  `../../application/...` import).
 - Entities: UUID PK, `camelCase` in code / `@map("snake_case")` in DB, soft delete via `deletedAt`.
 - Zod is the **only** input-validation library, applied per-route via `ZodValidationPipe`
   (`infrastructure/http/pipes/zod-validation.pipe.ts`) — no global validation pipe.

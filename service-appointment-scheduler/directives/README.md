@@ -40,8 +40,8 @@ each file was kept, dropped, or deferred to a later tier.
 | File | What it governs | Read when |
 |---|---|---|
 | `folder_structure_sop.md` | Canonical folder layout, layer boundaries (lint-enforced), forbidden patterns | Creating any new file |
-| `naming_conventions.md` | Naming for Repository / Handler / Error / Module / env var | Creating a class/file in one of those families |
-| `cqrs_pattern.md` | CQRS pipeline, middleware order, transactions, repo placement | New module, handler, or repository |
+| `naming_conventions.md` | Naming for Repository / Handler / Error / Module / env var, + Application Service and `presentation/controllers/` nesting | Creating a class/file in one of those families |
+| `cqrs_pattern.md` | CQRS pipeline, middleware order, transactions, repo placement (ordered 2-step rule, machine-checked by `npm run check:arch`) | New module, handler, or repository |
 | `domain_modeling.md` | Entity style, factories, validate-on-write/trust-on-read, mappers | Modeling a domain entity |
 | `database_standard.md` | UUID PK, naming, soft delete, Prisma v7 config | Designing schema / Prisma config |
 | `zod_validation.md` | Schema location, Fastify + NestJS validation patterns | Writing an API endpoint |

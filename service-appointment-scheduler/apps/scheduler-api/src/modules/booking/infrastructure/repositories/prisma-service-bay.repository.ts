@@ -13,7 +13,7 @@ import type { Prisma } from '@/generated'
  *
  * `GET /availability` does NOT use this class — it has no transaction and must
  * not open one. It goes through `PrismaBookingQueryRepository` instead
- * (`application/queries/booking.query-repository.ts`), the query-side reader
+ * (`application/repositories/booking.query-repository.ts`), the query-side reader
  * on the plain client. Two classes, not one with an optional client, because
  * the query-side reader answers a different question (a whole day's worth of
  * candidates at once) rather than reusing this one's single-dealership shape.

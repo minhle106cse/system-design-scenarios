@@ -39,6 +39,10 @@ Source of truth: `.ai/KNOWLEDGE_INDEX.md` → `docs/00..12` → `readme.md`.
 
 - Never `console.log` (use `createLogger`); never `autoincrement()` PK (use UUID); never CORS `['*']`;
   never put infrastructure code in `common/`.
+- Repo interface placement is NOT by eye: write port -> `domain/repositories/`; read port ->
+  `domain/repositories/` only if a `domain/` file imports it, else `application/repositories/`
+  (`<module>.query-repository.ts`). 2-step rule in `directives/cqrs_pattern.md`, enforced by
+  `npm run check:arch`.
 - Entities: UUID PK, `camelCase` code / `@map("snake_case")` DB, soft delete via `deletedAt`.
 - Zod validation only, per-route (no global pipe).
 - **Never** modify or drop the two hand-added exclusion constraints in the first Prisma migration

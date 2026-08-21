@@ -1,5 +1,5 @@
 import { DealershipNotFoundError, ServiceTypeNotFoundError } from '@/common/errors/booking.error'
-import type { IBookingQueryRepository } from '../booking.query-repository'
+import type { IBookingQueryRepository } from '../../repositories/booking.query-repository'
 import type { BusinessHoursConfig } from '../../business-hours.config'
 import { CheckAvailabilityHandler } from './check-availability.handler'
 import { CheckAvailabilityQuery } from './check-availability.query'

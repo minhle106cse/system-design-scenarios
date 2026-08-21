@@ -7,7 +7,10 @@ import { BusinessHoursCalculator } from '../../../domain/services/business-hours
 import { ResourceSelector } from '../../../domain/services/resource-selection'
 import { BusinessHoursConfig } from '../../business-hours.config'
 import type { AvailabilityDto } from '../booking.dto'
-import { BOOKING_QUERY_REPOSITORY, type IBookingQueryRepository } from '../booking.query-repository'
+import {
+  BOOKING_QUERY_REPOSITORY,
+  type IBookingQueryRepository,
+} from '../../repositories/booking.query-repository'
 import { CheckAvailabilityQuery } from './check-availability.query'
 
 /**
